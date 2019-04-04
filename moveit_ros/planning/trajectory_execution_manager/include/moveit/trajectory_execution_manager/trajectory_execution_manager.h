@@ -205,7 +205,7 @@ public:
   /// pushAndExecute(), it will immediately stop execution.
   moveit_controller_manager::ExecutionStatus waitForExecution();
 
-  /// Get the state that the robot is expected to be at, given current time, after execute() has been called. The revent_topic_subscriber_eturn
+  /// Get the state that the robot is expected to be at, given current time, after execute() has been called. The return
   /// value is a pair of two index values:
   /// first = the index of the trajectory to be executed (in the order push() was called), second = the index of the
   /// point within that trajectory.

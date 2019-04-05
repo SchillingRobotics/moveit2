@@ -176,11 +176,9 @@ void TrajectoryExecutionManager::initialize()
 
   // other configuration steps
   reloadControllerInformation();
-  //TODO (anasarrak): fix the subscriber
-  // event_topic_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-  //   EXECUTION_EVENT_TOPIC, std::bind(&TrajectoryExecutionManager::receiveEvent, this));
-      // root_node_handle_.subscribe(EXECUTION_EVENT_TOPIC, 100, &TrajectoryExecutionManager::receiveEvent, this);
-
+  event_topic_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
+    EXECUTION_EVENT_TOPIC, std::bind(&TrajectoryExecutionManager::receiveEvent, this, std::placeholders::_1));
+    
   reconfigure_impl_ = new DynamicReconfigureImpl(this);
 
   if (manage_controllers_){
@@ -239,7 +237,7 @@ void TrajectoryExecutionManager::processEvent(const std::string& event)
     RCLCPP_WARN(node_->get_logger(), "Unknown event type: '%s'", event.c_str());
 }
 
-void TrajectoryExecutionManager::receiveEvent(const std_msgs::msg::String::ConstPtr& event)
+void TrajectoryExecutionManager::receiveEvent(const std_msgs::msg::String::SharedPtr event)
 {
   RCLCPP_INFO(node_->get_logger(), "Received event '%s'",event->data.c_str());
   processEvent(event->data);
@@ -291,7 +289,7 @@ bool TrajectoryExecutionManager::push(const moveit_msgs::msg::RobotTrajectory& t
       ss << "]:" << std::endl;
       for (std::size_t i = 0; i < context->trajectory_parts_.size(); ++i){
         //TODO (anasarrak): no printable msg moveit_msgs::msg::RobotTrajectory
-        ss << /*context->trajectory_parts_[i] <<*/ std::endl;
+        ss << context->trajectory_parts_[i].joint_trajectory.header.frame_id << std::endl;
       }
       RCLCPP_INFO(node_->get_logger(), ss.str().c_str());
     }
@@ -1783,10 +1781,24 @@ bool TrajectoryExecutionManager::ensureActiveControllers(const std::vector<std::
 void TrajectoryExecutionManager::loadControllerParams()
 {
   manage_controllers_parameters = std::make_shared<rclcpp::SyncParametersClient>(node_);
-
-  if(manage_controllers_parameters->has_parameter({"controller_list"})){
-
-  }
+  //TODO (anasarrak): review these changes, ill be using a yaml to reproduce this, but needs further work
+  //if(manage_controllers_parameters->has_parameter({"controller_list"})){
+    if(manage_controllers_parameters->has_parameter({"controller_list.name"})){
+      std::vector<std::string> controller_list = node_->get_parameter("controller_list.name").as_string_array();
+      for (int i = 0; i < controller_list.size(); ++i){
+        if(manage_controllers_parameters->has_parameter({"allowed_execution_duration_scaling"})){
+          double execution_duration = node_->get_parameter("controller_list.name").as_double();
+          controller_allowed_execution_duration_scaling_[std::string(controller_list[i])] =
+              execution_duration;
+          }
+        if(manage_controllers_parameters->has_parameter({"allowed_goal_duration_margin"})){
+          double goal_duration = node_->get_parameter("controller_list.name").as_double();
+          controller_allowed_goal_duration_margin_[std::string(controller_list[i])] =
+              goal_duration;
+        }
+      }
+      }
+    //}
 
   // XmlRpc::XmlRpcValue controller_list;
   // if (node_handle_.getParam("controller_list", controller_list) &&

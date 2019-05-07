@@ -19,8 +19,6 @@
   <url type="repository">https://github.com/ros-planning/moveit</url>
   <url type="bugtracker">https://github.com/ros-planning/moveit/issues</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
-
   <depend>moveit_core</depend>
   <depend>pluginlib</depend>
   <depend>eigen</depend>

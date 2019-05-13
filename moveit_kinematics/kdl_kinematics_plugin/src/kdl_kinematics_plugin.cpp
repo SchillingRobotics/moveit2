@@ -374,8 +374,9 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   KDL::ChainIkSolverVelMimicSVD ik_solver_vel(kdl_chain_, mimic_joints_, orientation_vs_position_weight_ == 0.0);
   solution.resize(dimension_);
 
-  KDL::Frame pose_desired;
-  tf2::fromMsg(ik_pose, pose_desired);
+  KDL::Frame pose_desired(KDL::Rotation::Quaternion(ik_pose.orientation.x, ik_pose.orientation.y,
+                                               ik_pose.orientation.z, ik_pose.orientation.w),
+                      KDL::Vector(ik_pose.position.x, ik_pose.position.y, ik_pose.position.z));
 
   RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "searchPositionIK: Position request pose is %.4f %.4f %.4f %.4f %.4f %.4f %.4f",
                                     ik_pose.position.x, ik_pose.position.y, ik_pose.position.z,

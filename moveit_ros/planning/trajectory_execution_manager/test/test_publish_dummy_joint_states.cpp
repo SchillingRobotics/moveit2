@@ -32,6 +32,10 @@ int main(int argc, char * argv[])
   qos.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
   node->declare_parameter("robot_description_kinematics.manipulator.kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+  node->declare_parameter("moveit_controller_manager", "moveit_simple_controller_manager/MoveItSimpleControllerManager");
+  node->declare_parameter("planning_plugin", "ompl_interface/OMPLPlanner");
+
+  node->declare_parameter("moveit_manage_controllers", true);
 
   auto robot_description_semantic_pub = node->create_publisher<std_msgs::msg::String>(
     "robot_description_semantic", qos);
@@ -58,17 +62,18 @@ int main(int argc, char * argv[])
   msg->position.push_back(0.0);
   msg->position.push_back(0.0);
 
-  while (rclcpp::ok()) {
-
-    rclcpp::TimeSource ts(node);
-    rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
-    ts.attachClock(clock);
-    msg->header.stamp = clock->now();
-
-    joint_state_pub->publish(msg);
-    rclcpp::spin_some(node);
-    loop_rate.sleep();
-  }
+  // while (rclcpp::ok()) {
+  //
+  //   rclcpp::TimeSource ts(node);
+  //   rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+  //   ts.attachClock(clock);
+  //   msg->header.stamp = clock->now();
+  //
+  //   joint_state_pub->publish(msg);
+  //   rclcpp::spin_some(node);
+  //   loop_rate.sleep();
+  // }
+  rclcpp::spin(node);
 
   rclcpp::shutdown();
 

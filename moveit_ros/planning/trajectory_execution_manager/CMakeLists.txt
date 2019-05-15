@@ -15,7 +15,7 @@ install(TARGETS ${MOVEIT_LIB_NAME}
   RUNTIME DESTINATION bin)
 
 install(DIRECTORY include/ DESTINATION include)
-#if(BUILD_TESTING)
+if(BUILD_TESTING)
   add_library(test_controller_manager_plugin SHARED test/test_moveit_controller_manager_plugin.cpp)
   set_target_properties(test_controller_manager_plugin PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 
@@ -62,5 +62,4 @@ install(DIRECTORY include/ DESTINATION include)
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/moveit_ros_planning)
-
-#endif()
+endif()

@@ -15,7 +15,6 @@ find_package(class_loader REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
-find_package(moveit_msgs REQUIRED)
 
 set(THIS_PACKAGE_INCLUDE_DIRS
     kdl_kinematics_plugin/include

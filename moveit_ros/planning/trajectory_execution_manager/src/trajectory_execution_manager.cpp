@@ -1421,18 +1421,17 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
             context.trajectory_parts_[i].multi_dof_joint_trajectory.points.empty()))
       {
         if (rclcpp::Time(context.trajectory_parts_[i].joint_trajectory.header.stamp) > current_time.stamp){
-            rclcpp::Duration dur(context.trajectory_parts_[i].joint_trajectory.header.stamp.sec - current_time.stamp.sec,
-                                context.trajectory_parts_[i].joint_trajectory.header.stamp.nanosec - current_time.stamp.nanosec);
+
+            rclcpp::Duration dur = rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.header.stamp.sec, context.trajectory_parts_[i].joint_trajectory.header.stamp.nanosec)
+                                 - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
             d = dur;
         }
         if (rclcpp::Time(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp) > current_time.stamp){
-          rclcpp::Duration dur(context.trajectory_parts_[i].joint_trajectory.header.stamp.sec - current_time.stamp.sec,
-                              context.trajectory_parts_[i].joint_trajectory.header.stamp.nanosec - current_time.stamp.nanosec);
+          rclcpp::Duration dur = rclcpp::Duration(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.sec, context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.nanosec)
+                               - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
           d = std::max(d, dur);
         }
-        if(context.trajectory_parts_[i].joint_trajectory.points.empty()){
-          d = rclcpp::Duration(0.0);
-        }
+
         d = d + std::max(context.trajectory_parts_[i].joint_trajectory.points.empty() ?
                           rclcpp::Duration(0.0) :
                           rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.sec,
@@ -1480,8 +1479,9 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
       {
         rclcpp::Duration d(0.0);
         if (rclcpp::Time(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp) > current_time.stamp)
-          d = rclcpp::Duration(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.sec - current_time.stamp.sec,
-                               context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.nanosec - current_time.stamp.nanosec);
+          d = rclcpp::Duration(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.sec, context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.nanosec)
+                             - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+
         for (std::size_t j = 0; j < context.trajectory_parts_[longest_part].joint_trajectory.points.size(); ++j){
           time_index_.push_back(rclcpp::Time(current_time.stamp.sec,current_time.stamp.nanosec) + d +
                                 context.trajectory_parts_[longest_part].joint_trajectory.points[j].time_from_start);
@@ -1491,8 +1491,9 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
       {
         rclcpp::Duration d(0.0);
         if (rclcpp::Time(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp) > current_time.stamp)
-          d = rclcpp::Duration(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.sec - current_time.stamp.sec,
-              context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.nanosec - current_time.stamp.nanosec);
+          d = rclcpp::Duration(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.sec, context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.nanosec)
+                           - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+
         for (std::size_t j = 0; j < context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.points.size();
              ++j)
           time_index_.push_back(
@@ -1506,8 +1507,13 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
     {
       if (execution_duration_monitoring_)
       {
-        if (!handles[i]->waitForExecution(expected_trajectory_duration))
-          if (!execution_complete_ && (rclcpp::Clock().now().nanoseconds() - current_time.stamp.nanosec) > expected_trajectory_duration.nanoseconds())
+        if (!handles[i]->waitForExecution(expected_trajectory_duration)){
+
+          auto time_now = rclcpp::Clock().now();
+
+          rclcpp::Duration elapsed = time_now - current_time.stamp;
+
+          if (!execution_complete_ && (elapsed) > expected_trajectory_duration)
           {
             RCLCPP_ERROR(node_->get_logger(), "Controller is taking too long to execute trajectory (the expected upper "
                                    "bound for the trajectory execution was %lf seconds). Stopping trajectory.",
@@ -1521,6 +1527,7 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
             result = false;
             break;
           }
+        }
       }
       else
         handle->waitForExecution();

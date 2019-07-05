@@ -8,9 +8,11 @@ find_package(ament_cmake REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(orocos_kdl REQUIRED)
+find_package(tf2_kdl REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(random_numbers REQUIRED)
+find_package(class_loader REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
@@ -28,6 +30,8 @@ ament_export_libraries(${PROJECT_NAME} kdl_kinematics_plugin)
 
 include_directories(${THIS_PACKAGE_INCLUDE_DIRS}
   ${rclcpp_INCLUDE_DIRS}
+  ${tf2_kdl_INCLUDE_DIRS}
+  ${class_loader_INCLUDE_DIRS}
   ${random_numbers_INCLUDE_DIRS}
   ${moveit_msgs_INCLUDE_DIRS}
   ${moveit_core_INCLUDE_DIRS}

@@ -1429,7 +1429,6 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
         if(context.trajectory_parts_[i].joint_trajectory.points.empty()){
           d = rclcpp::Duration(0.0);
         }
-        //TODO (anasarrak): no operator += for rclcpp::Duration
         d = d + std::max(context.trajectory_parts_[i].joint_trajectory.points.empty() ?
                           rclcpp::Duration(0.0) :
                           rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.sec,

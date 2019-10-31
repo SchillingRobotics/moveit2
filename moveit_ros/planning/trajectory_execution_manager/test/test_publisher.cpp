@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
  * examples for the "new" recommended styles. This example is only included
  * for completeness because it is similar to "classic" standalone ROS nodes. */
 
-int main(int argc, char * argv[])
+int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("minimal_publisher");
@@ -23,11 +23,11 @@ int main(int argc, char * argv[])
   rclcpp::WallRate loop_rate(500ms);
 
   // while (rclcpp::ok()) {
-    message->data = "Hello, world! " + std::to_string(publish_count++);
-    RCLCPP_INFO(node->get_logger(), "Publishing: '%s'", message->data.c_str());
-    publisher->publish(message);
-    rclcpp::spin_some(node);
-    loop_rate.sleep();
+  message->data = "Hello, world! " + std::to_string(publish_count++);
+  RCLCPP_INFO(node->get_logger(), "Publishing: '%s'", message->data.c_str());
+  publisher->publish(message);
+  rclcpp::spin_some(node);
+  loop_rate.sleep();
   // }
   rclcpp::spin(node);
   rclcpp::shutdown();

@@ -42,6 +42,9 @@
 
 namespace trajectory_execution_manager
 {
+rclcpp::Logger LOGGER_TRAJECTORY_EXECUTION_MANAGER =
+    rclcpp::get_logger("moveit_ros_planning").get_child("trajectory_execution_manager");
+
 const std::string TrajectoryExecutionManager::EXECUTION_EVENT_TOPIC = "trajectory_execution_event";
 
 static const rclcpp::Duration DEFAULT_CONTROLLER_INFORMATION_VALIDITY_AGE(1.0);
@@ -57,15 +60,15 @@ class TrajectoryExecutionManager::DynamicReconfigureImpl
 {
 public:
   DynamicReconfigureImpl(TrajectoryExecutionManager* owner)
-    : owner_(owner)/*, dynamic_reconfigure_server_(ros::NodeHandle("~/trajectory_execution"))*/
+    : owner_(owner) /*, dynamic_reconfigure_server_(ros::NodeHandle("~/trajectory_execution"))*/
   {
-    //TODO (anasarrak): generate a similar thing for ros2 using the parameters
+    // TODO (anasarrak): generate a similar thing for ros2 using the parameters
     // dynamic_reconfigure_server_.setCallback(
     //     boost::bind(&DynamicReconfigureImpl::dynamicReconfigureCallback, this, _1, _2));
   }
 
 private:
-  //TODO (anasarrak): generate a similar thing for ros2 using the parameters
+  // TODO (anasarrak): generate a similar thing for ros2 using the parameters
   // void dynamicReconfigureCallback(TrajectoryExecutionDynamicReconfigureConfig& config, uint32_t level)
   // {
   //   owner_->enableExecutionDurationMonitoring(config.execution_duration_monitoring);
@@ -87,9 +90,10 @@ TrajectoryExecutionManager::TrajectoryExecutionManager(const robot_model::RobotM
 {
   manage_controllers_parameters = std::make_shared<rclcpp::SyncParametersClient>(node_, "dummy_joint_states");
 
-  if(!manage_controllers_parameters->has_parameter({"moveit_manage_controllers"}))
-      manage_controllers_ = false;
-  else{
+  if (!manage_controllers_parameters->has_parameter({ "moveit_manage_controllers" }))
+    manage_controllers_ = false;
+  else
+  {
     manage_controllers_ = manage_controllers_parameters->get_parameter("moveit_manage_controllers", false);
   }
   initialize();
@@ -138,7 +142,8 @@ void TrajectoryExecutionManager::initialize()
   }
   catch (pluginlib::PluginlibException& ex)
   {
-    RCLCPP_FATAL(node_->get_logger(), "Exception while creating controller manager plugin loader: ", ex.what());
+    RCLCPP_FATAL(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Exception while creating controller manager plugin loader: ",
+                 ex.what());
     return;
   }
 
@@ -148,20 +153,25 @@ void TrajectoryExecutionManager::initialize()
 
     manage_controllers_parameters = std::make_shared<rclcpp::SyncParametersClient>(node_, "dummy_joint_states");
 
-    if(manage_controllers_parameters->has_parameter({"moveit_controller_manager"})){
-      // controller = manage_controllers_parameters->get_parameter("moveit_controller_manager", "moveit_simple_controller_manager/MoveItSimpleControllerManager");
+    if (manage_controllers_parameters->has_parameter({ "moveit_controller_manager" }))
+    {
+      // controller = manage_controllers_parameters->get_parameter("moveit_controller_manager",
+      // "moveit_simple_controller_manager/MoveItSimpleControllerManager");
       const std::vector<std::string>& classes = controller_manager_loader_->getDeclaredClasses();
       if (classes.size() == 1)
       {
         controller = classes[0];
-        RCLCPP_WARN(node_->get_logger(), "Parameter '~moveit_controller_manager' is not specified but only one "
-                              "matching plugin was found: '%s'. Using that one.",
-                       controller.c_str());
+        RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                    "Parameter '~moveit_controller_manager' is not specified but only one "
+                    "matching plugin was found: '%s'. Using that one.",
+                    controller.c_str());
       }
-      else{
-        RCLCPP_FATAL(node_->get_logger(), "Parameter '~moveit_controller_manager' not specified. This is needed to "
-                               "identify the plugin to use for interacting with controllers. No paths can "
-                               "be executed.");
+      else
+      {
+        RCLCPP_FATAL(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                     "Parameter '~moveit_controller_manager' not specified. This is needed to "
+                     "identify the plugin to use for interacting with controllers. No paths can "
+                     "be executed.");
       }
     }
 
@@ -173,23 +183,26 @@ void TrajectoryExecutionManager::initialize()
       }
       catch (pluginlib::PluginlibException& ex)
       {
-        RCLCPP_FATAL(node_->get_logger(), "Exception while loading controller manager '%s"
-                                                                                  "': %s",controller.c_str(), ex.what());
+        RCLCPP_FATAL(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Exception while loading controller manager '%s"
+                                                          "': %s",
+                     controller.c_str(), ex.what());
       }
   }
 
   // other configuration steps
   reloadControllerInformation();
   event_topic_subscriber_ = node_->create_subscription<std_msgs::msg::String>(
-    EXECUTION_EVENT_TOPIC, std::bind(&TrajectoryExecutionManager::receiveEvent, this, std::placeholders::_1));
+      EXECUTION_EVENT_TOPIC, std::bind(&TrajectoryExecutionManager::receiveEvent, this, std::placeholders::_1));
 
   reconfigure_impl_ = new DynamicReconfigureImpl(this);
 
-  if (manage_controllers_){
-    RCLCPP_INFO(node_->get_logger(), "Trajectory execution is managing controllers");
+  if (manage_controllers_)
+  {
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Trajectory execution is managing controllers");
   }
-  else{
-    RCLCPP_INFO(node_->get_logger(), "Trajectory execution is not managing controllers");
+  else
+  {
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Trajectory execution is not managing controllers");
   }
 }
 
@@ -238,12 +251,12 @@ void TrajectoryExecutionManager::processEvent(const std::string& event)
   if (event == "stop")
     stopExecution(true);
   else
-    RCLCPP_WARN(node_->get_logger(), "Unknown event type: '%s'", event.c_str());
+    RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Unknown event type: '%s'", event.c_str());
 }
 
 void TrajectoryExecutionManager::receiveEvent(const std_msgs::msg::String::SharedPtr event)
 {
-  RCLCPP_INFO(node_->get_logger(), "Received event '%s'",event->data.c_str());
+  RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Received event '%s'", event->data.c_str());
   processEvent(event->data);
 }
 
@@ -256,7 +269,8 @@ bool TrajectoryExecutionManager::push(const moveit_msgs::msg::RobotTrajectory& t
     return push(trajectory, std::vector<std::string>(1, controller));
 }
 
-bool TrajectoryExecutionManager::push(const trajectory_msgs::msg::JointTrajectory& trajectory, const std::string& controller)
+bool TrajectoryExecutionManager::push(const trajectory_msgs::msg::JointTrajectory& trajectory,
+                                      const std::string& controller)
 {
   if (controller.empty())
     return push(trajectory, std::vector<std::string>());
@@ -277,7 +291,7 @@ bool TrajectoryExecutionManager::push(const moveit_msgs::msg::RobotTrajectory& t
 {
   if (!execution_complete_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Cannot push a new trajectory while another is being executed");
+    RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Cannot push a new trajectory while another is being executed");
     return false;
   }
 
@@ -291,11 +305,12 @@ bool TrajectoryExecutionManager::push(const moveit_msgs::msg::RobotTrajectory& t
       for (const std::string& controller : context->controllers_)
         ss << controller << " ";
       ss << "]:" << std::endl;
-      for (std::size_t i = 0; i < context->trajectory_parts_.size(); ++i){
-        //TODO (anasarrak): no printable msg moveit_msgs::msg::RobotTrajectory
+      for (std::size_t i = 0; i < context->trajectory_parts_.size(); ++i)
+      {
+        // TODO (anasarrak): no printable msg moveit_msgs::msg::RobotTrajectory
         ss << context->trajectory_parts_[i].joint_trajectory.header.frame_id << std::endl;
       }
-      RCLCPP_INFO(node_->get_logger(), ss.str().c_str());
+      RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, ss.str().c_str());
     }
     trajectories_.push_back(context);
     return true;
@@ -327,7 +342,8 @@ bool TrajectoryExecutionManager::pushAndExecute(const trajectory_msgs::msg::Join
     return pushAndExecute(trajectory, std::vector<std::string>(1, controller));
 }
 
-bool TrajectoryExecutionManager::pushAndExecute(const sensor_msgs::msg::JointState& state, const std::string& controller)
+bool TrajectoryExecutionManager::pushAndExecute(const sensor_msgs::msg::JointState& state,
+                                                const std::string& controller)
 {
   if (controller.empty())
     return pushAndExecute(state, std::vector<std::string>());
@@ -362,7 +378,8 @@ bool TrajectoryExecutionManager::pushAndExecute(const moveit_msgs::msg::RobotTra
 {
   if (!execution_complete_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Cannot push & execute a new trajectory while another is being executed");
+    RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                 "Cannot push & execute a new trajectory while another is being executed");
     return false;
   }
 
@@ -457,13 +474,13 @@ void TrajectoryExecutionManager::continuousExecutionThread()
           }
           catch (std::exception& ex)
           {
-            RCLCPP_ERROR(node_->get_logger(), "%s caught when retrieving controller handle", ex.what());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "%s caught when retrieving controller handle", ex.what());
           }
           if (!h)
           {
             last_execution_status_ = moveit_controller_manager::ExecutionStatus::ABORTED;
-            RCLCPP_ERROR(node_->get_logger(), "No controller handle for controller '%s'. Aborting.",
-                            context->controllers_[i].c_str());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "No controller handle for controller '%s'. Aborting.",
+                         context->controllers_[i].c_str());
             handles.clear();
             break;
           }
@@ -487,7 +504,8 @@ void TrajectoryExecutionManager::continuousExecutionThread()
             }
             catch (std::exception& ex)
             {
-              RCLCPP_ERROR(node_->get_logger(), "Caught %s when sending trajectory to controller", ex.what());
+              RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when sending trajectory to controller",
+                           ex.what());
             }
             if (!ok)
             {
@@ -498,12 +516,13 @@ void TrajectoryExecutionManager::continuousExecutionThread()
                 }
                 catch (std::exception& ex)
                 {
-                  RCLCPP_ERROR(node_->get_logger(), "Caught %s when canceling execution", ex.what());
+                  RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when canceling execution", ex.what());
                 }
-              RCLCPP_ERROR(node_->get_logger(), "Failed to send trajectory part %zu of %zu to controller %s", i + 1,
-                              context->trajectory_parts_.size(), handles[i]->getName().c_str());
+              RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                           "Failed to send trajectory part %zu of %zu to controller %s", i + 1,
+                           context->trajectory_parts_.size(), handles[i]->getName().c_str());
               if (i > 0)
-                RCLCPP_ERROR(node_->get_logger(), "Cancelling previously sent trajectory parts");
+                RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Cancelling previously sent trajectory parts");
               last_execution_status_ = moveit_controller_manager::ExecutionStatus::ABORTED;
               handles.clear();
               break;
@@ -517,8 +536,9 @@ void TrajectoryExecutionManager::continuousExecutionThread()
       }
       else
       {
-        RCLCPP_ERROR(node_->get_logger(), "Not all needed controllers are active. Cannot push and execute. You can try "
-                               "calling ensureActiveControllers() before pushAndExecute()");
+        RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                     "Not all needed controllers are active. Cannot push and execute. You can try "
+                     "calling ensureActiveControllers() before pushAndExecute()");
         last_execution_status_ = moveit_controller_manager::ExecutionStatus::ABORTED;
         delete context;
       }
@@ -567,7 +587,7 @@ void TrajectoryExecutionManager::updateControllerState(const std::string& contro
   if (it != known_controllers_.end())
     updateControllerState(it->second, age);
   else
-    RCLCPP_ERROR(node_->get_logger(), "Controller '%s' is not known.", controller.c_str());
+    RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller '%s' is not known.", controller.c_str());
 }
 
 void TrajectoryExecutionManager::updateControllerState(ControllerInformation& ci, const rclcpp::Duration& age)
@@ -577,13 +597,14 @@ void TrajectoryExecutionManager::updateControllerState(ControllerInformation& ci
     if (controller_manager_)
     {
       if (verbose_)
-        RCLCPP_INFO(node_->get_logger(), "Updating information for controller '%s'.", ci.name_.c_str());
+        RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Updating information for controller '%s'.", ci.name_.c_str());
       ci.state_ = controller_manager_->getControllerState(ci.name_);
       ci.last_update_ = rclcpp::Clock().now();
     }
   }
   else if (verbose_)
-    RCLCPP_INFO(node_->get_logger(), "Information for controller '%s' is assumed to be up to date.", ci.name_.c_str());
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Information for controller '%s' is assumed to be up to date.",
+                ci.name_.c_str());
 }
 
 void TrajectoryExecutionManager::updateControllersState(const rclcpp::Duration& age)
@@ -611,8 +632,9 @@ bool TrajectoryExecutionManager::checkControllerCombination(std::vector<std::str
       saj << *it << " ";
     for (std::set<std::string>::const_iterator it = combined_joints.begin(); it != combined_joints.end(); ++it)
       sac << *it << " ";
-    RCLCPP_INFO(node_->get_logger(), "Checking if controllers [ %s] operating on joints [ %s] cover joints [ %s]",
-                   ss.str().c_str(), sac.str().c_str(), saj.str().c_str());
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                "Checking if controllers [ %s] operating on joints [ %s] cover joints [ %s]", ss.str().c_str(),
+                sac.str().c_str(), saj.str().c_str());
   }
 
   return std::includes(combined_joints.begin(), combined_joints.end(), actuated_joints.begin(), actuated_joints.end());
@@ -703,8 +725,9 @@ bool TrajectoryExecutionManager::findControllers(const std::set<std::string>& ac
       sac << available_controllers[i] << " ";
     for (std::set<std::string>::const_iterator it = actuated_joints.begin(); it != actuated_joints.end(); ++it)
       saj << *it << " ";
-    RCLCPP_INFO(node_->get_logger(), "Looking for %zu controllers among [ %s] that cover joints [ %s]. Found %zd options.",
-                   controller_count, sac.str().c_str(), saj.str().c_str(), selected_options.size());
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                "Looking for %zu controllers among [ %s] that cover joints [ %s]. Found %zd options.", controller_count,
+                sac.str().c_str(), saj.str().c_str(), selected_options.size());
   }
 
   // if none was found, this is a problem
@@ -837,7 +860,7 @@ bool TrajectoryExecutionManager::distributeTrajectory(const moveit_msgs::msg::Ro
     std::map<std::string, ControllerInformation>::iterator it = known_controllers_.find(controllers[i]);
     if (it == known_controllers_.end())
     {
-      RCLCPP_ERROR(node_->get_logger(), "Controller %s not found.",controllers[i].c_str());
+      RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller %s not found.", controllers[i].c_str());
       return false;
     }
     std::vector<std::string> intersect_mdof;
@@ -847,7 +870,8 @@ bool TrajectoryExecutionManager::distributeTrajectory(const moveit_msgs::msg::Ro
     std::set_intersection(it->second.joints_.begin(), it->second.joints_.end(), actuated_joints_single.begin(),
                           actuated_joints_single.end(), std::back_inserter(intersect_single));
     if (intersect_mdof.empty() && intersect_single.empty())
-      RCLCPP_WARN(node_->get_logger(), "No joints to be distributed for controller %s", controllers[i].c_str());
+      RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "No joints to be distributed for controller %s",
+                  controllers[i].c_str());
     {
       if (!intersect_mdof.empty())
       {
@@ -951,12 +975,14 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
   if (allowed_start_tolerance_ == 0)  // skip validation on this magic number
     return true;
 
-  RCLCPP_INFO(node_->get_logger(), "Validating trajectory with allowed_start_tolerance %g", allowed_start_tolerance_);
+  RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Validating trajectory with allowed_start_tolerance %g",
+              allowed_start_tolerance_);
 
   robot_state::RobotStatePtr current_state;
   if (!csm_->waitForCurrentState(rclcpp::Clock().now()) || !(current_state = csm_->getCurrentState()))
   {
-    RCLCPP_WARN(node_->get_logger(), "Failed to validate trajectory: couldn't receive full current joint state within 1s");
+    RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                "Failed to validate trajectory: couldn't receive full current joint state within 1s");
     return false;
   }
 
@@ -969,8 +995,8 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
       const std::vector<std::string>& joint_names = trajectory.joint_trajectory.joint_names;
       if (positions.size() != joint_names.size())
       {
-        RCLCPP_ERROR(node_->get_logger(), "Wrong trajectory: #joints: %zu != #positions: %zu", joint_names.size(),
-                        positions.size());
+        RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Wrong trajectory: #joints: %zu != #positions: %zu",
+                     joint_names.size(), positions.size());
         return false;
       }
 
@@ -979,7 +1005,7 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
         const robot_model::JointModel* jm = current_state->getJointModel(joint_names[i]);
         if (!jm)
         {
-          RCLCPP_ERROR(node_->get_logger(), "Unknown joint in trajectory: %s", joint_names[i].c_str());
+          RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Unknown joint in trajectory: %s", joint_names[i].c_str());
           return false;
         }
 
@@ -990,9 +1016,10 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
         jm->enforcePositionBounds(&traj_position);
         if (fabs(cur_position - traj_position) > allowed_start_tolerance_)
         {
-          RCLCPP_ERROR(node_->get_logger(), "\nInvalid Trajectory: start point deviates from current robot state more than %g"
-                                 "\njoint '%s': expected: %g, current: %g",
-                          allowed_start_tolerance_, joint_names[i].c_str(), traj_position, cur_position);
+          RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                       "\nInvalid Trajectory: start point deviates from current robot state more than %g"
+                       "\njoint '%s': expected: %g, current: %g",
+                       allowed_start_tolerance_, joint_names[i].c_str(), traj_position, cur_position);
           return false;
         }
       }
@@ -1005,8 +1032,8 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
       const std::vector<std::string>& joint_names = trajectory.multi_dof_joint_trajectory.joint_names;
       if (transforms.size() != joint_names.size())
       {
-        RCLCPP_ERROR(node_->get_logger(), "Wrong trajectory: #joints: %zu != #transforms: %zu", joint_names.size(),
-                        transforms.size());
+        RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Wrong trajectory: #joints: %zu != #transforms: %zu",
+                     joint_names.size(), transforms.size());
         return false;
       }
 
@@ -1015,7 +1042,7 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
         const robot_model::JointModel* jm = current_state->getJointModel(joint_names[i]);
         if (!jm)
         {
-          RCLCPP_ERROR(node_->get_logger(), "Unknown joint in trajectory: ", joint_names[i].c_str());
+          RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Unknown joint in trajectory: ", joint_names[i].c_str());
           return false;
         }
 
@@ -1029,9 +1056,10 @@ bool TrajectoryExecutionManager::validate(const TrajectoryExecutionContext& cont
         rotation.fromRotationMatrix(cur_transform.rotation().transpose() * start_transform.rotation());
         if ((offset.array() > allowed_start_tolerance_).any() || rotation.angle() > allowed_start_tolerance_)
         {
-          RCLCPP_ERROR(node_->get_logger(), "\nInvalid Trajectory: start point deviates from current robot state more than %d"
-                                             "\nmulti-dof joint '%s': pos delta: %ld rot delta: %ld",
-                                              allowed_start_tolerance_,joint_names[i].c_str(),  rotation.angle(), offset.transpose());
+          RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                       "\nInvalid Trajectory: start point deviates from current robot state more than %d"
+                       "\nmulti-dof joint '%s': pos delta: %ld rot delta: %ld",
+                       allowed_start_tolerance_, joint_names[i].c_str(), rotation.angle(), offset.transpose());
           return false;
         }
       }
@@ -1064,7 +1092,7 @@ bool TrajectoryExecutionManager::configure(TrajectoryExecutionContext& context,
 
   if (actuated_joints.empty())
   {
-    RCLCPP_WARN(node_->get_logger(), "The trajectory to execute specifies no joints");
+    RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "The trajectory to execute specifies no joints");
     return false;
   }
 
@@ -1112,7 +1140,7 @@ bool TrajectoryExecutionManager::configure(TrajectoryExecutionContext& context,
       for (const std::string& controller : controllers)
         if (known_controllers_.find(controller) == known_controllers_.end())
         {
-          RCLCPP_ERROR(node_->get_logger(), "Controller '%s' is not known", controllers[i].c_str());
+          RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller '%s' is not known", controllers[i].c_str());
           return false;
         }
     if (selectControllers(actuated_joints, controllers, context.controllers_))
@@ -1124,8 +1152,9 @@ bool TrajectoryExecutionManager::configure(TrajectoryExecutionContext& context,
   std::stringstream ss;
   for (std::set<std::string>::const_iterator it = actuated_joints.begin(); it != actuated_joints.end(); ++it)
     ss << *it << " ";
-  RCLCPP_ERROR(node_->get_logger(), "Unable to identify any set of controllers that can actuate the specified joints: [ %s]",
-                  ss.str().c_str());
+  RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+               "Unable to identify any set of controllers that can actuate the specified joints: [ %s]",
+               ss.str().c_str());
 
   std::stringstream ss2;
   std::map<std::string, ControllerInformation>::const_iterator mi;
@@ -1139,7 +1168,7 @@ bool TrajectoryExecutionManager::configure(TrajectoryExecutionContext& context,
       ss2 << "  " << *ji << std::endl;
     }
   }
-  RCLCPP_ERROR(node_->get_logger(), "Known controllers and their joints:\n%s", ss2.str().c_str());
+  RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Known controllers and their joints:\n%s", ss2.str().c_str());
   return false;
 }
 
@@ -1159,7 +1188,7 @@ void TrajectoryExecutionManager::stopExecutionInternal()
     }
     catch (std::exception& ex)
     {
-      RCLCPP_ERROR(node_->get_logger(), "Caught %s when canceling execution.", ex.what());
+      RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when canceling execution.", ex.what());
     }
 }
 
@@ -1183,7 +1212,7 @@ void TrajectoryExecutionManager::stopExecution(bool auto_clear)
       // we set the status here; executePart() will not set status when execution_complete_ is true ahead of time
       last_execution_status_ = moveit_controller_manager::ExecutionStatus::PREEMPTED;
       execution_state_mutex_.unlock();
-      RCLCPP_INFO(node_->get_logger(), "Stopped trajectory execution.");
+      RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Stopped trajectory execution.");
 
       // wait for the execution thread to finish
       boost::mutex::scoped_lock lock(execution_thread_mutex_);
@@ -1274,7 +1303,7 @@ void TrajectoryExecutionManager::clear()
     }
   }
   else
-    RCLCPP_ERROR(node_->get_logger(), "Cannot push a new trajectory while another is being executed");
+    RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Cannot push a new trajectory while another is being executed");
 }
 
 void TrajectoryExecutionManager::executeThread(const ExecutionCompleteCallback& callback,
@@ -1289,7 +1318,7 @@ void TrajectoryExecutionManager::executeThread(const ExecutionCompleteCallback& 
     return;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "Starting trajectory execution ...");
+  RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Starting trajectory execution ...");
   // assume everything will be OK
   last_execution_status_ = moveit_controller_manager::ExecutionStatus::SUCCEEDED;
 
@@ -1312,7 +1341,8 @@ void TrajectoryExecutionManager::executeThread(const ExecutionCompleteCallback& 
   if (last_execution_status_ == moveit_controller_manager::ExecutionStatus::SUCCEEDED)
     waitForRobotToStop(*trajectories_[i - 1]);
 
-  RCLCPP_INFO(node_->get_logger(), "Completed trajectory execution with status %s ...", last_execution_status_.asString().c_str());
+  RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Completed trajectory execution with status %s ...",
+              last_execution_status_.asString().c_str());
 
   // notify whoever is waiting for the event of trajectory completion
   execution_state_mutex_.lock();
@@ -1359,15 +1389,15 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
           }
           catch (std::exception& ex)
           {
-            RCLCPP_ERROR(node_->get_logger(), "Caught %s when retrieving controller handle", ex.what());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when retrieving controller handle", ex.what());
           }
           if (!h)
           {
             active_handles_.clear();
             current_context_ = -1;
             last_execution_status_ = moveit_controller_manager::ExecutionStatus::ABORTED;
-            RCLCPP_ERROR(node_->get_logger(), "No controller handle for controller '%s'. Aborting.",
-                            context.controllers_[i].c_str());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "No controller handle for controller '%s'. Aborting.",
+                         context.controllers_[i].c_str());
             return false;
           }
           active_handles_[i] = h;
@@ -1382,7 +1412,8 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
           }
           catch (std::exception& ex)
           {
-            RCLCPP_ERROR(node_->get_logger(), "Caught %s when sending trajectory to controller", ex.what());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when sending trajectory to controller",
+                         ex.what());
           }
           if (!ok)
           {
@@ -1393,12 +1424,13 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
               }
               catch (std::exception& ex)
               {
-                RCLCPP_ERROR(node_->get_logger(), "Caught %s when canceling execution", ex.what());
+                RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Caught %s when canceling execution", ex.what());
               }
-            RCLCPP_ERROR(node_->get_logger(), "Failed to send trajectory part %zu of %zu to controller %s", i + 1,
-                            context.trajectory_parts_.size(), active_handles_[i]->getName().c_str());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                         "Failed to send trajectory part %zu of %zu to controller %s", i + 1,
+                         context.trajectory_parts_.size(), active_handles_[i]->getName().c_str());
             if (i > 0)
-              RCLCPP_ERROR(node_->get_logger(), "Cancelling previously sent trajectory parts");
+              RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Cancelling previously sent trajectory parts");
             active_handles_.clear();
             current_context_ = -1;
             last_execution_status_ = moveit_controller_manager::ExecutionStatus::ABORTED;
@@ -1410,7 +1442,7 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
 
     // compute the expected duration of the trajectory and find the part of the trajectory that takes longest to execute
 
-    std_msgs::msg::Header current_time ;
+    std_msgs::msg::Header current_time;
     current_time.stamp = rclcpp::Clock().now();
     rclcpp::Duration expected_trajectory_duration(0.0);
     int longest_part = -1;
@@ -1420,26 +1452,34 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
       if (!(context.trajectory_parts_[i].joint_trajectory.points.empty() &&
             context.trajectory_parts_[i].multi_dof_joint_trajectory.points.empty()))
       {
-        if (rclcpp::Time(context.trajectory_parts_[i].joint_trajectory.header.stamp) > current_time.stamp){
-
-            rclcpp::Duration dur = rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.header.stamp.sec, context.trajectory_parts_[i].joint_trajectory.header.stamp.nanosec)
-                                 - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
-            d = dur;
+        if (rclcpp::Time(context.trajectory_parts_[i].joint_trajectory.header.stamp) > current_time.stamp)
+        {
+          rclcpp::Duration dur = rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.header.stamp.sec,
+                                                  context.trajectory_parts_[i].joint_trajectory.header.stamp.nanosec) -
+                                 rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+          d = dur;
         }
-        if (rclcpp::Time(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp) > current_time.stamp){
-          rclcpp::Duration dur = rclcpp::Duration(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.sec, context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.nanosec)
-                               - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+        if (rclcpp::Time(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp) > current_time.stamp)
+        {
+          rclcpp::Duration dur =
+              rclcpp::Duration(context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.sec,
+                               context.trajectory_parts_[i].multi_dof_joint_trajectory.header.stamp.nanosec) -
+              rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
           d = std::max(d, dur);
         }
 
-        d = d + std::max(context.trajectory_parts_[i].joint_trajectory.points.empty() ?
-                          rclcpp::Duration(0.0) :
-                          rclcpp::Duration(context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.sec,
-                          context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.nanosec),
-                      context.trajectory_parts_[i].multi_dof_joint_trajectory.points.empty() ?
-                          rclcpp::Duration(0.0) :
-                          rclcpp::Duration(context.trajectory_parts_[i].multi_dof_joint_trajectory.points.back().time_from_start.sec,
-                          context.trajectory_parts_[i].multi_dof_joint_trajectory.points.back().time_from_start.nanosec));
+        d = d +
+            std::max(
+                context.trajectory_parts_[i].joint_trajectory.points.empty() ?
+                    rclcpp::Duration(0.0) :
+                    rclcpp::Duration(
+                        context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.sec,
+                        context.trajectory_parts_[i].joint_trajectory.points.back().time_from_start.nanosec),
+                context.trajectory_parts_[i].multi_dof_joint_trajectory.points.empty() ?
+                    rclcpp::Duration(0.0) :
+                    rclcpp::Duration(
+                        context.trajectory_parts_[i].multi_dof_joint_trajectory.points.back().time_from_start.sec,
+                        context.trajectory_parts_[i].multi_dof_joint_trajectory.points.back().time_from_start.nanosec));
 
         if (longest_part < 0 ||
             std::max(context.trajectory_parts_[i].joint_trajectory.points.size(),
@@ -1479,25 +1519,30 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
       {
         rclcpp::Duration d(0.0);
         if (rclcpp::Time(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp) > current_time.stamp)
-          d = rclcpp::Duration(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.sec, context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.nanosec)
-                             - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+          d = rclcpp::Duration(context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.sec,
+                               context.trajectory_parts_[longest_part].joint_trajectory.header.stamp.nanosec) -
+              rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
 
-        for (std::size_t j = 0; j < context.trajectory_parts_[longest_part].joint_trajectory.points.size(); ++j){
-          time_index_.push_back(rclcpp::Time(current_time.stamp.sec,current_time.stamp.nanosec) + d +
+        for (std::size_t j = 0; j < context.trajectory_parts_[longest_part].joint_trajectory.points.size(); ++j)
+        {
+          time_index_.push_back(rclcpp::Time(current_time.stamp.sec, current_time.stamp.nanosec) + d +
                                 context.trajectory_parts_[longest_part].joint_trajectory.points[j].time_from_start);
-          }
+        }
       }
       else
       {
         rclcpp::Duration d(0.0);
-        if (rclcpp::Time(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp) > current_time.stamp)
-          d = rclcpp::Duration(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.sec, context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.nanosec)
-                           - rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
+        if (rclcpp::Time(context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp) >
+            current_time.stamp)
+          d = rclcpp::Duration(
+                  context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.sec,
+                  context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.header.stamp.nanosec) -
+              rclcpp::Duration(current_time.stamp.sec, current_time.stamp.nanosec);
 
         for (std::size_t j = 0; j < context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.points.size();
              ++j)
           time_index_.push_back(
-              rclcpp::Time(current_time.stamp.sec,current_time.stamp.nanosec) + d +
+              rclcpp::Time(current_time.stamp.sec, current_time.stamp.nanosec) + d +
               context.trajectory_parts_[longest_part].multi_dof_joint_trajectory.points[j].time_from_start);
       }
     }
@@ -1507,17 +1552,18 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
     {
       if (execution_duration_monitoring_)
       {
-        if (!handles[i]->waitForExecution(expected_trajectory_duration)){
-
+        if (!handles[i]->waitForExecution(expected_trajectory_duration))
+        {
           auto time_now = rclcpp::Clock().now();
 
           rclcpp::Duration elapsed = time_now - current_time.stamp;
 
           if (!execution_complete_ && (elapsed) > expected_trajectory_duration)
           {
-            RCLCPP_ERROR(node_->get_logger(), "Controller is taking too long to execute trajectory (the expected upper "
-                                   "bound for the trajectory execution was %lf seconds). Stopping trajectory.",
-                            expected_trajectory_duration.seconds());
+            RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER,
+                         "Controller is taking too long to execute trajectory (the expected upper "
+                         "bound for the trajectory execution was %lf seconds). Stopping trajectory.",
+                         expected_trajectory_duration.seconds());
             {
               boost::mutex::scoped_lock slock(execution_state_mutex_);
               stopExecutionInternal();  // this is really tricky. we can't call stopExecution() here, so we call the
@@ -1540,8 +1586,8 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
       }
       else if (handle->getLastExecutionStatus() != moveit_controller_manager::ExecutionStatus::SUCCEEDED)
       {
-        RCLCPP_WARN(node_->get_logger(), "Controller handle %s reports status %s", handles[i]->getName().c_str()
-                                                          , std::to_string(handles[i]->getLastExecutionStatus()).c_str());
+        RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller handle %s reports status %s",
+                    handles[i]->getName().c_str(), std::to_string(handles[i]->getLastExecutionStatus()).c_str());
         last_execution_status_ = handles[i]->getLastExecutionStatus();
         result = false;
       }
@@ -1572,7 +1618,7 @@ bool TrajectoryExecutionManager::waitForRobotToStop(const TrajectoryExecutionCon
   // skip waiting for convergence?
   if (allowed_start_tolerance_ == 0 || !wait_for_trajectory_completion_)
   {
-    RCLCPP_INFO(node_->get_logger(), "Not waiting for trajectory completion");
+    RCLCPP_INFO(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Not waiting for trajectory completion");
     return true;
   }
 
@@ -1589,12 +1635,13 @@ bool TrajectoryExecutionManager::waitForRobotToStop(const TrajectoryExecutionCon
   {
     if (!csm_->waitForCurrentState(rclcpp::Clock().now(), time_remaining) || !(cur_state = csm_->getCurrentState()))
     {
-      RCLCPP_WARN(node_->get_logger(), "Failed to receive current joint state");
+      RCLCPP_WARN(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Failed to receive current joint state");
       return false;
     }
     cur_state->enforceBounds();
-    long remain = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start).count();
-    time_remaining = wait_time -  (remain * 1.0e-9) ;  // remaining wait_time
+    long remain =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start).count();
+    time_remaining = wait_time - (remain * 1.0e-9);  // remaining wait_time
 
     // check for motion in effected joints of execution context
     bool moved = false;
@@ -1705,12 +1752,12 @@ bool TrajectoryExecutionManager::ensureActiveControllers(const std::vector<std::
       std::map<std::string, ControllerInformation>::const_iterator it = known_controllers_.find(controller);
       if (it == known_controllers_.end())
       {
-        RCLCPP_ERROR(node_->get_logger(), "Controller %s is not known", controllers[i].c_str());
+        RCLCPP_ERROR(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller %s is not known", controllers[i].c_str());
         return false;
       }
       if (!it->second.state_.active_)
       {
-        RCLCPP_DEBUG(node_->get_logger(), "Need to activate %s", controllers[i].c_str());
+        RCLCPP_DEBUG(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Need to activate %s", controllers[i].c_str());
         controllers_to_activate.push_back(controllers[i]);
         joints_to_be_activated.insert(it->second.joints_.begin(), it->second.joints_.end());
         for (const std::string& overlapping_controller : it->second.overlapping_controllers_)
@@ -1724,7 +1771,7 @@ bool TrajectoryExecutionManager::ensureActiveControllers(const std::vector<std::
         }
       }
       else
-        RCLCPP_DEBUG(node_->get_logger(), "Controller %s is already active", controllers[i].c_str());
+        RCLCPP_DEBUG(LOGGER_TRAJECTORY_EXECUTION_MANAGER, "Controller %s is already active", controllers[i].c_str());
     }
     std::set<std::string> diff;
     std::set_difference(joints_to_be_deactivated.begin(), joints_to_be_deactivated.end(),
@@ -1791,24 +1838,26 @@ bool TrajectoryExecutionManager::ensureActiveControllers(const std::vector<std::
 void TrajectoryExecutionManager::loadControllerParams()
 {
   manage_controllers_parameters = std::make_shared<rclcpp::SyncParametersClient>(node_);
-  //TODO (anasarrak): review these changes, ill be using a yaml to reproduce this, but needs further work
-  //if(manage_controllers_parameters->has_parameter({"controller_list"})){
-    if(manage_controllers_parameters->has_parameter({"controller_list.name"})){
-      std::vector<std::string> controller_list = node_->get_parameter("controller_list.name").as_string_array();
-      for (int i = 0; i < controller_list.size(); ++i){
-        if(manage_controllers_parameters->has_parameter({"allowed_execution_duration_scaling"})){
-          double execution_duration = node_->get_parameter("controller_list.name").as_double();
-          controller_allowed_execution_duration_scaling_[std::string(controller_list[i])] =
-              execution_duration;
-          }
-        if(manage_controllers_parameters->has_parameter({"allowed_goal_duration_margin"})){
-          double goal_duration = node_->get_parameter("controller_list.name").as_double();
-          controller_allowed_goal_duration_margin_[std::string(controller_list[i])] =
-              goal_duration;
-        }
+  // TODO (anasarrak): review these changes, ill be using a yaml to reproduce this, but needs further work
+  // if(manage_controllers_parameters->has_parameter({"controller_list"})){
+  if (manage_controllers_parameters->has_parameter({ "controller_list.name" }))
+  {
+    std::vector<std::string> controller_list = node_->get_parameter("controller_list.name").as_string_array();
+    for (int i = 0; i < controller_list.size(); ++i)
+    {
+      if (manage_controllers_parameters->has_parameter({ "allowed_execution_duration_scaling" }))
+      {
+        double execution_duration = node_->get_parameter("controller_list.name").as_double();
+        controller_allowed_execution_duration_scaling_[std::string(controller_list[i])] = execution_duration;
       }
+      if (manage_controllers_parameters->has_parameter({ "allowed_goal_duration_margin" }))
+      {
+        double goal_duration = node_->get_parameter("controller_list.name").as_double();
+        controller_allowed_goal_duration_margin_[std::string(controller_list[i])] = goal_duration;
       }
-    //}
+    }
+  }
+  //}
 
   // XmlRpc::XmlRpcValue controller_list;
   // if (node_handle_.getParam("controller_list", controller_list) &&

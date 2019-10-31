@@ -5,25 +5,25 @@
 class MinimalSubscriber : public rclcpp::Node
 {
 public:
-  MinimalSubscriber()
-  : Node("trajectory_execution_manager_minimal_subscriber")
+  MinimalSubscriber() : Node("trajectory_execution_manager_minimal_subscriber")
   {
     rmw_qos_profile_t qos = rmw_qos_profile_default;
     qos.depth = 1;
     qos.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
 
     subscription_ = this->create_subscription<std_msgs::msg::String>(
-      "robot_description",
-      [this](const std_msgs::msg::String::ConstSharedPtr msg) {
-      RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
-    }, qos);
+        "robot_description",
+        [this](const std_msgs::msg::String::ConstSharedPtr msg) {
+          RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
+        },
+        qos);
   }
 
 private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
 };
 
-int main(int argc, char * argv[])
+int main(int argc, char* argv[])
 {
   // Force flush of the stdout buffer.
   setvbuf(stdout, NULL, _IONBF, BUFSIZ);
@@ -70,7 +70,6 @@ int main(int argc, char * argv[])
 //   rclcpp::shutdown();
 //   return 0;
 // }
-
 
 // #include "rclcpp/rclcpp.hpp"
 // #include "std_msgs/msg/string.hpp"

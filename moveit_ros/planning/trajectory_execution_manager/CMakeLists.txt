@@ -12,11 +12,6 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}
   tinyxml_vendor
   pluginlib
 )
-target_link_libraries(${MOVEIT_LIB_NAME}
-  moveit_planning_scene_monitor   
-  ${moveit_robot_state_LIBRARIES}
-  ${moveit_planning_scene_LIBRARIES}  
-)
 
 install(TARGETS ${MOVEIT_LIB_NAME}
   ARCHIVE DESTINATION lib

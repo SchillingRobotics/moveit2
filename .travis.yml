@@ -23,7 +23,7 @@ env:
   matrix:
     # TODO(mlautman): Enable these in the future once they pass
     # - TEST="clang-format ament_lint"
-    - ROS_DISTRO=crystal
+    - ROS_DISTRO=dashing
 
 # TODO(mlautman): Enable once franka_ikfast_plugin and panda_ikfast_plugin are available
 # matrix: # Add a separate config to the matrix, using clang as compiler

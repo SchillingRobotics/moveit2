@@ -12,7 +12,7 @@ install(TARGETS ${MOVEIT_LIB_NAME}
         LIBRARY DESTINATION "lib"
         ARCHIVE DESTINATION "lib")
 
-if(BUILD_TESTING)
+#if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(moveit_resources REQUIRED)
   set(MOVEIT_TEST_LIB_NAME moveit_test_utils)
@@ -36,6 +36,6 @@ if(BUILD_TESTING)
     ${MOVEIT_TEST_LIB_NAME}
     LIBRARY DESTINATION "lib"
     ARCHIVE DESTINATION "lib")
-endif()
+#endif()
 
-install(DIRECTORY include/ DESTINATION "include")
+install(DIRECTORY include/ DESTINATION include/)

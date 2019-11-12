@@ -20,6 +20,7 @@ env:
     - TEST_BLACKLIST=moveit_ros_perception  # mesh_filter_test fails due to broken Mesa OpenGL
     - CXXFLAGS="-Wall -Wextra -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls -Wno-unused-parameter -Wno-unused-but-set-parameter -Wno-unused-function"
     - WARNINGS_OK=false
+    - DOCKER_IMAGE=jafarabdi/moveit2:dashing-ci
   matrix:
     # TODO(mlautman): Enable these in the future once they pass
     # - TEST="clang-format ament_lint"

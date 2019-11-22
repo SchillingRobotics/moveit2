@@ -49,6 +49,8 @@ CLASS_LOADER_REGISTER_CLASS(lma_kinematics_plugin::LMAKinematicsPlugin, kinemati
 
 namespace lma_kinematics_plugin
 {
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_lma_kinematics_plugin.lma_kinematics_plugin");
+
 LMAKinematicsPlugin::LMAKinematicsPlugin() : initialized_(false)
 {
 }
@@ -88,12 +90,12 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
 
   if (!joint_model_group_->isChain())
   {
-    RCLCPP_ERROR(node_->get_logger(), "Group '%s' is not a chain", group_name.c_str());
+    RCLCPP_ERROR(LOGGER, "Group '%s' is not a chain", group_name.c_str());
     return false;
   }
   if (!joint_model_group_->isSingleDOFJoints())
   {
-    RCLCPP_ERROR(node_->get_logger(), "Group '%s' includes joints that have more than 1 DOF", group_name.c_str());
+    RCLCPP_ERROR(LOGGER, "Group '%s' includes joints that have more than 1 DOF", group_name.c_str());
     return false;
   }
 
@@ -101,12 +103,12 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
 
   if (!kdl_parser::treeFromUrdfModel(*robot_model.getURDF(), kdl_tree))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not initialize tree object");
+    RCLCPP_ERROR(LOGGER, "Could not initialize tree object");
     return false;
   }
   if (!kdl_tree.getChain(base_frame_, getTipFrame(), kdl_chain_))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not initialize chain object");
+    RCLCPP_ERROR(LOGGER, "Could not initialize chain object");
     return false;
   }
 
@@ -130,7 +132,7 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   if (position_ik)  // position_only_ik overrules orientation_vs_position
     orientation_vs_position_weight_ = 0.0;
   if (orientation_vs_position_weight_ == 0.0)
-    RCLCPP_INFO(node_->get_logger(), "Using position only ik");
+    RCLCPP_INFO(LOGGER, "Using position only ik");
 
   // Setup the joint state groups that we need
   state_.reset(new robot_state::RobotState(robot_model_));
@@ -138,7 +140,7 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
 
   initialized_ = true;
-  RCLCPP_DEBUG(node_->get_logger(), "LMA solver initialized");
+  RCLCPP_DEBUG(LOGGER, "LMA solver initialized");
   return true;
 }
 
@@ -230,22 +232,21 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   auto start_time = std::chrono::system_clock::now();
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "kinematics solver not initialized");
+    RCLCPP_ERROR(LOGGER, "kinematics solver not initialized");
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
 
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Seed state must have size %d instead of size %d", dimension_,
-                 ik_seed_state.size());
+    RCLCPP_ERROR(LOGGER, "Seed state must have size %d instead of size %d", dimension_, ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
 
   if (!consistency_limits.empty() && consistency_limits.size() != dimension_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Consistency limits be empty or must have size %d instead of size %d", dimension_,
+    RCLCPP_ERROR(LOGGER, "Consistency limits be empty or must have size %d instead of size %d", dimension_,
                  consistency_limits.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
@@ -271,8 +272,8 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   KDL::Frame pose_desired;
   tf2::fromMsg(ik_pose, pose_desired);
 
-  RCLCPP_DEBUG(node_->get_logger(), "searchPositionIK2: Position request pose is %d %d %d %d %d %d %d",
-               ik_pose.position.x, ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
+  RCLCPP_DEBUG(LOGGER, "searchPositionIK2: Position request pose is %d %d %d %d %d %d %d", ik_pose.position.x,
+               ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
                ik_pose.orientation.z, ik_pose.orientation.w);
   unsigned int attempt = 0;
   do
@@ -284,7 +285,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      RCLCPP_DEBUG(node_->get_logger(), "New random configuration (%d): %d", attempt, jnt_pos_in.data);
+      RCLCPP_DEBUG(LOGGER, "New random configuration (%d): %d", attempt, jnt_pos_in.data);
     }
 
     int ik_valid = ik_solver_pos.CartToJnt(jnt_pos_in, pose_desired, jnt_pos_out);
@@ -306,13 +307,13 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(node_->get_logger(), "Solved after %ld < %fs and %d attempts",
+      RCLCPP_DEBUG(LOGGER, "Solved after %ld < %fs and %d attempts",
                    (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(node_->get_logger(), "IK timed out after %ld > %fs and %d attempts",
+  RCLCPP_DEBUG(LOGGER, "IK timed out after %ld > %fs and %d attempts",
                (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
   error_code.val = error_code.TIMED_OUT;
   return false;
@@ -324,13 +325,13 @@ bool LMAKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
 {
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "kinematics solver not initialized");
+    RCLCPP_ERROR(LOGGER, "kinematics solver not initialized");
     return false;
   }
   poses.resize(link_names.size());
   if (joint_angles.size() != dimension_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Joint angles vector must have size: %d", dimension_);
+    RCLCPP_ERROR(LOGGER, "Joint angles vector must have size: %d", dimension_);
     return false;
   }
 
@@ -352,7 +353,7 @@ bool LMAKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
     }
     else
     {
-      RCLCPP_ERROR(node_->get_logger(), "Could not compute FK for %s", link_names[i].c_str());
+      RCLCPP_ERROR(LOGGER, "Could not compute FK for %s", link_names[i].c_str());
       valid = false;
     }
   }

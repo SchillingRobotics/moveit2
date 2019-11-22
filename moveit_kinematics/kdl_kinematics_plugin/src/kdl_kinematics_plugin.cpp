@@ -47,10 +47,9 @@
 
 namespace kdl_kinematics_plugin
 {
-
 static rclcpp::Logger LOGGER_KDL_KINEMATICS_PLUGIN = rclcpp::get_logger("kdl_kinematics_plugin");
 
-KDLKinematicsPlugin::KDLKinematicsPlugin():initialized_(false)
+KDLKinematicsPlugin::KDLKinematicsPlugin() : initialized_(false)
 {
 }
 
@@ -87,12 +86,14 @@ void KDLKinematicsPlugin::getJointWeights()
   {
     if (!lookupParam(node_, "joint_weights/names", names, names) || names.size() != weights.size())
     {
-      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Expecting list parameter joint_weights/names of same size as list joint_weights/weights");
+      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN,
+                   "Expecting list parameter joint_weights/names of same size as list joint_weights/weights");
       // fall back to default weights
       weights.clear();
     }
   }
-  else if (lookupParam(node_, "joint_weights", weights, weights))  // try reading weight lists (for all active joints) directly
+  else if (lookupParam(node_, "joint_weights", weights,
+                       weights))  // try reading weight lists (for all active joints) directly
   {
     std::size_t num_active = active_names.size();
     if (weights.size() == num_active)
@@ -102,8 +103,9 @@ void KDLKinematicsPlugin::getJointWeights()
     }
     else if (!weights.empty())
     {
-      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Expecting parameter joint_weights to list weights for all active joints (%zu) in order",
-                      num_active);
+      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN,
+                   "Expecting parameter joint_weights to list weights for all active joints (%zu) in order",
+                   num_active);
       // fall back to default weights
       weights.clear();
     }
@@ -121,9 +123,10 @@ void KDLKinematicsPlugin::getJointWeights()
     auto it = std::find(active_names.begin(), active_names.end(), names[i]);
     if (it == active_names.cend())
       RCLCPP_WARN(LOGGER_KDL_KINEMATICS_PLUGIN, "Joint '%s' is not an active joint in group '%s'", names[i].c_str(),
-                     joint_model_group_->getName().c_str());
+                  joint_model_group_->getName().c_str());
     else if (weights[i] < 0.0)
-      RCLCPP_WARN(LOGGER_KDL_KINEMATICS_PLUGIN, "Negative weight %f for joint '%s' will be ignored", weights[i], names[i].c_str());
+      RCLCPP_WARN(LOGGER_KDL_KINEMATICS_PLUGIN, "Negative weight %f for joint '%s' will be ignored", weights[i],
+                  names[i].c_str());
     else
       joint_weights_[it - active_names.begin()] = weights[i];
   }
@@ -149,7 +152,8 @@ bool KDLKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   }
   if (!joint_model_group_->isSingleDOFJoints())
   {
-    RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Group '%s' includes joints that have more than 1 DOF", group_name.c_str());
+    RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Group '%s' includes joints that have more than 1 DOF",
+                 group_name.c_str());
     return false;
   }
 
@@ -265,13 +269,16 @@ bool KDLKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   return true;
 }
 
-bool KDLKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point & start_time, double duration) const
+bool KDLKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const
 {
-  return (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start_time).count()*1e-9 >= duration);
+  return (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start_time).count() *
+              1e-9 >=
+          duration);
 }
 
-bool KDLKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                        std::vector<double>& solution, moveit_msgs::msg::MoveItErrorCodes& error_code,
+bool KDLKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                        const std::vector<double>& ik_seed_state, std::vector<double>& solution,
+                                        moveit_msgs::msg::MoveItErrorCodes& error_code,
                                         const kinematics::KinematicsQueryOptions& options) const
 {
   std::vector<double> consistency_limits;
@@ -281,8 +288,9 @@ bool KDLKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
                           options);
 }
 
-bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
+bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -292,9 +300,9 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, const std::vector<double>& consistency_limits,
-                                           std::vector<double>& solution,
+bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -302,9 +310,9 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -313,9 +321,10 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, const std::vector<double>& consistency_limits,
-                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
+bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
+                                           const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -323,9 +332,9 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const std::vector<double>& consistency_limits,
                                            const kinematics::KinematicsQueryOptions& options) const
@@ -340,7 +349,8 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Seed state must have size %d instead of size %d\n", dimension_, ik_seed_state.size());
+    RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN, "Seed state must have size %d instead of size %d\n", dimension_,
+                 ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -351,7 +361,9 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   {
     if (consistency_limits.size() != dimension_)
     {
-      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN,"Consistency limits must be empty or have size %d instead of size %d\n", dimension_,  consistency_limits.size());
+      RCLCPP_ERROR(LOGGER_KDL_KINEMATICS_PLUGIN,
+                   "Consistency limits must be empty or have size %d instead of size %d\n", dimension_,
+                   consistency_limits.size());
       error_code.val = error_code.NO_IK_SOLUTION;
       return false;
     }
@@ -375,14 +387,14 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   KDL::ChainIkSolverVelMimicSVD ik_solver_vel(kdl_chain_, mimic_joints_, orientation_vs_position_weight_ == 0.0);
   solution.resize(dimension_);
 
-  KDL::Frame pose_desired(KDL::Rotation::Quaternion(ik_pose.orientation.x, ik_pose.orientation.y,
-                                               ik_pose.orientation.z, ik_pose.orientation.w),
-                      KDL::Vector(ik_pose.position.x, ik_pose.position.y, ik_pose.position.z));
+  KDL::Frame pose_desired(KDL::Rotation::Quaternion(ik_pose.orientation.x, ik_pose.orientation.y, ik_pose.orientation.z,
+                                                    ik_pose.orientation.w),
+                          KDL::Vector(ik_pose.position.x, ik_pose.position.y, ik_pose.position.z));
 
-  RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "searchPositionIK: Position request pose is %.4f %.4f %.4f %.4f %.4f %.4f %.4f",
-                                    ik_pose.position.x, ik_pose.position.y, ik_pose.position.z,
-                                    ik_pose.orientation.x, ik_pose.orientation.y,
-                                    ik_pose.orientation.z, ik_pose.orientation.w);
+  RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN,
+               "searchPositionIK: Position request pose is %.4f %.4f %.4f %.4f %.4f %.4f %.4f", ik_pose.position.x,
+               ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
+               ik_pose.orientation.z, ik_pose.orientation.w);
 
   unsigned int attempt = 0;
   do
@@ -394,7 +406,7 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits_mimic, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "New random configuration (%d): ", attempt);// << jnt_pos_in);
+      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "New random configuration (%d): ", attempt);  // << jnt_pos_in);
     }
 
     int ik_valid =
@@ -416,12 +428,14 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN,  "Solved after %d < %d s and %d attempts", (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
+      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "Solved after %d < %d s and %d attempts",
+                   (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "IK timed out after %d < %d s and %d attempts", (std::chrono::system_clock::now() - start_time).count(),  timeout, attempt);
+  RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "IK timed out after %d < %d s and %d attempts",
+               (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
   error_code.val = error_code.TIMED_OUT;
   return false;
 }
@@ -466,8 +480,8 @@ int KDLKinematicsPlugin::CartToJnt(KDL::ChainIkSolverVelMimicSVD& ik_solver, con
       double old_step_size = step_size;
       step_size *= std::min(0.2, last_delta_twist_norm / delta_twist_norm);  // reduce scale;
       KDL::Multiply(delta_q, step_size / old_step_size, delta_q);
-      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "      error increased: %f -> %f, scale: %f", last_delta_twist_norm, delta_twist_norm,
-                      step_size);
+      RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "      error increased: %f -> %f, scale: %f", last_delta_twist_norm,
+                   delta_twist_norm, step_size);
       q_out = q_backup;  // restore previous unclipped joint values
     }
     else
@@ -482,8 +496,8 @@ int KDLKinematicsPlugin::CartToJnt(KDL::ChainIkSolverVelMimicSVD& ik_solver, con
     clipToJointLimits(q_out, delta_q, extra_joint_weights);
 
     const double delta_q_norm = delta_q.data.lpNorm<1>();
-    RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "[%3d] pos err: %f  rot err: %f  delta_q: %f", i, position_error, orientation_error,
-                    delta_q_norm);
+    RCLCPP_DEBUG(LOGGER_KDL_KINEMATICS_PLUGIN, "[%3d] pos err: %f  rot err: %f  delta_q: %f", i, position_error,
+                 orientation_error, delta_q_norm);
     if (delta_q_norm < epsilon_)  // stuck in singularity
     {
       if (step_size < 0.005)  // cannot reach target
@@ -554,8 +568,8 @@ bool KDLKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
       poses[i].position.x = p_out.p[0];
       poses[i].position.y = p_out.p[1];
       poses[i].position.z = p_out.p[2];
-      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y,
-                            poses[i].orientation.z, poses[i].orientation.w);
+      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z,
+                            poses[i].orientation.w);
     }
     else
     {

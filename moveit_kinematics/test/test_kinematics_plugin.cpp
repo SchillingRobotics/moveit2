@@ -62,11 +62,12 @@ inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param
 {
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val = value.value_to_string();
-      if(val.compare("not set") == 0)
-        return false;
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.value_to_string();
+    if (val.compare("not set") == 0)
+      return false;
+    return true;
   }
   return false;
 }
@@ -76,9 +77,10 @@ inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
 
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val = value.as_double();
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.as_double();
+    return true;
   }
   return false;
 }
@@ -88,9 +90,10 @@ inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
 
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val = value.as_int();
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.as_int();
+    return true;
   }
   return false;
 }
@@ -100,9 +103,10 @@ inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
 
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val= value.as_bool();
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.as_bool();
+    return true;
   }
   return false;
 }
@@ -112,26 +116,26 @@ inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
 
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val= value.as_string_array();
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.as_string_array();
+    return true;
   }
   return false;
 }
-
 
 inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, std::vector<double> val)
 {
   auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
 
   auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto & value : parameters_and_prefixes) {
-      val= value.as_double_array();
-      return true;
+  for (auto& value : parameters_and_prefixes)
+  {
+    val = value.as_double_array();
+    return true;
   }
   return false;
 }
-
 
 // // As loading of parameters is quite slow, we share them across all tests
 class SharedData
@@ -186,8 +190,9 @@ class SharedData
     // node_->declare_parameter("num_ik_tests", 1);
     // node_->declare_parameter("num_ik_multiple_tests", 1);
     // node_->declare_parameter("num_nearest_ik_tests", 1);
-    for(int i = 0; i < 6; i++){
-      joints_.push_back(std::string("motor") + std::to_string(i+1));
+    for (int i = 0; i < 6; i++)
+    {
+      joints_.push_back(std::string("motor") + std::to_string(i + 1));
       // seed_param.push_back(0);
       // consistency_limits_param.push_back(0);
     }
@@ -197,7 +202,8 @@ class SharedData
     // node_->declare_parameter("publish_trajectory", false);
     //
     // std::cout << "Loading robot model from /" << ROBOT_DESCRIPTION_PARAM << std::endl;
-    // // std::cout << "Loading robot model from " << ros::this_node::getNamespace() << "/" << ROBOT_DESCRIPTION_PARAM << std::endl;
+    // // std::cout << "Loading robot model from " << ros::this_node::getNamespace() << "/" << ROBOT_DESCRIPTION_PARAM
+    // << std::endl;
     // // load robot model
     rdf_loader::RDFLoader rdf_loader(node_, ROBOT_DESCRIPTION_PARAM);
     robot_model_ = std::make_shared<robot_model::RobotModel>(rdf_loader.getURDF(), rdf_loader.getSRDF());
@@ -294,7 +300,6 @@ protected:
     kinematics_solver_ = SharedData::instance().createUniqueInstance(plugin_name);
     ASSERT_TRUE(bool(kinematics_solver_)) << "Failed to load plugin: " << plugin_name;
 
-
     group_name_ = "manipulator";
     root_link_ = "base_link";
     tip_link_ = "ee_link";
@@ -322,7 +327,8 @@ protected:
 
 public:
   testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* abs_error_expr,
-                                  const geometry_msgs::msg::Point& val1, const geometry_msgs::msg::Point& val2, double abs_error)
+                                  const geometry_msgs::msg::Point& val1, const geometry_msgs::msg::Point& val2,
+                                  double abs_error)
   {
     // clang-format off
     if (std::fabs(val1.x - val2.x) <= abs_error &&
@@ -337,8 +343,8 @@ public:
     // clang-format on
   }
   testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* abs_error_expr,
-                                  const geometry_msgs::msg::Quaternion& val1, const geometry_msgs::msg::Quaternion& val2,
-                                  double abs_error)
+                                  const geometry_msgs::msg::Quaternion& val1,
+                                  const geometry_msgs::msg::Quaternion& val2, double abs_error)
   {
     if ((std::fabs(val1.x - val2.x) <= abs_error && std::fabs(val1.y - val2.y) <= abs_error &&
          std::fabs(val1.z - val2.z) <= abs_error && std::fabs(val1.w - val2.w) <= abs_error) ||
@@ -540,7 +546,8 @@ TEST_F(KinematicsTest, randomWalkIK)
 //   for (int i = 0; i < vec.size(); ++i)
 //     values.push_back(parseDouble(vec[i]));
 // }
-// static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string& desc)
+// static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string&
+// desc)
 // {
 //   std::ostringstream oss;
 //   std::vector<double> vec;
@@ -602,7 +609,8 @@ TEST_F(KinematicsTest, randomWalkIK)
 //     // compute IK
 //     moveit_msgs::msg::MoveItErrorCodes error_code;
 //     kinematics_solver_->searchPositionIK(goal, seed, timeout_,
-//                                          const_cast<const std::vector<double>&>(consistency_limits_), sol, error_code);
+//                                          const_cast<const std::vector<double>&>(consistency_limits_), sol,
+//                                          error_code);
 //     ASSERT_EQ(error_code.val, error_code.SUCCESS);
 //
 //     // validate reached poses
@@ -681,7 +689,8 @@ TEST_F(KinematicsTest, searchIK)
     EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
   }
 
-  std::cout << "Success Rate: " << (double)success / num_ik_tests_ << std::endl;;
+  std::cout << "Success Rate: " << (double)success / num_ik_tests_ << std::endl;
+  ;
   EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_tests_);
 }
 
@@ -789,7 +798,7 @@ TEST_F(KinematicsTest, getIKMultipleSolutions)
     }
   }
 
-  std::cout <<"Success Rate: " << (double)success / num_ik_multiple_tests_ << std::endl;
+  std::cout << "Success Rate: " << (double)success / num_ik_multiple_tests_ << std::endl;
   EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_multiple_tests_);
 }
 

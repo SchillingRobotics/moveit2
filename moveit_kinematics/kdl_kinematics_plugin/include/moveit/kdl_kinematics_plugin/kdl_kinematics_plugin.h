@@ -97,7 +97,8 @@ public:
 
   bool searchPositionIK(
       const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, double timeout,
-      std::vector<double>& solution, const IKCallbackFn& solution_callback, moveit_msgs::msg::MoveItErrorCodes& error_code,
+      std::vector<double>& solution, const IKCallbackFn& solution_callback,
+      moveit_msgs::msg::MoveItErrorCodes& error_code,
       const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
 
   bool searchPositionIK(
@@ -136,8 +137,8 @@ protected:
    * @param consistency_limits The returned solutuion will not deviate more than these from the seed
    * @return True if a valid solution was found, false otherwise
    */
-  bool searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, double timeout,
-                        std::vector<double>& solution, const IKCallbackFn& solution_callback,
+  bool searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
+                        double timeout, std::vector<double>& solution, const IKCallbackFn& solution_callback,
                         moveit_msgs::msg::MoveItErrorCodes& error_code, const std::vector<double>& consistency_limits,
                         const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const;
 
@@ -150,7 +151,7 @@ protected:
 
 private:
   void getJointWeights();
-  bool timedOut(const std::chrono::system_clock::time_point & start_time, double duration) const;
+  bool timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const;
 
   /** @brief Check whether the solution lies within the consistency limits of the seed state
    *  @param seed_state Seed state

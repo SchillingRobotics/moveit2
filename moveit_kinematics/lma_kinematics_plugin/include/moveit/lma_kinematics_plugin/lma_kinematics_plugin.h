@@ -90,7 +90,8 @@ public:
 
   bool searchPositionIK(
       const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, double timeout,
-      std::vector<double>& solution, const IKCallbackFn& solution_callback, moveit_msgs::msg::MoveItErrorCodes& error_code,
+      std::vector<double>& solution, const IKCallbackFn& solution_callback,
+      moveit_msgs::msg::MoveItErrorCodes& error_code,
       const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
 
   bool searchPositionIK(
@@ -129,8 +130,8 @@ protected:
    * @param consistency_limits The returned solutuion will not deviate more than these from the seed
    * @return True if a valid solution was found, false otherwise
    */
-  bool searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, double timeout,
-                        std::vector<double>& solution, const IKCallbackFn& solution_callback,
+  bool searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
+                        double timeout, std::vector<double>& solution, const IKCallbackFn& solution_callback,
                         moveit_msgs::msg::MoveItErrorCodes& error_code, const std::vector<double>& consistency_limits,
                         const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const;
 
@@ -162,7 +163,7 @@ private:
 
   bool initialized_;  ///< Internal variable that indicates whether solver is configured and ready
 
-  unsigned int dimension_;                        ///< Dimension of the group
+  unsigned int dimension_;                             ///< Dimension of the group
   moveit_msgs::msg::KinematicSolverInfo solver_info_;  ///< Stores information for the inverse kinematics solver
 
   const robot_model::JointModelGroup* joint_model_group_;

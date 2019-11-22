@@ -53,6 +53,7 @@
 #include <moveit_msgs/msg/display_trajectory.hpp>
 #include <moveit/robot_trajectory/robot_trajectory.h>
 
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("test_kinematics_plugin");
 const std::string ROBOT_DESCRIPTION_PARAM = "robot_description";
 const double DEFAULT_SEARCH_DISCRETIZATION = 0.01f;
 const double EXPECTED_SUCCESS_RATE = 0.8;
@@ -296,7 +297,7 @@ protected:
     std::string plugin_name;
     ASSERT_TRUE(getParam(SharedData::instance().node_, std::string("ik_plugin_name"), plugin_name));
     plugin_name = std::string("kdl_kinematics_plugin/KDLKinematicsPlugin");
-    RCLCPP_INFO(SharedData::instance().node_->get_logger(), "Loading %s", plugin_name.c_str());
+    RCLCPP_INFO(LOGGER, "Loading %s", plugin_name.c_str());
     kinematics_solver_ = SharedData::instance().createUniqueInstance(plugin_name);
     ASSERT_TRUE(bool(kinematics_solver_)) << "Failed to load plugin: " << plugin_name;
 

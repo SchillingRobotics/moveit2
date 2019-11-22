@@ -121,12 +121,12 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   dimension_ = joints_.size();
 
   // Get Solver Parameters
-  lookupParam(node_,"max_solver_iterations", max_solver_iterations_, 500);
-  lookupParam(node_,"epsilon", epsilon_, 1e-5);
-  lookupParam(node_,"orientation_vs_position", orientation_vs_position_weight_, 0.01);
+  lookupParam(node_, "max_solver_iterations", max_solver_iterations_, 500);
+  lookupParam(node_, "epsilon", epsilon_, 1e-5);
+  lookupParam(node_, "orientation_vs_position", orientation_vs_position_weight_, 0.01);
 
   bool position_ik;
-  lookupParam(node_,"position_only_ik", position_ik, false);
+  lookupParam(node_, "position_only_ik", position_ik, false);
   if (position_ik)  // position_only_ik overrules orientation_vs_position
     orientation_vs_position_weight_ = 0.0;
   if (orientation_vs_position_weight_ == 0.0)
@@ -144,11 +144,14 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
 
 bool LMAKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const
 {
-  return (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() /1000.0 >= duration);
+  return (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() /
+              1000.0 >=
+          duration);
 }
 
-bool LMAKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                        std::vector<double>& solution, moveit_msgs::msg::MoveItErrorCodes& error_code,
+bool LMAKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                        const std::vector<double>& ik_seed_state, std::vector<double>& solution,
+                                        moveit_msgs::msg::MoveItErrorCodes& error_code,
                                         const kinematics::KinematicsQueryOptions& options) const
 {
   std::vector<double> consistency_limits;
@@ -158,8 +161,9 @@ bool LMAKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
                           options);
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -169,9 +173,9 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, const std::vector<double>& consistency_limits,
-                                           std::vector<double>& solution,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -179,9 +183,9 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -190,9 +194,10 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                           options);
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, const std::vector<double>& consistency_limits,
-                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
+                                           const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -216,9 +221,9 @@ bool LMAKinematicsPlugin::obeysLimits(const Eigen::VectorXd& values) const
   return true;
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
-                                           double timeout, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
+                                           const std::vector<double>& ik_seed_state, double timeout,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
@@ -232,14 +237,16 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Seed state must have size %d instead of size %d",dimension_, ik_seed_state.size());
+    RCLCPP_ERROR(node_->get_logger(), "Seed state must have size %d instead of size %d", dimension_,
+                 ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
 
   if (!consistency_limits.empty() && consistency_limits.size() != dimension_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Consistency limits be empty or must have size %d instead of size %d", dimension_, consistency_limits.size());
+    RCLCPP_ERROR(node_->get_logger(), "Consistency limits be empty or must have size %d instead of size %d", dimension_,
+                 consistency_limits.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -265,8 +272,8 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   tf2::fromMsg(ik_pose, pose_desired);
 
   RCLCPP_DEBUG(node_->get_logger(), "searchPositionIK2: Position request pose is %d %d %d %d %d %d %d",
-                                    ik_pose.position.x, ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x,
-                                    ik_pose.orientation.y, ik_pose.orientation.z, ik_pose.orientation.w);
+               ik_pose.position.x, ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
+               ik_pose.orientation.z, ik_pose.orientation.w);
   unsigned int attempt = 0;
   do
   {
@@ -277,7 +284,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      RCLCPP_DEBUG(node_->get_logger(), "New random configuration (%d): %d",attempt, jnt_pos_in.data);
+      RCLCPP_DEBUG(node_->get_logger(), "New random configuration (%d): %d", attempt, jnt_pos_in.data);
     }
 
     int ik_valid = ik_solver_pos.CartToJnt(jnt_pos_in, pose_desired, jnt_pos_out);
@@ -299,12 +306,14 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(node_->get_logger(), "Solved after %ld < %fs and %d attempts",(std::chrono::system_clock::now() - start_time).count(),timeout,attempt);
+      RCLCPP_DEBUG(node_->get_logger(), "Solved after %ld < %fs and %d attempts",
+                   (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(node_->get_logger(), "IK timed out after %ld > %fs and %d attempts",(std::chrono::system_clock::now() - start_time).count(),timeout,attempt);
+  RCLCPP_DEBUG(node_->get_logger(), "IK timed out after %ld > %fs and %d attempts",
+               (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
   error_code.val = error_code.TIMED_OUT;
   return false;
 }
@@ -334,12 +343,12 @@ bool LMAKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
   {
     if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
     {
-      //TODO (anasarrak): Add a toMsg transformation for KDL::Frame
+      // TODO (anasarrak): Add a toMsg transformation for KDL::Frame
       poses[i].position.x = p_out.p[0];
       poses[i].position.y = p_out.p[1];
       poses[i].position.z = p_out.p[2];
-      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y,
-                            poses[i].orientation.z, poses[i].orientation.w);
+      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z,
+                            poses[i].orientation.w);
     }
     else
     {

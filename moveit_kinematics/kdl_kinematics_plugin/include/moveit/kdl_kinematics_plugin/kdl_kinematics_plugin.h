@@ -151,7 +151,7 @@ protected:
 
 private:
   void getJointWeights();
-  bool timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const;
+  bool timedOut(const rclcpp::Time& start_time, double duration) const;
 
   /** @brief Check whether the solution lies within the consistency limits of the seed state
    *  @param seed_state Seed state

@@ -144,11 +144,9 @@ bool LMAKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   return true;
 }
 
-bool LMAKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const
+bool LMAKinematicsPlugin::timedOut(const rclcpp::Time& start_time, double duration) const
 {
-  return (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start_time).count() /
-              1000.0 >=
-          duration);
+  return ((node_->now() - start_time).seconds() >= duration);
 }
 
 bool LMAKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
@@ -230,7 +228,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            const std::vector<double>& consistency_limits,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
-  auto start_time = std::chrono::system_clock::now();
+  rclcpp::Time start_time = node_->now();
   if (!initialized_)
   {
     RCLCPP_ERROR(LOGGER, "kinematics solver not initialized");
@@ -286,7 +284,9 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      RCLCPP_DEBUG(LOGGER, "New random configuration (%d): %d", attempt, jnt_pos_in.data);
+      std::stringstream ss;
+      ss << "New random configuration (" << attempt << "): " << jnt_pos_in;
+      RCLCPP_DEBUG(LOGGER, "%s", ss.str().c_str());
     }
 
     int ik_valid = ik_solver_pos.CartToJnt(jnt_pos_in, pose_desired, jnt_pos_out);
@@ -308,14 +308,14 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(LOGGER, "Solved after %ld < %fs and %d attempts",
-                   (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
+      RCLCPP_DEBUG(LOGGER, "Solved after %f < %fs and %d attempts", (node_->now() - start_time).seconds(), timeout,
+                   attempt);
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(LOGGER, "IK timed out after %ld > %fs and %d attempts",
-               (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
+  RCLCPP_DEBUG(LOGGER, "IK timed out after %f > %fs and %d attempts", (node_->now() - start_time).seconds(), timeout,
+               attempt);
   error_code.val = error_code.TIMED_OUT;
   return false;
 }
@@ -345,7 +345,8 @@ bool LMAKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
   {
     if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
     {
-      // TODO (anasarrak): Add a toMsg transformation for KDL::Frame
+      // TODO(JafarAbdi): un-comment when adding eloquent support
+      // poses[i] = tf2::toMsg(p_out);
       poses[i].position.x = p_out.p[0];
       poses[i].position.y = p_out.p[1];
       poses[i].position.z = p_out.p[2];

@@ -9,15 +9,9 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}
   random_numbers
   pluginlib
   moveit_core
-)
-
-target_include_directories(${MOVEIT_LIB_NAME} PUBLIC
-  ${EIGEN3_INCLUDE_DIR}
-)
-
-target_link_libraries(${MOVEIT_LIB_NAME}
-  ${orocos_kdl_LIBRARIES}
-  ${kdl_parser_LIBRARIES}
+  orocos_kdl
+  kdl_parser
+  EIGEN3
 )
 
 # prevent pluginlib from using boost

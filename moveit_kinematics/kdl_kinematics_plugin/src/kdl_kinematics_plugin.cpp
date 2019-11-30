@@ -555,6 +555,7 @@ bool KDLKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
   {
     if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
     {
+      // TODO(JafarAbdi): un-comment when adding eloquent support
       // poses[i] = tf2::toMsg(p_out);
       poses[i].position.x = p_out.p[0];
       poses[i].position.y = p_out.p[1];

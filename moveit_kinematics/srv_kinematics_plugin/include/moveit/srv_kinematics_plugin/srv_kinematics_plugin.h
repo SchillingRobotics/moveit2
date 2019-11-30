@@ -144,7 +144,7 @@ protected:
   bool setRedundantJoints(const std::vector<unsigned int>& redundant_joint_indices) override;
 
 private:
-  bool timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const;
+  bool timedOut(const rclcpp::Time& start_time, double duration) const;
 
   int getJointIndex(const std::string& name) const;
 

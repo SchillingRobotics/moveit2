@@ -265,11 +265,9 @@ bool KDLKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   return true;
 }
 
-bool KDLKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const
+bool KDLKinematicsPlugin::timedOut(const rclcpp::Time& start_time, double duration) const
 {
-  return (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start_time).count() *
-              1e-9 >=
-          duration);
+  return ((node_->now() - start_time).seconds() >= duration);
 }
 
 bool KDLKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
@@ -335,7 +333,7 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            const std::vector<double>& consistency_limits,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
-  auto start_time = std::chrono::system_clock::now();
+  rclcpp::Time start_time = node_->now();
   if (!initialized_)
   {
     RCLCPP_ERROR(LOGGER, "kinematics solver not initialized");
@@ -421,14 +419,14 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(LOGGER, "Solved after %d < %d s and %d attempts",
-                   (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
+      RCLCPP_DEBUG(LOGGER, "Solved after %f < %f s and %d attempts", (node_->now() - start_time).seconds(), timeout,
+                   attempt);
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(LOGGER, "IK timed out after %d < %d s and %d attempts",
-               (std::chrono::system_clock::now() - start_time).count(), timeout, attempt);
+  RCLCPP_DEBUG(LOGGER, "IK timed out after %f < %f s and %d attempts", (node_->now() - start_time).seconds(), timeout,
+               attempt);
   error_code.val = error_code.TIMED_OUT;
   return false;
 }

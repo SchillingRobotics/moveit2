@@ -78,7 +78,7 @@ bool SrvKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   // Get the dimension of the planning group
   dimension_ = joint_model_group_->getVariableCount();
   RCLCPP_INFO(LOGGER, "Dimension planning group '%s': %d . Active Joints Models:  %d . Mimic Joint Models: %d",
-              group_name, dimension_, joint_model_group_->getActiveJointModels().size(),
+              group_name.c_str(), dimension_, joint_model_group_->getActiveJointModels().size(),
               joint_model_group_->getMimicJointModels().size());
 
   // Copy joint names
@@ -163,11 +163,9 @@ int SrvKinematicsPlugin::getJointIndex(const std::string& name) const
   return -1;
 }
 
-bool SrvKinematicsPlugin::timedOut(const std::chrono::system_clock::time_point& start_time, double duration) const
+bool SrvKinematicsPlugin::timedOut(const rclcpp::Time& start_time, double duration) const
 {
-  return (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start_time).count() *
-              1e-9 >=
-          duration);
+  return ((node_->now() - start_time).seconds() >= duration);
 }
 
 bool SrvKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,

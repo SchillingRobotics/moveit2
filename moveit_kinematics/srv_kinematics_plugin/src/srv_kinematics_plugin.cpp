@@ -98,8 +98,7 @@ bool SrvKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   {
     if (!joint_model_group_->hasLinkModel(tip_frame))
     {
-      RCLCPP_ERROR(LOGGER, "Could not find tip name '%s' in joint group '%s'", tip_frames_[i].c_str(),
-                   group_name.c_str());
+      RCLCPP_ERROR(LOGGER, "Could not find tip name '%s' in joint group '%s'", tip_frame.c_str(), group_name.c_str());
       return false;
     }
     ik_group_info_.link_names.push_back(tip_frame);

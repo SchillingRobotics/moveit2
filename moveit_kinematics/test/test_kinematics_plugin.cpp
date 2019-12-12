@@ -43,7 +43,7 @@
 #include <tf2_eigen/tf2_eigen.h>
 // #include <xmlrpcpp/XmlRpcValue.h>
 
-// MoveIt!
+// MoveIt
 #include <moveit/kinematics_base/kinematics_base.h>
 #include <moveit/rdf_loader/rdf_loader.h>
 #include <moveit/robot_model/robot_model.h>
@@ -525,141 +525,129 @@ TEST_F(KinematicsTest, randomWalkIK)
   //   ros::WallDuration(0.1).sleep();
   // }
 }
-//
-// static double parseDouble(XmlRpc::XmlRpcValue& v)
-// {
-//   if (v.getType() == XmlRpc::XmlRpcValue::TypeDouble)
-//     return static_cast<double>(v);
-//   else if (v.getType() == XmlRpc::XmlRpcValue::TypeInt)
-//     return static_cast<int>(v);
-//   else
-//     return 0.0;
-// }
-// static void parseVector(XmlRpc::XmlRpcValue& vec, std::vector<double>& values, size_t num = 0)
-// {
-//   ASSERT_EQ(vec.getType(), XmlRpc::XmlRpcValue::TypeArray);
-//   if (num != 0)
-//   {
-//     ASSERT_EQ(static_cast<size_t>(vec.size()), num);
-//   }
-//   values.reserve(vec.size());
-//   values.clear();
-//   for (int i = 0; i < vec.size(); ++i)
-//     values.push_back(parseDouble(vec[i]));
-// }
-// static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string&
-// desc)
-// {
-//   std::ostringstream oss;
-//   std::vector<double> vec;
-//   if (name == "pose")
-//   {
-//     parseVector(value["orientation"], vec, 4);
-//     Eigen::Quaterniond q(vec[3], vec[0], vec[1], vec[2]);  // w x y z
-//     goal = q;
-//     parseVector(value["position"], vec, 3);
-//     goal.translation() = Eigen::Map<Eigen::Vector3d>(vec.data());
-//     oss << name << " " << goal.translation().transpose() << " " << q.vec().transpose() << " " << q.w();
-//     desc = oss.str();
-//     return true;
-//   }
-//   for (unsigned char axis = 0; axis < 3; ++axis)
-//   {
-//     char axis_char = 'x' + axis;
-//     // position offset
-//     if (name == (std::string("pos.") + axis_char))
-//     {
-//       goal.translation()[axis] += parseDouble(value);
-//       desc = name + " " + std::to_string(parseDouble(value));
-//       return true;
-//     }
-//     // rotation offset
-//     else if (name == (std::string("rot.") + axis_char))
-//     {
-//       goal *= Eigen::AngleAxisd(parseDouble(value), Eigen::Vector3d::Unit(axis));
-//       desc = name + " " + std::to_string(parseDouble(value));
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-//
-// TEST_F(KinematicsTest, unitIK)
-// {
-//   XmlRpc::XmlRpcValue tests;
-//   if (!getParam(node_, std::string("unit_tests", tests))
-//     return;
-//
-//   std::vector<double> seed, sol;
-//   const std::vector<std::string>& tip_frames = kinematics_solver_->getTipFrames();
-//   robot_state::RobotState robot_state(robot_model_);
-//   robot_state.setToDefaultValues();
-//
-//   // initial joint pose from seed_ or defaults
-//   if (!seed_.empty())
-//     robot_state.setJointGroupPositions(jmg_, seed_);
-//   robot_state.copyJointGroupPositions(jmg_, seed);
-//
-//   // compute initial end-effector pose
-//   std::vector<geometry_msgs::msg::Pose> poses;
-//   ASSERT_TRUE(kinematics_solver_->getPositionFK(tip_frames, seed, poses));
-//   Eigen::Isometry3d initial, goal;
-//   tf2::fromMsg(poses[0], initial);
-//
-//   auto validate_ik = [&](const geometry_msgs::msg::Pose& goal, std::vector<double>& truth) {
-//     // compute IK
-//     moveit_msgs::msg::MoveItErrorCodes error_code;
-//     kinematics_solver_->searchPositionIK(goal, seed, timeout_,
-//                                          const_cast<const std::vector<double>&>(consistency_limits_), sol,
-//                                          error_code);
-//     ASSERT_EQ(error_code.val, error_code.SUCCESS);
-//
-//     // validate reached poses
-//     std::vector<geometry_msgs::msg::Pose> reached_poses;
-//     kinematics_solver_->getPositionFK(tip_frames, sol, reached_poses);
-//     EXPECT_NEAR_POSES({ goal }, reached_poses, tolerance_);
-//
-//     // validate ground truth
-//     if (!truth.empty())
-//     {
-//       ASSERT_EQ(truth.size(), sol.size()) << "Invalid size of ground truth joints vector";
-//       Eigen::Map<Eigen::ArrayXd> solution(sol.data(), sol.size());
-//       Eigen::Map<Eigen::ArrayXd> ground_truth(truth.data(), truth.size());
-//       EXPECT_TRUE(solution.isApprox(ground_truth, 10 * tolerance_)) << solution.transpose() << std::endl
-//                                                                     << ground_truth.transpose() << std::endl;
-//     }
-//   };
-//
-//   ASSERT_EQ(tests.getType(), XmlRpc::XmlRpcValue::TypeArray);
-//   std::vector<double> ground_truth;
-//
-//   /* process tests definitions on parameter server of the form
-//      - pos.x: +0.1
-//        joints: [0, 0, 0, 0, 0, 0]
-//      - pos.y: -0.1
-//        joints: [0, 0, 0, 0, 0, 0]
-//   */
-//   for (int i = 0; i < tests.size(); ++i)
-//   {
-//     goal = initial;  // reset goal to initial
-//     ground_truth.clear();
-//
-//     ASSERT_EQ(tests[i].getType(), XmlRpc::XmlRpcValue::TypeStruct);
-//     std::string desc;
-//     for (auto& member : tests[i])
-//     {
-//       if (member.first == "joints")
-//         parseVector(member.second, ground_truth);
-//       else if (!parseGoal(member.first, member.second, goal, desc))
-//         ROS_WARN_STREAM("unknown unit_tests' key: " << member.first);
-//     }
-//     {
-//       SCOPED_TRACE(desc);
-//       validate_ik(tf2::toMsg(goal), ground_truth);
-//     }
-//   }
-// }
-//
+static void parseVector(XmlRpc::XmlRpcValue& vec, std::vector<double>& values, size_t num = 0)
+{
+  ASSERT_EQ(vec.getType(), XmlRpc::XmlRpcValue::TypeArray);
+  if (num != 0)
+  {
+    ASSERT_EQ(static_cast<size_t>(vec.size()), num);
+  }
+  values.reserve(vec.size());
+  values.clear();
+  for (int i = 0; i < vec.size(); ++i)  // NOLINT(modernize-loop-convert)
+    values.push_back(parseDouble(vec[i]));
+}
+static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string& desc)
+{
+  std::ostringstream oss;
+  std::vector<double> vec;
+  if (name == "pose")
+  {
+    parseVector(value["orientation"], vec, 4);
+    Eigen::Quaterniond q(vec[3], vec[0], vec[1], vec[2]);  // w x y z
+    goal = q;
+    parseVector(value["position"], vec, 3);
+    goal.translation() = Eigen::Map<Eigen::Vector3d>(vec.data());
+    oss << name << " " << goal.translation().transpose() << " " << q.vec().transpose() << " " << q.w();
+    desc = oss.str();
+    return true;
+  }
+  for (unsigned char axis = 0; axis < 3; ++axis)
+  {
+    char axis_char = 'x' + axis;
+    // position offset
+    if (name == (std::string("pos.") + axis_char))
+    {
+      goal.translation()[axis] += parseDouble(value);
+      desc = name + " " + std::to_string(parseDouble(value));
+      return true;
+    }
+    // rotation offset
+    else if (name == (std::string("rot.") + axis_char))
+    {
+      goal *= Eigen::AngleAxisd(parseDouble(value), Eigen::Vector3d::Unit(axis));
+      desc = name + " " + std::to_string(parseDouble(value));
+      return true;
+    }
+  }
+  return false;
+}
+
+TEST_F(KinematicsTest, unitIK)
+{
+  XmlRpc::XmlRpcValue tests;
+  if (!getParam("unit_tests", tests))
+    return;
+
+  std::vector<double> seed, sol;
+  const std::vector<std::string>& tip_frames = kinematics_solver_->getTipFrames();
+  robot_state::RobotState robot_state(robot_model_);
+  robot_state.setToDefaultValues();
+
+  // initial joint pose from seed_ or defaults
+  if (!seed_.empty())
+    robot_state.setJointGroupPositions(jmg_, seed_);
+  robot_state.copyJointGroupPositions(jmg_, seed);
+
+  // compute initial end-effector pose
+  std::vector<geometry_msgs::Pose> poses;
+  ASSERT_TRUE(kinematics_solver_->getPositionFK(tip_frames, seed, poses));
+  Eigen::Isometry3d initial, goal;
+  tf2::fromMsg(poses[0], initial);
+
+  auto validate_ik = [&](const geometry_msgs::Pose& goal, std::vector<double>& truth) {
+    // compute IK
+    moveit_msgs::msg::MoveItErrorCodes error_code;
+    kinematics_solver_->searchPositionIK(goal, seed, timeout_,
+                                         const_cast<const std::vector<double>&>(consistency_limits_), sol, error_code);
+    ASSERT_EQ(error_code.val, error_code.SUCCESS);
+
+    // validate reached poses
+    std::vector<geometry_msgs::Pose> reached_poses;
+    kinematics_solver_->getPositionFK(tip_frames, sol, reached_poses);
+    EXPECT_NEAR_POSES({ goal }, reached_poses, tolerance_);
+
+    // validate ground truth
+    if (!truth.empty())
+    {
+      ASSERT_EQ(truth.size(), sol.size()) << "Invalid size of ground truth joints vector";
+      Eigen::Map<Eigen::ArrayXd> solution(sol.data(), sol.size());
+      Eigen::Map<Eigen::ArrayXd> ground_truth(truth.data(), truth.size());
+      EXPECT_TRUE(solution.isApprox(ground_truth, 10 * tolerance_)) << solution.transpose() << std::endl
+                                                                    << ground_truth.transpose() << std::endl;
+    }
+  };
+
+  ASSERT_EQ(tests.getType(), XmlRpc::XmlRpcValue::TypeArray);
+  std::vector<double> ground_truth;
+
+  /* process tests definitions on parameter server of the form
+     - pos.x: +0.1
+       joints: [0, 0, 0, 0, 0, 0]
+     - pos.y: -0.1
+       joints: [0, 0, 0, 0, 0, 0]
+  */
+  for (int i = 0; i < tests.size(); ++i)  // NOLINT(modernize-loop-convert)
+  {
+    goal = initial;  // reset goal to initial
+    ground_truth.clear();
+
+    ASSERT_EQ(tests[i].getType(), XmlRpc::XmlRpcValue::TypeStruct);
+    std::string desc;
+    for (std::pair<const std::string, XmlRpc::XmlRpcValue>& member : tests[i])
+    {
+      if (member.first == "joints")
+        parseVector(member.second, ground_truth);
+      else if (!parseGoal(member.first, member.second, goal, desc))
+        ROS_WARN_STREAM("unknown unit_tests' key: " << member.first);
+    }
+    {
+      SCOPED_TRACE(desc);
+      validate_ik(tf2::toMsg(goal), ground_truth);
+    }
+  }
+}
+
 TEST_F(KinematicsTest, searchIK)
 {
   std::vector<double> seed, fk_values, solution;

@@ -36,12 +36,14 @@
 
 #include <pluginlib/class_loader.hpp>
 #include <moveit/planning_request_adapter/planning_request_adapter.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <memory>
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "list_planning_adapter_plugins");
+  rclcpp::init(argc, argv);
+
+  auto node = std::make_shared<rclcpp::Node>("list_planning_adapter_plugins");
 
   std::unique_ptr<pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter>> loader;
   try
@@ -56,22 +58,23 @@ int main(int argc, char** argv)
 
   const std::vector<std::string>& classes = loader->getDeclaredClasses();
   std::cout << "Available planning request adapter plugins:" << std::endl;
-  for (std::size_t i = 0; i < classes.size(); ++i)
+  for (const std::string& adapter_plugin_name : classes)
   {
-    std::cout << " \t " << classes[i] << std::endl;
+    std::cout << " \t " << adapter_plugin_name << std::endl;
     planning_request_adapter::PlanningRequestAdapterConstPtr ad;
     try
     {
-      ad = loader->createUniqueInstance(classes[i]);
+      ad = loader->createUniqueInstance(adapter_plugin_name);
     }
     catch (pluginlib::PluginlibException& ex)
     {
-      std::cout << " \t\t  Exception while planning adapter plugin '" << classes[i] << "': " << ex.what() << std::endl;
+      std::cout << " \t\t  Exception while planning adapter plugin '" << adapter_plugin_name << "': " << ex.what()
+                << std::endl;
     }
     if (ad)
       std::cout << " \t\t  " << ad->getDescription() << std::endl;
     std::cout << std::endl << std::endl;
   }
-
+  rclcpp::shutdown();
   return 0;
 }

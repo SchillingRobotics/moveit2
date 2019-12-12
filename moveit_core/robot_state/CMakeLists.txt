@@ -9,6 +9,7 @@ add_library(${MOVEIT_LIB_NAME} SHARED
   src/attached_body.cpp
   src/conversions.cpp
   src/robot_state.cpp
+  src/cartesian_interpolator.cpp
 )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION ${${PROJECT_NAME}_VERSION})
 target_link_libraries(${MOVEIT_LIB_NAME}
@@ -29,7 +30,8 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}
 )
 install(TARGETS ${MOVEIT_LIB_NAME}
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
 
 # Unit tests
@@ -74,7 +76,7 @@ if(BUILD_TESTING)
 
   # As an executable, this benchmark is not run as a test by default
   ament_add_gtest(test_robot_state_benchmark test/robot_state_benchmark.cpp)
-    target_include_directories(test_robot_state_benchmark PUBLIC
+  target_include_directories(test_robot_state_benchmark PUBLIC
     ${tf2_geometry_msgs_INCLUDE_DIRS}
     ${urdf_INCLUDE_DIRS}
     ${visualization_msgs_INCLUDE_DIRS}
@@ -140,5 +142,13 @@ if(BUILD_TESTING)
     ${visualization_msgs_LIBRARIES}
     ${geometric_shapes_LIBRARIES}
     resource_retriever::resource_retriever
+  )
+
+  ament_add_gtest(test_cartesian_interpolator test/test_cartesian_interpolator.cpp)
+  target_link_libraries(test_cartesian_interpolator
+    moveit_test_utils
+    ${urdfdom_LIBRARIES}
+    ${urdfdom_headers_LIBRARIES}
+    ${MOVEIT_LIB_NAME}
   )
 endif()

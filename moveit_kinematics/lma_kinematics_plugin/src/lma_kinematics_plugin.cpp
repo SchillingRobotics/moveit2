@@ -157,7 +157,7 @@ bool LMAKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
   std::vector<double> consistency_limits;
 
   // limit search to a single attempt by setting a timeout of zero
-  return searchPositionIK(ik_pose, ik_seed_state, 0.0, solution, IKCallbackFn(), error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, 0.0, consistency_limits, solution, IKCallbackFn(), error_code,
                           options);
 }
 
@@ -169,7 +169,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 {
   std::vector<double> consistency_limits;
 
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, IKCallbackFn(), error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, IKCallbackFn(), error_code,
                           options);
 }
 
@@ -179,7 +179,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, IKCallbackFn(), error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, IKCallbackFn(), error_code,
                           options);
 }
 
@@ -190,18 +190,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            const kinematics::KinematicsQueryOptions& options) const
 {
   std::vector<double> consistency_limits;
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code, consistency_limits,
-                          options);
-}
-
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
-                                           const std::vector<double>& ik_seed_state, double timeout,
-                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
-                                           moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const kinematics::KinematicsQueryOptions& options) const
-{
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, solution_callback, error_code,
                           options);
 }
 
@@ -221,11 +210,10 @@ bool LMAKinematicsPlugin::obeysLimits(const Eigen::VectorXd& values) const
   return true;
 }
 
-bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
-                                           const std::vector<double>& ik_seed_state, double timeout,
+bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::Pose& ik_pose, const std::vector<double>& ik_seed_state,
+                                           double timeout, const std::vector<double>& consistency_limits,
                                            std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const std::vector<double>& consistency_limits,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
   rclcpp::Time start_time = node_->now();

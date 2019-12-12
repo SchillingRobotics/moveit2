@@ -34,12 +34,12 @@
 
 /* Author: Ioan Sucan, Mathias Lüdtke, Dave Coleman */
 
-#ifndef MOVEIT_PLANNING_RDF_LOADER_
-#define MOVEIT_PLANNING_RDF_LOADER_
+#pragma once
 
 #include <moveit/macros/class_forward.h>
 #include <urdf/model.h>
 #include <srdfdom/model.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace rdf_loader
 {
@@ -54,7 +54,7 @@ public:
   /** @brief Default constructor
    *  @param robot_description The string name corresponding to the ROS param where the URDF is loaded; the SRDF is
    * assumed to be at the same param name + the "_semantic" suffix */
-  RDFLoader(const std::string& robot_description = "robot_description");
+  RDFLoader(const std::shared_ptr<rclcpp::Node>& node, const std::string& robot_description = "robot_description");
 
   /** \brief Initialize the robot model from a string representation of the URDF and SRDF documents */
   RDFLoader(const std::string& urdf_string, const std::string& srdf_string);
@@ -102,4 +102,3 @@ private:
   urdf::ModelInterfaceSharedPtr urdf_;
 };
 }
-#endif

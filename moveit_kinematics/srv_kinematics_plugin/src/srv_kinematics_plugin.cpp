@@ -94,15 +94,15 @@ bool SrvKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model
   }
 
   // Make sure all the tip links are in the link_names vector
-  for (std::size_t i = 0; i < tip_frames_.size(); ++i)
+  for (const std::string& tip_frame : tip_frames_)
   {
-    if (!joint_model_group_->hasLinkModel(tip_frames_[i]))
+    if (!joint_model_group_->hasLinkModel(tip_frame))
     {
       RCLCPP_ERROR(LOGGER, "Could not find tip name '%s' in joint group '%s'", tip_frames_[i].c_str(),
                    group_name.c_str());
       return false;
     }
-    ik_group_info_.link_names.push_back(tip_frames_[i]);
+    ik_group_info_.link_names.push_back(tip_frame);
   }
 
   // Choose what ROS service to send IK requests to
@@ -147,8 +147,8 @@ bool SrvKinematicsPlugin::setRedundantJoints(const std::vector<unsigned int>& re
 
 bool SrvKinematicsPlugin::isRedundantJoint(unsigned int index) const
 {
-  for (std::size_t j = 0; j < redundant_joint_indices_.size(); ++j)
-    if (redundant_joint_indices_[j] == index)
+  for (const unsigned int& redundant_joint_indice : redundant_joint_indices_)
+    if (redundant_joint_indice == index)
       return true;
   return false;
 }
@@ -175,8 +175,8 @@ bool SrvKinematicsPlugin::getPositionIK(const geometry_msgs::msg::Pose& ik_pose,
 {
   std::vector<double> consistency_limits;
 
-  return searchPositionIK(ik_pose, ik_seed_state, default_timeout_, solution, IKCallbackFn(), error_code,
-                          consistency_limits, options);
+  return searchPositionIK(ik_pose, ik_seed_state, default_timeout_, consistency_limits, solution, IKCallbackFn(),
+                          error_code, options);
 }
 
 bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
@@ -187,7 +187,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 {
   std::vector<double> consistency_limits;
 
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, IKCallbackFn(), error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, IKCallbackFn(), error_code,
                           options);
 }
 
@@ -197,7 +197,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, IKCallbackFn(), error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, IKCallbackFn(), error_code,
                           options);
 }
 
@@ -208,7 +208,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            const kinematics::KinematicsQueryOptions& options) const
 {
   std::vector<double> consistency_limits;
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code, consistency_limits,
+  return searchPositionIK(ik_pose, ik_seed_state, timeout, consistency_limits, solution, solution_callback, error_code,
                           options);
 }
 
@@ -217,17 +217,6 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            const std::vector<double>& consistency_limits, std::vector<double>& solution,
                                            const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const kinematics::KinematicsQueryOptions& options) const
-{
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code, consistency_limits,
-                          options);
-}
-
-bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
-                                           const std::vector<double>& ik_seed_state, double timeout,
-                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
-                                           moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const std::vector<double>& consistency_limits,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
   // Convert single pose into a vector of one pose
@@ -239,11 +228,12 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 }
 
 bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg::Pose>& ik_poses,
-                                           const std::vector<double>& ik_seed_state, double timeout,
-                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+                                           const std::vector<double>& ik_seed_state, double /*timeout*/,
+                                           const std::vector<double>& /*consistency_limits*/,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const kinematics::KinematicsQueryOptions& options) const
+                                           const kinematics::KinematicsQueryOptions& /*options*/,
+                                           const moveit::core::RobotState* /*context_state*/) const
 {
   // Check if active
   if (!active_)

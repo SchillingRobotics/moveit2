@@ -37,14 +37,19 @@
 #include <moveit/planning_request_adapter/planning_request_adapter.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <class_loader/class_loader.hpp>
-#include <ros/console.h>
 
 namespace default_planner_request_adapters
 {
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.add_time_parameterization");
+
 class AddTimeParameterization : public planning_request_adapter::PlanningRequestAdapter
 {
 public:
   AddTimeParameterization() : planning_request_adapter::PlanningRequestAdapter()
+  {
+  }
+
+  void initialize(const rclcpp::Node::SharedPtr& /* node */) override
   {
   }
 
@@ -55,15 +60,18 @@ public:
 
   bool adaptAndPlan(const PlannerFn& planner, const planning_scene::PlanningSceneConstPtr& planning_scene,
                     const planning_interface::MotionPlanRequest& req, planning_interface::MotionPlanResponse& res,
-                    std::vector<std::size_t>& added_path_index) const override
+                    std::vector<std::size_t>& /*added_path_index*/) const override
   {
     bool result = planner(planning_scene, req, res);
     if (result && res.trajectory_)
     {
-      ROS_DEBUG("Running '%s'", getDescription().c_str());
+      RCLCPP_DEBUG(LOGGER, "Running '%s'", getDescription().c_str());
       if (!time_param_.computeTimeStamps(*res.trajectory_, req.max_velocity_scaling_factor,
                                          req.max_acceleration_scaling_factor))
-        ROS_WARN("Time parametrization for the solution path failed.");
+      {
+        RCLCPP_WARN(LOGGER, "Time parametrization for the solution path failed.");
+        result = false;
+      }
     }
 
     return result;
@@ -75,4 +83,4 @@ private:
 }  // namespace default_planner_request_adapters
 
 CLASS_LOADER_REGISTER_CLASS(default_planner_request_adapters::AddTimeParameterization,
-                            planning_request_adapter::PlanningRequestAdapter);
+                            planning_request_adapter::PlanningRequestAdapter)

@@ -36,19 +36,23 @@
 
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/profiler/profiler.h>
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <typeinfo>
 
 namespace robot_model_loader
 {
-RobotModelLoader::RobotModelLoader(const std::string& robot_description, bool load_kinematics_solvers)
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.robot_model_loader");
+
+RobotModelLoader::RobotModelLoader(const rclcpp::Node::SharedPtr& node, const std::string& robot_description,
+                                   bool load_kinematics_solvers)
+  : node_(node)
 {
   Options opt(robot_description);
   opt.load_kinematics_solvers_ = load_kinematics_solvers;
   configure(opt);
 }
 
-RobotModelLoader::RobotModelLoader(const Options& opt)
+RobotModelLoader::RobotModelLoader(const rclcpp::Node::SharedPtr& node, const Options& opt) : node_(node)
 {
   configure(opt);
 }
@@ -71,14 +75,24 @@ bool canSpecifyPosition(const robot_model::JointModel* jmodel, const unsigned in
 {
   bool ok = false;
   if (jmodel->getType() == robot_model::JointModel::PLANAR && index == 2)
-    ROS_ERROR("Cannot specify position limits for orientation of planar joint '%s'", jmodel->getName().c_str());
+  {
+    RCLCPP_ERROR(LOGGER, "Cannot specify position limits for orientation of planar joint '%s'",
+                 jmodel->getName().c_str());
+  }
   else if (jmodel->getType() == robot_model::JointModel::FLOATING && index > 2)
-    ROS_ERROR("Cannot specify position limits for orientation of floating joint '%s'", jmodel->getName().c_str());
+  {
+    RCLCPP_ERROR(LOGGER, "Cannot specify position limits for orientation of floating joint '%s'",
+                 jmodel->getName().c_str());
+  }
   else if (jmodel->getType() == robot_model::JointModel::REVOLUTE &&
            static_cast<const robot_model::RevoluteJointModel*>(jmodel)->isContinuous())
-    ROS_ERROR("Cannot specify position limits for continuous joint '%s'", jmodel->getName().c_str());
+  {
+    RCLCPP_ERROR(LOGGER, "Cannot specify position limits for continuous joint '%s'", jmodel->getName().c_str());
+  }
   else
+  {
     ok = true;
+  }
   return ok;
 }
 }  // namespace
@@ -88,11 +102,12 @@ void RobotModelLoader::configure(const Options& opt)
   moveit::tools::Profiler::ScopedStart prof_start;
   moveit::tools::Profiler::ScopedBlock prof_block("RobotModelLoader::configure");
 
-  ros::WallTime start = ros::WallTime::now();
+  rclcpp::Clock clock;
+  rclcpp::Time start = clock.now();
   if (!opt.urdf_string_.empty() && !opt.srdf_string_.empty())
     rdf_loader_.reset(new rdf_loader::RDFLoader(opt.urdf_string_, opt.srdf_string_));
   else
-    rdf_loader_.reset(new rdf_loader::RDFLoader(opt.robot_description_));
+    rdf_loader_.reset(new rdf_loader::RDFLoader(node_, opt.robot_description_));
   if (rdf_loader_->getURDF())
   {
     const srdf::ModelSharedPtr& srdf =
@@ -105,63 +120,80 @@ void RobotModelLoader::configure(const Options& opt)
     moveit::tools::Profiler::ScopedBlock prof_block2("RobotModelLoader::configure joint limits");
 
     // if there are additional joint limits specified in some .yaml file, read those in
-    ros::NodeHandle nh("~");
-
-    for (std::size_t i = 0; i < model_->getJointModels().size(); ++i)
+    for (moveit::core::JointModel* joint_model : model_->getJointModels())
     {
-      robot_model::JointModel* jmodel = model_->getJointModels()[i];
-      std::vector<moveit_msgs::msg::JointLimits> jlim = jmodel->getVariableBoundsMsg();
-      for (std::size_t j = 0; j < jlim.size(); ++j)
+      std::vector<moveit_msgs::msg::JointLimits> joint_limit = joint_model->getVariableBoundsMsg();
+      for (std::size_t joint_id = 0; joint_id < joint_limit.size(); ++joint_id)
       {
-        std::string prefix = rdf_loader_->getRobotDescription() + "_planning/joint_limits/" + jlim[j].joint_name + "/";
+        std::string prefix =
+            rdf_loader_->getRobotDescription() + "_planning/joint_limits/" + joint_limit[joint_id].joint_name + "/";
 
-        double max_position;
-        if (nh.getParam(prefix + "max_position", max_position))
+        std::string param_name;
+        try
         {
-          if (canSpecifyPosition(jmodel, j))
+          param_name = prefix + "max_position";
+          double max_position;
+          if (node_->get_parameter(param_name, max_position))
           {
-            jlim[j].has_position_limits = true;
-            jlim[j].max_position = max_position;
+            if (canSpecifyPosition(joint_model, joint_id))
+            {
+              joint_limit[joint_id].has_position_limits = true;
+              joint_limit[joint_id].max_position = max_position;
+            }
           }
-        }
-        double min_position;
-        if (nh.getParam(prefix + "min_position", min_position))
-        {
-          if (canSpecifyPosition(jmodel, j))
-          {
-            jlim[j].has_position_limits = true;
-            jlim[j].min_position = min_position;
-          }
-        }
-        double max_velocity;
-        if (nh.getParam(prefix + "max_velocity", max_velocity))
-        {
-          jlim[j].has_velocity_limits = true;
-          jlim[j].max_velocity = max_velocity;
-        }
-        bool has_vel_limits;
-        if (nh.getParam(prefix + "has_velocity_limits", has_vel_limits))
-          jlim[j].has_velocity_limits = has_vel_limits;
 
-        double max_acc;
-        if (nh.getParam(prefix + "max_acceleration", max_acc))
-        {
-          jlim[j].has_acceleration_limits = true;
-          jlim[j].max_acceleration = max_acc;
+          param_name = prefix + "min_position";
+          double min_position;
+          if (node_->get_parameter(param_name, min_position))
+          {
+            if (canSpecifyPosition(joint_model, joint_id))
+            {
+              joint_limit[joint_id].has_position_limits = true;
+              joint_limit[joint_id].min_position = min_position;
+            }
+          }
+
+          param_name = prefix + "max_velocity";
+          double max_velocity;
+          if (node_->get_parameter(param_name, max_velocity))
+          {
+            joint_limit[joint_id].has_velocity_limits = true;
+            joint_limit[joint_id].max_velocity = max_velocity;
+          }
+
+          param_name = prefix + "has_velocity_limits";
+          bool has_vel_limits;
+          if (node_->get_parameter(param_name, has_vel_limits))
+          {
+            joint_limit[joint_id].has_velocity_limits = has_vel_limits;
+          }
+
+          param_name = prefix + "max_acceleration";
+          double max_acc;
+          if (node_->get_parameter(param_name, max_acc))
+          {
+            joint_limit[joint_id].has_acceleration_limits = true;
+            joint_limit[joint_id].max_acceleration = max_acc;
+          }
+
+          param_name = prefix + "has_acceleration_limits";
+          bool has_acc_limits;
+          if (node_->get_parameter(param_name, has_acc_limits))
+            joint_limit[joint_id].has_acceleration_limits = has_acc_limits;
         }
-        bool has_acc_limits;
-        if (nh.getParam(prefix + "has_acceleration_limits", has_acc_limits))
-          jlim[j].has_acceleration_limits = has_acc_limits;
+        catch (const rclcpp::ParameterTypeException& e)
+        {
+          RCLCPP_ERROR(LOGGER, "When getting the parameter %s: %s", param_name.c_str(), e.what());
+        }
       }
-      jmodel->setVariableBounds(jlim);
+      joint_model->setVariableBounds(joint_limit);
     }
   }
 
   if (model_ && opt.load_kinematics_solvers_)
     loadKinematicsSolvers();
 
-  ROS_DEBUG_STREAM_NAMED("robot_model_loader", "Loaded kinematic model in " << (ros::WallTime::now() - start).toSec()
-                                                                            << " seconds");
+  RCLCPP_DEBUG(node_->get_logger(), "Loaded kinematic model in %d seconds", (clock.now() - start).seconds());
 }
 
 void RobotModelLoader::loadKinematicsSolvers(const kinematics_plugin_loader::KinematicsPluginLoaderPtr& kloader)
@@ -176,23 +208,23 @@ void RobotModelLoader::loadKinematicsSolvers(const kinematics_plugin_loader::Kin
       kinematics_loader_ = kloader;
     else
       kinematics_loader_.reset(
-          new kinematics_plugin_loader::KinematicsPluginLoader(rdf_loader_->getRobotDescription()));
+          new kinematics_plugin_loader::KinematicsPluginLoader(node_, rdf_loader_->getRobotDescription()));
     robot_model::SolverAllocatorFn kinematics_allocator = kinematics_loader_->getLoaderFunction(rdf_loader_->getSRDF());
     const std::vector<std::string>& groups = kinematics_loader_->getKnownGroups();
     std::stringstream ss;
     std::copy(groups.begin(), groups.end(), std::ostream_iterator<std::string>(ss, " "));
-    ROS_DEBUG_STREAM("Loaded information about the following groups: '" << ss.str() << "'");
+    RCLCPP_DEBUG(LOGGER, "Loaded information about the following groups: '%s' ", ss.str().c_str());
     if (groups.empty() && !model_->getJointModelGroups().empty())
-      ROS_WARN("No kinematics plugins defined. Fill and load kinematics.yaml!");
+      RCLCPP_WARN(LOGGER, "No kinematics plugins defined. Fill and load kinematics.yaml!");
 
     std::map<std::string, robot_model::SolverAllocatorFn> imap;
-    for (std::size_t i = 0; i < groups.size(); ++i)
+    for (const std::string& group : groups)
     {
       // Check if a group in kinematics.yaml exists in the srdf
-      if (!model_->hasJointModelGroup(groups[i]))
+      if (!model_->hasJointModelGroup(group))
         continue;
 
-      const robot_model::JointModelGroup* jmg = model_->getJointModelGroup(groups[i]);
+      const robot_model::JointModelGroup* jmg = model_->getJointModelGroup(group);
 
       kinematics::KinematicsBasePtr solver = kinematics_allocator(jmg);
       if (solver)
@@ -200,29 +232,29 @@ void RobotModelLoader::loadKinematicsSolvers(const kinematics_plugin_loader::Kin
         std::string error_msg;
         if (solver->supportsGroup(jmg, &error_msg))
         {
-          imap[groups[i]] = kinematics_allocator;
+          imap[group] = kinematics_allocator;
         }
         else
         {
-          ROS_ERROR("Kinematics solver %s does not support joint group %s.  Error: %s", typeid(*solver).name(),
-                    groups[i].c_str(), error_msg.c_str());
+          RCLCPP_ERROR(LOGGER, "Kinematics solver %s does not support joint group %s.  Error: %s",
+                       typeid(*solver).name(), group.c_str(), error_msg.c_str());
         }
       }
       else
       {
-        ROS_ERROR("Kinematics solver could not be instantiated for joint group %s.", groups[i].c_str());
+        RCLCPP_ERROR(LOGGER, "Kinematics solver could not be instantiated for joint group %s.", group.c_str());
       }
     }
     model_->setKinematicsAllocators(imap);
 
     // set the default IK timeouts
     const std::map<std::string, double>& timeout = kinematics_loader_->getIKTimeout();
-    for (std::map<std::string, double>::const_iterator it = timeout.begin(); it != timeout.end(); ++it)
+    for (const std::pair<const std::string, double>& it : timeout)
     {
-      if (!model_->hasJointModelGroup(it->first))
+      if (!model_->hasJointModelGroup(it.first))
         continue;
-      robot_model::JointModelGroup* jmg = model_->getJointModelGroup(it->first);
-      jmg->setDefaultIKTimeout(it->second);
+      robot_model::JointModelGroup* jmg = model_->getJointModelGroup(it.first);
+      jmg->setDefaultIKTimeout(it.second);
     }
   }
 }

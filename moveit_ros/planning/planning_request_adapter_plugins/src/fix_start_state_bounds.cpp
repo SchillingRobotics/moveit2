@@ -39,33 +39,40 @@
 #include <moveit/trajectory_processing/trajectory_tools.h>
 #include <moveit/robot_state/conversions.h>
 #include <class_loader/class_loader.hpp>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace default_planner_request_adapters
 {
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.fix_start_state_bounds");
+
 class FixStartStateBounds : public planning_request_adapter::PlanningRequestAdapter
 {
 public:
   static const std::string BOUNDS_PARAM_NAME;
   static const std::string DT_PARAM_NAME;
 
-  FixStartStateBounds() : planning_request_adapter::PlanningRequestAdapter(), nh_("~")
+  void initialize(const rclcpp::Node::SharedPtr& node) override
   {
-    if (!nh_.getParam(BOUNDS_PARAM_NAME, bounds_dist_))
+    node_ = node;
+    if (!node_->get_parameter(BOUNDS_PARAM_NAME, bounds_dist_))
     {
       bounds_dist_ = 0.05;
-      ROS_INFO_STREAM("Param '" << BOUNDS_PARAM_NAME << "' was not set. Using default value: " << bounds_dist_);
+      RCLCPP_INFO(LOGGER, "Param '%s' was not set. Using default value: %f", BOUNDS_PARAM_NAME.c_str(), bounds_dist_);
     }
     else
-      ROS_INFO_STREAM("Param '" << BOUNDS_PARAM_NAME << "' was set to " << bounds_dist_);
+    {
+      RCLCPP_INFO(LOGGER, "Param '%s' was set to %f", BOUNDS_PARAM_NAME.c_str(), bounds_dist_);
+    }
 
-    if (!nh_.getParam(DT_PARAM_NAME, max_dt_offset_))
+    if (!node_->get_parameter(DT_PARAM_NAME, max_dt_offset_))
     {
       max_dt_offset_ = 0.5;
-      ROS_INFO_STREAM("Param '" << DT_PARAM_NAME << "' was not set. Using default value: " << max_dt_offset_);
+      RCLCPP_INFO(LOGGER, "Param '%s' was not set. Using default value: %f", DT_PARAM_NAME.c_str(), max_dt_offset_);
     }
     else
-      ROS_INFO_STREAM("Param '" << DT_PARAM_NAME << "' was set to " << max_dt_offset_);
+    {
+      RCLCPP_INFO(LOGGER, "Param '%s' was set to %f", DT_PARAM_NAME.c_str(), max_dt_offset_);
+    }
   }
 
   std::string getDescription() const override
@@ -77,7 +84,7 @@ public:
                     const planning_interface::MotionPlanRequest& req, planning_interface::MotionPlanResponse& res,
                     std::vector<std::size_t>& added_path_index) const override
   {
-    ROS_DEBUG("Running '%s'", getDescription().c_str());
+    RCLCPP_DEBUG(LOGGER, "Running '%s'", getDescription().c_str());
 
     // get the specified start state
     robot_state::RobotState start_state = planning_scene->getCurrentState();
@@ -89,7 +96,7 @@ public:
             planning_scene->getRobotModel()->getJointModels();
 
     bool change_req = false;
-    for (std::size_t i = 0; i < jmodels.size(); ++i)
+    for (const moveit::core::JointModel* jm : jmodels)
     {
       // Check if we have a revolute, continuous joint. If we do, then we only need to make sure
       // it is within de model's declared bounds (usually -Pi, Pi), since the values wrap around.
@@ -97,7 +104,6 @@ public:
       // how many times the joint was wrapped. Because of this, we remember the offsets for continuous
       // joints, and we un-do them when the plan comes from the planner
 
-      const robot_model::JointModel* jm = jmodels[i];
       if (jm->getType() == robot_model::JointModel::REVOLUTE)
       {
         if (static_cast<const robot_model::RevoluteJointModel*>(jm)->isContinuous())
@@ -137,38 +143,38 @@ public:
 
     // pointer to a prefix state we could possibly add, if we detect we have to make changes
     robot_state::RobotStatePtr prefix_state;
-    for (std::size_t i = 0; i < jmodels.size(); ++i)
+    for (const moveit::core::JointModel* jmodel : jmodels)
     {
-      if (!start_state.satisfiesBounds(jmodels[i]))
+      if (!start_state.satisfiesBounds(jmodel))
       {
-        if (start_state.satisfiesBounds(jmodels[i], bounds_dist_))
+        if (start_state.satisfiesBounds(jmodel, bounds_dist_))
         {
           if (!prefix_state)
             prefix_state.reset(new robot_state::RobotState(start_state));
-          start_state.enforceBounds(jmodels[i]);
+          start_state.enforceBounds(jmodel);
           change_req = true;
-          ROS_INFO("Starting state is just outside bounds (joint '%s'). Assuming within bounds.",
-                   jmodels[i]->getName().c_str());
+          RCLCPP_INFO(LOGGER, "Starting state is just outside bounds (joint '%s'). Assuming within bounds.",
+                      jmodel->getName().c_str());
         }
         else
         {
           std::stringstream joint_values;
           std::stringstream joint_bounds_low;
           std::stringstream joint_bounds_hi;
-          const double* p = start_state.getJointPositions(jmodels[i]);
-          for (std::size_t k = 0; k < jmodels[i]->getVariableCount(); ++k)
+          const double* p = start_state.getJointPositions(jmodel);
+          for (std::size_t k = 0; k < jmodel->getVariableCount(); ++k)
             joint_values << p[k] << " ";
-          const robot_model::JointModel::Bounds& b = jmodels[i]->getVariableBounds();
-          for (std::size_t k = 0; k < b.size(); ++k)
+          const robot_model::JointModel::Bounds& b = jmodel->getVariableBounds();
+          for (const moveit::core::VariableBounds& variable_bounds : b)
           {
-            joint_bounds_low << b[k].min_position_ << " ";
-            joint_bounds_hi << b[k].max_position_ << " ";
+            joint_bounds_low << variable_bounds.min_position_ << " ";
+            joint_bounds_hi << variable_bounds.max_position_ << " ";
           }
-          ROS_WARN_STREAM("Joint '" << jmodels[i]->getName()
-                                    << "' from the starting state is outside bounds by a significant margin: [ "
-                                    << joint_values.str() << "] should be in the range [ " << joint_bounds_low.str()
-                                    << "], [ " << joint_bounds_hi.str() << "] but the error above the ~"
-                                    << BOUNDS_PARAM_NAME << " parameter (currently set to " << bounds_dist_ << ")");
+          RCLCPP_WARN(LOGGER,
+                      "Joint '%s' from the starting state is outside bounds by a significant margin: [%s] should be in "
+                      "the range [%s], [%s] but the error above the ~%s parameter (currently set to %f)",
+                      jmodel->getName().c_str(), joint_values.str().c_str(), joint_bounds_low.str().c_str(),
+                      joint_bounds_hi.str().c_str(), BOUNDS_PARAM_NAME.c_str(), bounds_dist_);
         }
       }
     }
@@ -193,8 +199,8 @@ public:
           0, std::min(max_dt_offset_, res.trajectory_->getAverageSegmentDuration()));
       res.trajectory_->addPrefixWayPoint(prefix_state, 0.0);
       // we add a prefix point, so we need to bump any previously added index positions
-      for (std::size_t i = 0; i < added_path_index.size(); ++i)
-        added_path_index[i]++;
+      for (std::size_t& added_index : added_path_index)
+        added_index++;
       added_path_index.push_back(0);
     }
 
@@ -202,7 +208,7 @@ public:
   }
 
 private:
-  ros::NodeHandle nh_;
+  rclcpp::Node::SharedPtr node_;
   double bounds_dist_;
   double max_dt_offset_;
 };
@@ -212,4 +218,4 @@ const std::string FixStartStateBounds::DT_PARAM_NAME = "start_state_max_dt";
 }  // namespace default_planner_request_adapters
 
 CLASS_LOADER_REGISTER_CLASS(default_planner_request_adapters::FixStartStateBounds,
-                            planning_request_adapter::PlanningRequestAdapter);
+                            planning_request_adapter::PlanningRequestAdapter)

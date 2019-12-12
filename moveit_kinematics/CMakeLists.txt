@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(moveit_kinematics)
 
-add_compile_options(-std=c++14)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(ament_cmake REQUIRED)
 

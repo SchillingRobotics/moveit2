@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(ament_cmake REQUIRED)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED program_options)
 find_package(Eigen3 REQUIRED)
 find_package(orocos_kdl REQUIRED)
 find_package(tf2_kdl REQUIRED)
@@ -41,7 +41,6 @@ include_directories(${THIS_PACKAGE_INCLUDE_DIRS}
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS}
 )
 
-
 add_subdirectory(kdl_kinematics_plugin)
 add_subdirectory(lma_kinematics_plugin)
 add_subdirectory(srv_kinematics_plugin)
@@ -53,4 +52,5 @@ ament_export_include_directories(include)
 ament_export_dependencies(pluginlib)
 ament_export_dependencies(moveit_core)
 ament_export_dependencies(moveit_ros_planning)
+ament_export_dependencies(Boost)
 ament_package()

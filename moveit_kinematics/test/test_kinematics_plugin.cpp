@@ -41,7 +41,6 @@
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_eigen/tf2_eigen.h>
-// #include <xmlrpcpp/XmlRpcValue.h>
 
 // MoveIt
 #include <moveit/kinematics_base/kinematics_base.h>
@@ -53,88 +52,19 @@
 #include <moveit_msgs/msg/display_trajectory.hpp>
 #include <moveit/robot_trajectory/robot_trajectory.h>
 
+using namespace std::literals::string_literals;
+
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("test_kinematics_plugin");
 const std::string ROBOT_DESCRIPTION_PARAM = "robot_description";
 const double DEFAULT_SEARCH_DISCRETIZATION = 0.01f;
 const double EXPECTED_SUCCESS_RATE = 0.8;
 const double DEFAULT_TOLERANCE = 1e-5;
-//
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, std::string val)
+
+template <typename T>
+inline bool getParam(const rclcpp::Node::SharedPtr& node, const std::string& param_name, T& param)
 {
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.value_to_string();
-    if (val.compare("not set") == 0)
-      return false;
+  if (node->get_parameter(param_name, param))
     return true;
-  }
-  return false;
-}
-
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, double val)
-{
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.as_double();
-    return true;
-  }
-  return false;
-}
-
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, int val)
-{
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.as_int();
-    return true;
-  }
-  return false;
-}
-
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, bool val)
-{
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.as_bool();
-    return true;
-  }
-  return false;
-}
-
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, std::vector<std::string> val)
-{
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.as_string_array();
-    return true;
-  }
-  return false;
-}
-
-inline bool getParam(std::shared_ptr<rclcpp::Node> node, const std::string param, std::vector<double> val)
-{
-  auto ksolver_params = std::make_shared<rclcpp::SyncParametersClient>(node);
-
-  auto parameters_and_prefixes = ksolver_params->get_parameters({ param });
-  for (auto& value : parameters_and_prefixes)
-  {
-    val = value.as_double_array();
-    return true;
-  }
   return false;
 }
 
@@ -170,82 +100,68 @@ class SharedData
   {
     node_ = std::make_shared<rclcpp::Node>("moveit_kinematics_test");
 
-    // node_->declare_parameter("group", "manipulator");
-    // node_->declare_parameter("tip_link", "ee_link");
-    // node_->declare_parameter("root_link", "base_link");
-    // std::vector<std::string> joint_names_param;
-    // std::vector<double> seed_param;
-    // std::vector<double> consistency_limits_param;
-    // for(int i = 0; i < 6; i++){
-    //   joint_names_param.push_back(std::string("motor") + std::to_string(i+1));
-    //   seed_param.push_back(0);
-    //   consistency_limits_param.push_back(0);
-    // }
-    // node_->declare_parameter("joint_names", joint_names_param);
-    // node_->declare_parameter("seed", seed_param);
-    // node_->declare_parameter("consistency_limits", consistency_limits_param);
-    // node_->declare_parameter("ik_timeout", 1.0);
-    // node_->declare_parameter("tolerance", DEFAULT_TOLERANCE);
-    // node_->declare_parameter("num_fk_tests", 1);
-    // node_->declare_parameter("num_ik_cb_tests", 1);
-    // node_->declare_parameter("num_ik_tests", 1);
-    // node_->declare_parameter("num_ik_multiple_tests", 1);
-    // node_->declare_parameter("num_nearest_ik_tests", 1);
-    for (int i = 0; i < 6; i++)
-    {
-      joints_.push_back(std::string("motor") + std::to_string(i + 1));
-      // seed_param.push_back(0);
-      // consistency_limits_param.push_back(0);
-    }
+    // Parameter declaration (to avoid throwing an exception)
+    node_->declare_parameter("group");
+    node_->declare_parameter("tip_link");
+    node_->declare_parameter("root_link");
+    node_->declare_parameter("joint_names");
+    node_->declare_parameter("seed");
+    node_->declare_parameter("consistency_limits");
+    node_->declare_parameter("ik_timeout");
+    node_->declare_parameter("tolerance");
+    node_->declare_parameter("num_fk_tests");
+    node_->declare_parameter("num_ik_cb_tests");
+    node_->declare_parameter("num_ik_tests");
+    node_->declare_parameter("num_ik_multiple_tests");
+    node_->declare_parameter("num_nearest_ik_tests");
+    node_->declare_parameter("ik_plugin_name");
+    node_->declare_parameter("publish_trajectory");
 
-    node_->declare_parameter("ik_plugin_name", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-    //
-    // node_->declare_parameter("publish_trajectory", false);
-    //
-    // std::cout << "Loading robot model from /" << ROBOT_DESCRIPTION_PARAM << std::endl;
-    // // std::cout << "Loading robot model from " << ros::this_node::getNamespace() << "/" << ROBOT_DESCRIPTION_PARAM
-    // << std::endl;
-    // // load robot model
+    // TODO(JafarAbdi): Use eloquent STREAM logging macros
+    std::cout << "Loading robot model from " << node_->get_namespace() << "." << ROBOT_DESCRIPTION_PARAM << std::endl;
+    // load robot model
     rdf_loader::RDFLoader rdf_loader(node_, ROBOT_DESCRIPTION_PARAM);
     robot_model_ = std::make_shared<robot_model::RobotModel>(rdf_loader.getURDF(), rdf_loader.getSRDF());
-    // ASSERT_TRUE(bool(robot_model_)) << "Failed to load robot model";
-    //
-    // // init ClassLoader
+    ASSERT_TRUE(bool(robot_model_)) << "Failed to load robot model";
+
+    // init ClassLoader
     kinematics_loader_ = std::make_unique<KinematicsLoader>("moveit_core", "kinematics::KinematicsBase");
     ASSERT_TRUE(bool(kinematics_loader_)) << "Failed to instantiate ClassLoader";
-    std::cout << "Loaded kinematics_loader_" << std::endl;
-    // std::cout << "------------------------" << std::endl;
-    //
-    // // load parameters
-    // ASSERT_TRUE(getParam(node_, std::string("group"), group_name_));
-    // std::cout << "group " << group_name_ << std::endl;
-    // ASSERT_TRUE(getParam(node_, std::string("tip_link"), tip_link_));
-    // std::cout << "tip_link" << std::endl;
-    // ASSERT_TRUE(getParam(node_, std::string("root_link"), root_link_));
-    // std::cout << "root_link" << std::endl;
-    // ASSERT_TRUE(getParam(node_, std::string("joint_names"), joints_));
-    // std::cout << "joint_names" << std::endl;
-    // getParam(node_, std::string("seed"), seed_);
-    // std::cout << "seed" << std::endl;
-    // ASSERT_TRUE(seed_.empty() || seed_.size() == joints_.size());
-    // getParam(node_, std::string("consistency_limits"), consistency_limits_);
-    // std::cout << "consistency_limits" << std::endl;
-    // if (!getParam(node_, std::string("ik_timeout"), timeout_) || timeout_ < 0.0)
-    //   timeout_ = 1.0;
-    // std::cout << "ik_timeout" << std::endl;
-    // if (!getParam(node_, std::string("tolerance"), tolerance_) || tolerance_ < 0.0)
-    //   tolerance_ = DEFAULT_TOLERANCE;
-    // std::cout << "tolerance" << std::endl;
-    // ASSERT_TRUE(consistency_limits_.empty() || consistency_limits_.size() == joints_.size());
-    // ASSERT_TRUE(getParam(node_, std::string("num_fk_tests"), num_fk_tests_));
-    // ASSERT_TRUE(getParam(node_, std::string("num_ik_cb_tests"), num_ik_cb_tests_));
-    // ASSERT_TRUE(getParam(node_, std::string("num_ik_tests"), num_ik_tests_));
-    // ASSERT_TRUE(getParam(node_, std::string("num_ik_multiple_tests"), num_ik_multiple_tests_));
-    // ASSERT_TRUE(getParam(node_, std::string("num_nearest_ik_tests"), num_nearest_ik_tests_));
-    //
-    // ASSERT_TRUE(robot_model_->hasLinkModel(root_link_));
-    // ASSERT_TRUE(robot_model_->hasLinkModel(tip_link_));
-    // ASSERT_TRUE(robot_model_->hasJointModelGroup(group_name_));
+
+    // load parameters
+    ASSERT_TRUE(getParam(node_, "group", group_name_));
+    std::cout << "group " << group_name_ << std::endl;
+
+    ASSERT_TRUE(getParam(node_, "tip_link", tip_link_));
+    std::cout << "tip_link" << std::endl;
+
+    ASSERT_TRUE(getParam(node_, "root_link", root_link_));
+    std::cout << "root_link" << std::endl;
+
+    ASSERT_TRUE(getParam(node_, "joint_names", joints_));
+    std::cout << "joint_names" << std::endl;
+    getParam(node_, "seed", seed_);
+    std::cout << "seed" << std::endl;
+    ASSERT_TRUE(seed_.empty() || seed_.size() == joints_.size());
+    getParam(node_, "consistency_limits", consistency_limits_);
+    std::cout << "consistency_limits" << std::endl;
+    if (!getParam(node_, "ik_timeout", timeout_) || timeout_ < 0.0)
+      timeout_ = 1.0;
+    std::cout << "ik_timeout" << std::endl;
+    if (!getParam(node_, "tolerance", tolerance_) || tolerance_ < 0.0)
+      tolerance_ = DEFAULT_TOLERANCE;
+    std::cout << "tolerance" << std::endl;
+
+    ASSERT_TRUE(consistency_limits_.empty() || consistency_limits_.size() == joints_.size());
+    ASSERT_TRUE(getParam(node_, "num_fk_tests", num_fk_tests_));
+    ASSERT_TRUE(getParam(node_, "num_ik_cb_tests", num_ik_cb_tests_));
+    ASSERT_TRUE(getParam(node_, "num_ik_tests", num_ik_tests_));
+    ASSERT_TRUE(getParam(node_, "num_ik_multiple_tests", num_ik_multiple_tests_));
+    ASSERT_TRUE(getParam(node_, "num_nearest_ik_tests", num_nearest_ik_tests_));
+
+    ASSERT_TRUE(robot_model_->hasLinkModel(root_link_));
+    ASSERT_TRUE(robot_model_->hasLinkModel(tip_link_));
+    ASSERT_TRUE(robot_model_->hasJointModelGroup(group_name_));
   }
 
 public:
@@ -525,340 +441,331 @@ TEST_F(KinematicsTest, randomWalkIK)
   //   ros::WallDuration(0.1).sleep();
   // }
 }
-//
-// static double parseDouble(XmlRpc::XmlRpcValue& v)
-// {
-//   if (v.getType() == XmlRpc::XmlRpcValue::TypeDouble)
-//     return static_cast<double>(v);
-//   else if (v.getType() == XmlRpc::XmlRpcValue::TypeInt)
-//     return static_cast<int>(v);
-//   else
-//     return 0.0;
-// }
 // static void parseVector(XmlRpc::XmlRpcValue& vec, std::vector<double>& values, size_t num = 0)
-// {
-//   ASSERT_EQ(vec.getType(), XmlRpc::XmlRpcValue::TypeArray);
-//   if (num != 0)
-//   {
-//     ASSERT_EQ(static_cast<size_t>(vec.size()), num);
-//   }
-//   values.reserve(vec.size());
-//   values.clear();
-//   for (int i = 0; i < vec.size(); ++i)
-//     values.push_back(parseDouble(vec[i]));
-// }
+//{
+//  ASSERT_EQ(vec.getType(), XmlRpc::XmlRpcValue::TypeArray);
+//  if (num != 0)
+//  {
+//    ASSERT_EQ(static_cast<size_t>(vec.size()), num);
+//  }
+//  values.reserve(vec.size());
+//  values.clear();
+//  for (int i = 0; i < vec.size(); ++i)  // NOLINT(modernize-loop-convert)
+//    values.push_back(parseDouble(vec[i]));
+//}
 // static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string&
 // desc)
-// {
-//   std::ostringstream oss;
-//   std::vector<double> vec;
-//   if (name == "pose")
-//   {
-//     parseVector(value["orientation"], vec, 4);
-//     Eigen::Quaterniond q(vec[3], vec[0], vec[1], vec[2]);  // w x y z
-//     goal = q;
-//     parseVector(value["position"], vec, 3);
-//     goal.translation() = Eigen::Map<Eigen::Vector3d>(vec.data());
-//     oss << name << " " << goal.translation().transpose() << " " << q.vec().transpose() << " " << q.w();
-//     desc = oss.str();
-//     return true;
-//   }
-//   for (unsigned char axis = 0; axis < 3; ++axis)
-//   {
-//     char axis_char = 'x' + axis;
-//     // position offset
-//     if (name == (std::string("pos.") + axis_char))
-//     {
-//       goal.translation()[axis] += parseDouble(value);
-//       desc = name + " " + std::to_string(parseDouble(value));
-//       return true;
-//     }
-//     // rotation offset
-//     else if (name == (std::string("rot.") + axis_char))
-//     {
-//       goal *= Eigen::AngleAxisd(parseDouble(value), Eigen::Vector3d::Unit(axis));
-//       desc = name + " " + std::to_string(parseDouble(value));
-//       return true;
-//     }
-//   }
-//   return false;
-// }
-//
+//{
+//  std::ostringstream oss;
+//  std::vector<double> vec;
+//  if (name == "pose")
+//  {
+//    parseVector(value["orientation"], vec, 4);
+//    Eigen::Quaterniond q(vec[3], vec[0], vec[1], vec[2]);  // w x y z
+//    goal = q;
+//    parseVector(value["position"], vec, 3);
+//    goal.translation() = Eigen::Map<Eigen::Vector3d>(vec.data());
+//    oss << name << " " << goal.translation().transpose() << " " << q.vec().transpose() << " " << q.w();
+//    desc = oss.str();
+//    return true;
+//  }
+//  for (unsigned char axis = 0; axis < 3; ++axis)
+//  {
+//    char axis_char = 'x' + axis;
+//    // position offset
+//    if (name == (std::string("pos.") + axis_char))
+//    {
+//      goal.translation()[axis] += parseDouble(value);
+//      desc = name + " " + std::to_string(parseDouble(value));
+//      return true;
+//    }
+//    // rotation offset
+//    else if (name == (std::string("rot.") + axis_char))
+//    {
+//      goal *= Eigen::AngleAxisd(parseDouble(value), Eigen::Vector3d::Unit(axis));
+//      desc = name + " " + std::to_string(parseDouble(value));
+//      return true;
+//    }
+//  }
+//  return false;
+//}
+
 // TEST_F(KinematicsTest, unitIK)
-// {
-//   XmlRpc::XmlRpcValue tests;
-//   if (!getParam(node_, std::string("unit_tests", tests))
-//     return;
-//
-//   std::vector<double> seed, sol;
-//   const std::vector<std::string>& tip_frames = kinematics_solver_->getTipFrames();
-//   robot_state::RobotState robot_state(robot_model_);
-//   robot_state.setToDefaultValues();
-//
-//   // initial joint pose from seed_ or defaults
-//   if (!seed_.empty())
-//     robot_state.setJointGroupPositions(jmg_, seed_);
-//   robot_state.copyJointGroupPositions(jmg_, seed);
-//
-//   // compute initial end-effector pose
-//   std::vector<geometry_msgs::msg::Pose> poses;
-//   ASSERT_TRUE(kinematics_solver_->getPositionFK(tip_frames, seed, poses));
-//   Eigen::Isometry3d initial, goal;
-//   tf2::fromMsg(poses[0], initial);
-//
-//   auto validate_ik = [&](const geometry_msgs::msg::Pose& goal, std::vector<double>& truth) {
-//     // compute IK
-//     moveit_msgs::msg::MoveItErrorCodes error_code;
-//     kinematics_solver_->searchPositionIK(goal, seed, timeout_,
-//                                          const_cast<const std::vector<double>&>(consistency_limits_), sol,
-//                                          error_code);
-//     ASSERT_EQ(error_code.val, error_code.SUCCESS);
-//
-//     // validate reached poses
-//     std::vector<geometry_msgs::msg::Pose> reached_poses;
-//     kinematics_solver_->getPositionFK(tip_frames, sol, reached_poses);
-//     EXPECT_NEAR_POSES({ goal }, reached_poses, tolerance_);
-//
-//     // validate ground truth
-//     if (!truth.empty())
-//     {
-//       ASSERT_EQ(truth.size(), sol.size()) << "Invalid size of ground truth joints vector";
-//       Eigen::Map<Eigen::ArrayXd> solution(sol.data(), sol.size());
-//       Eigen::Map<Eigen::ArrayXd> ground_truth(truth.data(), truth.size());
-//       EXPECT_TRUE(solution.isApprox(ground_truth, 10 * tolerance_)) << solution.transpose() << std::endl
-//                                                                     << ground_truth.transpose() << std::endl;
-//     }
-//   };
-//
-//   ASSERT_EQ(tests.getType(), XmlRpc::XmlRpcValue::TypeArray);
-//   std::vector<double> ground_truth;
-//
-//   /* process tests definitions on parameter server of the form
-//      - pos.x: +0.1
-//        joints: [0, 0, 0, 0, 0, 0]
-//      - pos.y: -0.1
-//        joints: [0, 0, 0, 0, 0, 0]
-//   */
-//   for (int i = 0; i < tests.size(); ++i)
-//   {
-//     goal = initial;  // reset goal to initial
-//     ground_truth.clear();
-//
-//     ASSERT_EQ(tests[i].getType(), XmlRpc::XmlRpcValue::TypeStruct);
-//     std::string desc;
-//     for (auto& member : tests[i])
-//     {
-//       if (member.first == "joints")
-//         parseVector(member.second, ground_truth);
-//       else if (!parseGoal(member.first, member.second, goal, desc))
-//         ROS_WARN_STREAM("unknown unit_tests' key: " << member.first);
-//     }
-//     {
-//       SCOPED_TRACE(desc);
-//       validate_ik(tf2::toMsg(goal), ground_truth);
-//     }
-//   }
-// }
-//
-TEST_F(KinematicsTest, searchIK)
-{
-  std::vector<double> seed, fk_values, solution;
-  moveit_msgs::msg::MoveItErrorCodes error_code;
-  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
-  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
-  robot_state::RobotState robot_state(robot_model_);
-  robot_state.setToDefaultValues();
+//{
+//  XmlRpc::XmlRpcValue tests;
+//  if (!getParam("unit_tests", tests))
+//    return;
 
-  unsigned int success = 0;
-  for (unsigned int i = 0; i < num_ik_tests_; ++i)
-  {
-    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, fk_values);
-    std::vector<geometry_msgs::msg::Pose> poses;
-    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+//  std::vector<double> seed, sol;
+//  const std::vector<std::string>& tip_frames = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
 
-    kinematics_solver_->searchPositionIK(poses[0], seed, timeout_, solution, error_code);
-    if (error_code.val == error_code.SUCCESS)
-      success++;
-    else
-      continue;
+//  // initial joint pose from seed_ or defaults
+//  if (!seed_.empty())
+//    robot_state.setJointGroupPositions(jmg_, seed_);
+//  robot_state.copyJointGroupPositions(jmg_, seed);
 
-    std::vector<geometry_msgs::msg::Pose> reached_poses;
-    kinematics_solver_->getPositionFK(fk_names, solution, reached_poses);
-    EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
-  }
+//  // compute initial end-effector pose
+//  std::vector<geometry_msgs::msg::Pose> poses;
+//  ASSERT_TRUE(kinematics_solver_->getPositionFK(tip_frames, seed, poses));
+//  Eigen::Isometry3d initial, goal;
+//  tf2::fromMsg(poses[0], initial);
 
-  std::cout << "Success Rate: " << (double)success / num_ik_tests_ << std::endl;
-  ;
-  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_tests_);
-}
+//  auto validate_ik = [&](const geometry_msgs::msg::Pose& goal, std::vector<double>& truth) {
+//    // compute IK
+//    moveit_msgs::msg::MoveItErrorCodes error_code;
+//    kinematics_solver_->searchPositionIK(goal, seed, timeout_,
+//                                         const_cast<const std::vector<double>&>(consistency_limits_), sol,
+//                                         error_code);
+//    ASSERT_EQ(error_code.val, error_code.SUCCESS);
 
-TEST_F(KinematicsTest, searchIKWithCallback)
-{
-  std::vector<double> seed, fk_values, solution;
-  moveit_msgs::msg::MoveItErrorCodes error_code;
-  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
-  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
-  robot_state::RobotState robot_state(robot_model_);
-  robot_state.setToDefaultValues();
+//    // validate reached poses
+//    std::vector<geometry_msgs::msg::Pose> reached_poses;
+//    kinematics_solver_->getPositionFK(tip_frames, sol, reached_poses);
+//    EXPECT_NEAR_POSES({ goal }, reached_poses, tolerance_);
 
-  unsigned int success = 0;
-  for (unsigned int i = 0; i < num_ik_cb_tests_; ++i)
-  {
-    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, fk_values);
-    std::vector<geometry_msgs::msg::Pose> poses;
-    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
-    if (poses[0].position.z <= 0.0f)
-    {
-      --i;  // draw a new random state
-      continue;
-    }
+//    // validate ground truth
+//    if (!truth.empty())
+//    {
+//      ASSERT_EQ(truth.size(), sol.size()) << "Invalid size of ground truth joints vector";
+//      Eigen::Map<Eigen::ArrayXd> solution(sol.data(), sol.size());
+//      Eigen::Map<Eigen::ArrayXd> ground_truth(truth.data(), truth.size());
+//      EXPECT_TRUE(solution.isApprox(ground_truth, 10 * tolerance_)) << solution.transpose() << std::endl
+//                                                                    << ground_truth.transpose() << std::endl;
+//    }
+//  };
 
-    kinematics_solver_->searchPositionIK(poses[0], fk_values, timeout_, solution,
-                                         boost::bind(&KinematicsTest::searchIKCallback, this, _1, _2, _3), error_code);
-    if (error_code.val == error_code.SUCCESS)
-      success++;
-    else
-      continue;
+//  ASSERT_EQ(tests.getType(), XmlRpc::XmlRpcValue::TypeArray);
+//  std::vector<double> ground_truth;
 
-    std::vector<geometry_msgs::msg::Pose> reached_poses;
-    kinematics_solver_->getPositionFK(fk_names, solution, reached_poses);
-    EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
-  }
+//  /* process tests definitions on parameter server of the form
+//     - pos.x: +0.1
+//       joints: [0, 0, 0, 0, 0, 0]
+//     - pos.y: -0.1
+//       joints: [0, 0, 0, 0, 0, 0]
+//  */
+//  for (int i = 0; i < tests.size(); ++i)  // NOLINT(modernize-loop-convert)
+//  {
+//    goal = initial;  // reset goal to initial
+//    ground_truth.clear();
 
-  std::cout << "Success Rate: " << (double)success / num_ik_cb_tests_ << std::endl;
-  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_cb_tests_);
-}
+//    ASSERT_EQ(tests[i].getType(), XmlRpc::XmlRpcValue::TypeStruct);
+//    std::string desc;
+//    for (std::pair<const std::string, XmlRpc::XmlRpcValue>& member : tests[i])
+//    {
+//      if (member.first == "joints")
+//        parseVector(member.second, ground_truth);
+//      else if (!parseGoal(member.first, member.second, goal, desc))
+//        ROS_WARN_STREAM("unknown unit_tests' key: " << member.first);
+//    }
+//    {
+//      SCOPED_TRACE(desc);
+//      validate_ik(tf2::toMsg(goal), ground_truth);
+//    }
+//  }
+//}
 
-TEST_F(KinematicsTest, getIK)
-{
-  std::vector<double> fk_values, solution;
-  moveit_msgs::msg::MoveItErrorCodes error_code;
-  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
-  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
-  robot_state::RobotState robot_state(robot_model_);
-  robot_state.setToDefaultValues();
+// TEST_F(KinematicsTest, searchIK)
+//{
+//  std::vector<double> seed, fk_values, solution;
+//  moveit_msgs::msg::MoveItErrorCodes error_code;
+//  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
 
-  for (unsigned int i = 0; i < num_ik_tests_; ++i)
-  {
-    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, fk_values);
-    std::vector<geometry_msgs::msg::Pose> poses;
+//  unsigned int success = 0;
+//  for (unsigned int i = 0; i < num_ik_tests_; ++i)
+//  {
+//    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, fk_values);
+//    std::vector<geometry_msgs::msg::Pose> poses;
+//    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
 
-    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
-    kinematics_solver_->getPositionIK(poses[0], fk_values, solution, error_code);
-    // starting from the correct solution, should yield the same pose
-    EXPECT_EQ(error_code.val, error_code.SUCCESS);
+//    kinematics_solver_->searchPositionIK(poses[0], seed, timeout_, solution, error_code);
+//    if (error_code.val == error_code.SUCCESS)
+//      success++;
+//    else
+//      continue;
 
-    Eigen::Map<Eigen::ArrayXd> sol(solution.data(), solution.size());
-    Eigen::Map<Eigen::ArrayXd> truth(fk_values.data(), fk_values.size());
-    EXPECT_TRUE(sol.isApprox(truth, tolerance_)) << sol.transpose() << std::endl << truth.transpose() << std::endl;
-  }
-}
+//    std::vector<geometry_msgs::msg::Pose> reached_poses;
+//    kinematics_solver_->getPositionFK(fk_names, solution, reached_poses);
+//    EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
+//  }
 
-TEST_F(KinematicsTest, getIKMultipleSolutions)
-{
-  std::vector<double> seed, fk_values;
-  std::vector<std::vector<double>> solutions;
-  kinematics::KinematicsQueryOptions options;
-  kinematics::KinematicsResult result;
+//  std::cout << "Success Rate: " << (double)success / num_ik_tests_ << std::endl;
+//  ;
+//  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_tests_);
+//}
 
-  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
-  robot_state::RobotState robot_state(robot_model_);
-  robot_state.setToDefaultValues();
+// TEST_F(KinematicsTest, searchIKWithCallback)
+//{
+//  std::vector<double> seed, fk_values, solution;
+//  moveit_msgs::msg::MoveItErrorCodes error_code;
+//  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
 
-  unsigned int success = 0;
-  for (unsigned int i = 0; i < num_ik_multiple_tests_; ++i)
-  {
-    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, fk_values);
-    std::vector<geometry_msgs::msg::Pose> poses;
-    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+//  unsigned int success = 0;
+//  for (unsigned int i = 0; i < num_ik_cb_tests_; ++i)
+//  {
+//    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, fk_values);
+//    std::vector<geometry_msgs::msg::Pose> poses;
+//    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+//    if (poses[0].position.z <= 0.0f)
+//    {
+//      --i;  // draw a new random state
+//      continue;
+//    }
 
-    solutions.clear();
-    kinematics_solver_->getPositionIK(poses, fk_values, solutions, result, options);
+//    kinematics_solver_->searchPositionIK(poses[0], fk_values, timeout_, solution,
+//                                         boost::bind(&KinematicsTest::searchIKCallback, this, _1, _2, _3),
+//                                         error_code);
+//    if (error_code.val == error_code.SUCCESS)
+//      success++;
+//    else
+//      continue;
 
-    if (result.kinematic_error == kinematics::KinematicErrors::OK)
-      success += solutions.empty() ? 0 : 1;
-    else
-      continue;
+//    std::vector<geometry_msgs::msg::Pose> reached_poses;
+//    kinematics_solver_->getPositionFK(fk_names, solution, reached_poses);
+//    EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
+//  }
 
-    std::vector<geometry_msgs::msg::Pose> reached_poses;
-    for (const auto& s : solutions)
-    {
-      kinematics_solver_->getPositionFK(fk_names, s, reached_poses);
-      EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
-    }
-  }
+//  std::cout << "Success Rate: " << (double)success / num_ik_cb_tests_ << std::endl;
+//  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_cb_tests_);
+//}
 
-  std::cout << "Success Rate: " << (double)success / num_ik_multiple_tests_ << std::endl;
-  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_multiple_tests_);
-}
+// TEST_F(KinematicsTest, getIK)
+//{
+//  std::vector<double> fk_values, solution;
+//  moveit_msgs::msg::MoveItErrorCodes error_code;
+//  solution.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
 
-// validate that getPositionIK() retrieves closest solution to seed
-TEST_F(KinematicsTest, getNearestIKSolution)
-{
-  std::vector<std::vector<double>> solutions;
-  kinematics::KinematicsQueryOptions options;
-  kinematics::KinematicsResult result;
+//  for (unsigned int i = 0; i < num_ik_tests_; ++i)
+//  {
+//    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, fk_values);
+//    std::vector<geometry_msgs::msg::Pose> poses;
 
-  std::vector<double> seed, fk_values, solution;
-  moveit_msgs::msg::MoveItErrorCodes error_code;
-  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
-  robot_state::RobotState robot_state(robot_model_);
-  robot_state.setToDefaultValues();
+//    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+//    kinematics_solver_->getPositionIK(poses[0], fk_values, solution, error_code);
+//    // starting from the correct solution, should yield the same pose
+//    EXPECT_EQ(error_code.val, error_code.SUCCESS);
 
-  for (unsigned int i = 0; i < num_nearest_ik_tests_; ++i)
-  {
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, fk_values);
-    std::vector<geometry_msgs::msg::Pose> poses;
-    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+//    Eigen::Map<Eigen::ArrayXd> sol(solution.data(), solution.size());
+//    Eigen::Map<Eigen::ArrayXd> truth(fk_values.data(), fk_values.size());
+//    EXPECT_TRUE(sol.isApprox(truth, tolerance_)) << sol.transpose() << std::endl << truth.transpose() << std::endl;
+//  }
+//}
 
-    // sample seed vector
-    robot_state.setToRandomPositions(jmg_, this->rng_);
-    robot_state.copyJointGroupPositions(jmg_, seed);
+// TEST_F(KinematicsTest, getIKMultipleSolutions)
+//{
+//  std::vector<double> seed, fk_values;
+//  std::vector<std::vector<double>> solutions;
+//  kinematics::KinematicsQueryOptions options;
+//  kinematics::KinematicsResult result;
 
-    // getPositionIK for single solution
-    kinematics_solver_->getPositionIK(poses[0], seed, solution, error_code);
+//  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
 
-    // check if getPositionIK call for single solution returns solution
-    if (error_code.val != error_code.SUCCESS)
-      continue;
+//  unsigned int success = 0;
+//  for (unsigned int i = 0; i < num_ik_multiple_tests_; ++i)
+//  {
+//    seed.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    fk_values.resize(kinematics_solver_->getJointNames().size(), 0.0);
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, fk_values);
+//    std::vector<geometry_msgs::msg::Pose> poses;
+//    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
 
-    const Eigen::Map<const Eigen::VectorXd> seed_eigen(seed.data(), seed.size());
-    double error_get_ik =
-        (Eigen::Map<const Eigen::VectorXd>(solution.data(), solution.size()) - seed_eigen).array().abs().sum();
+//    solutions.clear();
+//    kinematics_solver_->getPositionIK(poses, fk_values, solutions, result, options);
 
-    // getPositionIK for multiple solutions
-    solutions.clear();
-    kinematics_solver_->getPositionIK(poses, seed, solutions, result, options);
+//    if (result.kinematic_error == kinematics::KinematicErrors::OK)
+//      success += solutions.empty() ? 0 : 1;
+//    else
+//      continue;
 
-    // check if getPositionIK call for multiple solutions returns solution
-    EXPECT_EQ(result.kinematic_error, kinematics::KinematicErrors::OK)
-        << "Multiple solution call failed, while single solution call succeeded";
-    if (result.kinematic_error != kinematics::KinematicErrors::OK)
-      continue;
+//    std::vector<geometry_msgs::msg::Pose> reached_poses;
+//    for (const auto& s : solutions)
+//    {
+//      kinematics_solver_->getPositionFK(fk_names, s, reached_poses);
+//      EXPECT_NEAR_POSES(poses, reached_poses, tolerance_);
+//    }
+//  }
 
-    double smallest_error_multiple_ik = std::numeric_limits<double>::max();
-    for (const auto& s : solutions)
-    {
-      double error_multiple_ik =
-          (Eigen::Map<const Eigen::VectorXd>(s.data(), s.size()) - seed_eigen).array().abs().sum();
-      if (error_multiple_ik <= smallest_error_multiple_ik)
-        smallest_error_multiple_ik = error_multiple_ik;
-    }
-    EXPECT_NEAR(smallest_error_multiple_ik, error_get_ik, tolerance_);
-  }
-}
+//  std::cout << "Success Rate: " << (double)success / num_ik_multiple_tests_ << std::endl;
+//  EXPECT_GE(success, EXPECTED_SUCCESS_RATE * num_ik_multiple_tests_);
+//}
+
+//// validate that getPositionIK() retrieves closest solution to seed
+// TEST_F(KinematicsTest, getNearestIKSolution)
+//{
+//  std::vector<std::vector<double>> solutions;
+//  kinematics::KinematicsQueryOptions options;
+//  kinematics::KinematicsResult result;
+
+//  std::vector<double> seed, fk_values, solution;
+//  moveit_msgs::msg::MoveItErrorCodes error_code;
+//  const std::vector<std::string>& fk_names = kinematics_solver_->getTipFrames();
+//  robot_state::RobotState robot_state(robot_model_);
+//  robot_state.setToDefaultValues();
+
+//  for (unsigned int i = 0; i < num_nearest_ik_tests_; ++i)
+//  {
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, fk_values);
+//    std::vector<geometry_msgs::msg::Pose> poses;
+//    ASSERT_TRUE(kinematics_solver_->getPositionFK(fk_names, fk_values, poses));
+
+//    // sample seed vector
+//    robot_state.setToRandomPositions(jmg_, this->rng_);
+//    robot_state.copyJointGroupPositions(jmg_, seed);
+
+//    // getPositionIK for single solution
+//    kinematics_solver_->getPositionIK(poses[0], seed, solution, error_code);
+
+//    // check if getPositionIK call for single solution returns solution
+//    if (error_code.val != error_code.SUCCESS)
+//      continue;
+
+//    const Eigen::Map<const Eigen::VectorXd> seed_eigen(seed.data(), seed.size());
+//    double error_get_ik =
+//        (Eigen::Map<const Eigen::VectorXd>(solution.data(), solution.size()) - seed_eigen).array().abs().sum();
+
+//    // getPositionIK for multiple solutions
+//    solutions.clear();
+//    kinematics_solver_->getPositionIK(poses, seed, solutions, result, options);
+
+//    // check if getPositionIK call for multiple solutions returns solution
+//    EXPECT_EQ(result.kinematic_error, kinematics::KinematicErrors::OK)
+//        << "Multiple solution call failed, while single solution call succeeded";
+//    if (result.kinematic_error != kinematics::KinematicErrors::OK)
+//      continue;
+
+//    double smallest_error_multiple_ik = std::numeric_limits<double>::max();
+//    for (const auto& s : solutions)
+//    {
+//      double error_multiple_ik =
+//          (Eigen::Map<const Eigen::VectorXd>(s.data(), s.size()) - seed_eigen).array().abs().sum();
+//      if (error_multiple_ik <= smallest_error_multiple_ik)
+//        smallest_error_multiple_ik = error_multiple_ik;
+//    }
+//    EXPECT_NEAR(smallest_error_multiple_ik, error_get_ik, tolerance_);
+//  }
+//}
 
 int main(int argc, char** argv)
 {

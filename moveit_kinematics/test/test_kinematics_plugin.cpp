@@ -52,7 +52,7 @@
 #include <moveit_msgs/msg/display_trajectory.hpp>
 #include <moveit/robot_trajectory/robot_trajectory.h>
 
-using namespace std::literals::string_literals;
+#include <moveit/utils/robot_model_test_utils.h>
 
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("test_kinematics_plugin");
 const std::string ROBOT_DESCRIPTION_PARAM = "robot_description";
@@ -63,8 +63,8 @@ const double DEFAULT_TOLERANCE = 1e-5;
 template <typename T>
 inline bool getParam(const rclcpp::Node::SharedPtr& node, const std::string& param_name, T& param)
 {
-  if (node->get_parameter(param_name, param))
-    return true;
+  if (node->has_parameter(param_name))
+    return node->get_parameter(param_name, param);
   return false;
 }
 
@@ -101,27 +101,30 @@ class SharedData
     node_ = std::make_shared<rclcpp::Node>("moveit_kinematics_test");
 
     // Parameter declaration (to avoid throwing an exception)
-    node_->declare_parameter("group");
-    node_->declare_parameter("tip_link");
-    node_->declare_parameter("root_link");
-    node_->declare_parameter("joint_names");
-    node_->declare_parameter("seed");
-    node_->declare_parameter("consistency_limits");
-    node_->declare_parameter("ik_timeout");
-    node_->declare_parameter("tolerance");
-    node_->declare_parameter("num_fk_tests");
-    node_->declare_parameter("num_ik_cb_tests");
-    node_->declare_parameter("num_ik_tests");
-    node_->declare_parameter("num_ik_multiple_tests");
-    node_->declare_parameter("num_nearest_ik_tests");
-    node_->declare_parameter("ik_plugin_name");
-    node_->declare_parameter("publish_trajectory");
+    // TODO(JafarAbdi): Make the parameter generic by providing launch file
+    std::vector<std::string> joint_names{ "panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4",
+                                          "panda_joint5", "panda_joint6", "panda_joint7" };
+    std::vector<double> seed{ -0.5, -0.5, 0.3, -2, 0.8, 1.8, 1.9 };
+    std::vector<double> consistency_limits{ 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4 };
 
-    // TODO(JafarAbdi): Use eloquent STREAM logging macros
-    std::cout << "Loading robot model from " << node_->get_namespace() << "." << ROBOT_DESCRIPTION_PARAM << std::endl;
+    node_->declare_parameter("group", "panda_arm");
+    node_->declare_parameter("tip_link", "panda_link8");
+    node_->declare_parameter("root_link", "panda_link0");
+    node_->declare_parameter("joint_names", joint_names);
+    node_->declare_parameter("seed", seed);
+    node_->declare_parameter("consistency_limits", consistency_limits);
+    node_->declare_parameter("ik_timeout", 0.2);
+    node_->declare_parameter("tolerance", 1e-5);
+    node_->declare_parameter("num_fk_tests", 100);
+    node_->declare_parameter("num_ik_cb_tests", 0);
+    node_->declare_parameter("num_ik_tests", 1);
+    node_->declare_parameter("num_ik_multiple_tests", 0);
+    node_->declare_parameter("num_nearest_ik_tests", 0);
+    node_->declare_parameter("ik_plugin_name", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+    node_->declare_parameter("publish_trajectory", false);
+
     // load robot model
-    rdf_loader::RDFLoader rdf_loader(node_, ROBOT_DESCRIPTION_PARAM);
-    robot_model_ = std::make_shared<robot_model::RobotModel>(rdf_loader.getURDF(), rdf_loader.getSRDF());
+    robot_model_ = moveit::core::loadTestingRobotModel("panda");
     ASSERT_TRUE(bool(robot_model_)) << "Failed to load robot model";
 
     // init ClassLoader
@@ -130,28 +133,16 @@ class SharedData
 
     // load parameters
     ASSERT_TRUE(getParam(node_, "group", group_name_));
-    std::cout << "group " << group_name_ << std::endl;
-
     ASSERT_TRUE(getParam(node_, "tip_link", tip_link_));
-    std::cout << "tip_link" << std::endl;
-
     ASSERT_TRUE(getParam(node_, "root_link", root_link_));
-    std::cout << "root_link" << std::endl;
-
     ASSERT_TRUE(getParam(node_, "joint_names", joints_));
-    std::cout << "joint_names" << std::endl;
     getParam(node_, "seed", seed_);
-    std::cout << "seed" << std::endl;
     ASSERT_TRUE(seed_.empty() || seed_.size() == joints_.size());
     getParam(node_, "consistency_limits", consistency_limits_);
-    std::cout << "consistency_limits" << std::endl;
     if (!getParam(node_, "ik_timeout", timeout_) || timeout_ < 0.0)
       timeout_ = 1.0;
-    std::cout << "ik_timeout" << std::endl;
     if (!getParam(node_, "tolerance", tolerance_) || tolerance_ < 0.0)
       tolerance_ = DEFAULT_TOLERANCE;
-    std::cout << "tolerance" << std::endl;
-
     ASSERT_TRUE(consistency_limits_.empty() || consistency_limits_.size() == joints_.size());
     ASSERT_TRUE(getParam(node_, "num_fk_tests", num_fk_tests_));
     ASSERT_TRUE(getParam(node_, "num_ik_cb_tests", num_ik_cb_tests_));
@@ -189,6 +180,7 @@ class KinematicsTest : public ::testing::Test
 protected:
   void operator=(const SharedData& data)
   {
+    node_ = data.node_;
     robot_model_ = data.robot_model_;
     jmg_ = robot_model_->getJointModelGroup(data.group_name_);
     root_link_ = data.root_link_;
@@ -212,21 +204,12 @@ protected:
 
     std::string plugin_name;
     ASSERT_TRUE(getParam(SharedData::instance().node_, std::string("ik_plugin_name"), plugin_name));
-    plugin_name = std::string("kdl_kinematics_plugin/KDLKinematicsPlugin");
     RCLCPP_INFO(LOGGER, "Loading %s", plugin_name.c_str());
     kinematics_solver_ = SharedData::instance().createUniqueInstance(plugin_name);
     ASSERT_TRUE(bool(kinematics_solver_)) << "Failed to load plugin: " << plugin_name;
 
-    group_name_ = "manipulator";
-    root_link_ = "base_link";
-    tip_link_ = "ee_link";
-
-    printf("group_name_: %s\n", group_name_.c_str());
-    printf("root_link_: %s\n", root_link_.c_str());
-    printf("tip_link_: %s\n", tip_link_.c_str());
-
     // initializing plugin
-    ASSERT_TRUE(kinematics_solver_->initialize(*robot_model_, group_name_, root_link_, { tip_link_ },
+    ASSERT_TRUE(kinematics_solver_->initialize(node_, *robot_model_, group_name_, root_link_, { tip_link_ },
                                                DEFAULT_SEARCH_DISCRETIZATION) ||
                 kinematics_solver_->initialize(ROBOT_DESCRIPTION_PARAM, group_name_, root_link_, { tip_link_ },
                                                DEFAULT_SEARCH_DISCRETIZATION))
@@ -302,7 +285,7 @@ public:
     return testing::AssertionSuccess();
   }
 
-  void searchIKCallback(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& joint_state,
+  void searchIKCallback(const geometry_msgs::msg::Pose& /*ik_pose*/, const std::vector<double>& joint_state,
                         moveit_msgs::msg::MoveItErrorCodes& error_code)
   {
     std::vector<std::string> link_names = { tip_link_ };
@@ -321,6 +304,7 @@ public:
   }
 
 public:
+  rclcpp::Node::SharedPtr node_;
   robot_model::RobotModelPtr robot_model_;
   robot_model::JointModelGroup* jmg_;
   kinematics::KinematicsBasePtr kinematics_solver_;
@@ -379,7 +363,7 @@ TEST_F(KinematicsTest, randomWalkIK)
     robot_state.setJointGroupPositions(jmg_, seed_);
 
   bool publish_trajectory = false;
-  // getParam(node, "publish_trajectory", publish_trajectory);
+  getParam(node_, "publish_trajectory", publish_trajectory);
   moveit_msgs::msg::DisplayTrajectory msg;
   msg.model_id = robot_model_->getName();
   moveit::core::robotStateToRobotStateMsg(robot_state, msg.trajectory_start);
@@ -421,6 +405,7 @@ TEST_F(KinematicsTest, randomWalkIK)
     if (!diff.isZero(1.05 * NEAR_JOINT))
     {
       ++failures;
+      // TODO(JafarAbdi): Use eloquent stream logging
       std::cout << "jump in [" << i << "]: " << diff.transpose() << std::endl;
     }
 
@@ -441,29 +426,19 @@ TEST_F(KinematicsTest, randomWalkIK)
   //   ros::WallDuration(0.1).sleep();
   // }
 }
-// static void parseVector(XmlRpc::XmlRpcValue& vec, std::vector<double>& values, size_t num = 0)
-//{
-//  ASSERT_EQ(vec.getType(), XmlRpc::XmlRpcValue::TypeArray);
-//  if (num != 0)
-//  {
-//    ASSERT_EQ(static_cast<size_t>(vec.size()), num);
-//  }
-//  values.reserve(vec.size());
-//  values.clear();
-//  for (int i = 0; i < vec.size(); ++i)  // NOLINT(modernize-loop-convert)
-//    values.push_back(parseDouble(vec[i]));
-//}
-// static bool parseGoal(const std::string& name, XmlRpc::XmlRpcValue& value, Eigen::Isometry3d& goal, std::string&
-// desc)
+
+// static bool parseGoal(const std::string& param_prefix, const std::string& name,
+//                      const std::map<std::string, rclcpp::Parameter>& params, Eigen::Isometry3d& goal,
+//                      std::string& desc)
 //{
 //  std::ostringstream oss;
 //  std::vector<double> vec;
-//  if (name == "pose")
+//  if (name == param_prefix + ".pose")
 //  {
-//    parseVector(value["orientation"], vec, 4);
+//    vec = params.at(name + ".orientation").as_double_array();
 //    Eigen::Quaterniond q(vec[3], vec[0], vec[1], vec[2]);  // w x y z
 //    goal = q;
-//    parseVector(value["position"], vec, 3);
+//    vec = params.at(name + ".position").as_double_array();
 //    goal.translation() = Eigen::Map<Eigen::Vector3d>(vec.data());
 //    oss << name << " " << goal.translation().transpose() << " " << q.vec().transpose() << " " << q.w();
 //    desc = oss.str();
@@ -473,18 +448,19 @@ TEST_F(KinematicsTest, randomWalkIK)
 //  {
 //    char axis_char = 'x' + axis;
 //    // position offset
-//    if (name == (std::string("pos.") + axis_char))
+//    std::string param_name = param_prefix + "pos." + axis_char;
+//    if (name == param_name)
 //    {
-//      goal.translation()[axis] += parseDouble(value);
-//      desc = name + " " + std::to_string(parseDouble(value));
+//      goal.translation()[axis] += params.at(param_name).as_double();
+//      desc = name + " " + std::to_string(params.at(param_name).as_double());
 //      return true;
 //    }
 //    // rotation offset
-//    else if (name == (std::string("rot.") + axis_char))
+//    else if (name == param_prefix + "rot." + axis_char)
 //    {
-//      goal *= Eigen::AngleAxisd(parseDouble(value), Eigen::Vector3d::Unit(axis));
-//      desc = name + " " + std::to_string(parseDouble(value));
-//      return true;
+//      goal *= Eigen::AngleAxisd(params.at(param_prefix + "rot." + axis_char).as_double(),
+//      Eigen::Vector3d::Unit(axis)); desc = name + " " + std::to_string(params.at(param_prefix + "rot." +
+//      axis_char).as_double()); return true;
 //    }
 //  }
 //  return false;
@@ -492,9 +468,13 @@ TEST_F(KinematicsTest, randomWalkIK)
 
 // TEST_F(KinematicsTest, unitIK)
 //{
-//  XmlRpc::XmlRpcValue tests;
-//  if (!getParam("unit_tests", tests))
-//    return;
+//  //  std::string param_prefix = "";
+//  //  std::map<std::string, rclcpp::Parameter> params;
+//  //  if (!node_->get_parameters(param_prefix, params))
+//  //  {
+//  //    FAIL() << "Didn't load any parameter";
+//  //    return;
+//  //  }
 
 //  std::vector<double> seed, sol;
 //  const std::vector<std::string>& tip_frames = kinematics_solver_->getTipFrames();
@@ -536,7 +516,6 @@ TEST_F(KinematicsTest, randomWalkIK)
 //    }
 //  };
 
-//  ASSERT_EQ(tests.getType(), XmlRpc::XmlRpcValue::TypeArray);
 //  std::vector<double> ground_truth;
 
 //  /* process tests definitions on parameter server of the form
@@ -545,20 +524,18 @@ TEST_F(KinematicsTest, randomWalkIK)
 //     - pos.y: -0.1
 //       joints: [0, 0, 0, 0, 0, 0]
 //  */
-//  for (int i = 0; i < tests.size(); ++i)  // NOLINT(modernize-loop-convert)
+//  for (const std::pair<std::string, rclcpp::Parameter>& param : params)  // NOLINT(modernize-loop-convert)
 //  {
 //    goal = initial;  // reset goal to initial
 //    ground_truth.clear();
 
-//    ASSERT_EQ(tests[i].getType(), XmlRpc::XmlRpcValue::TypeStruct);
 //    std::string desc;
-//    for (std::pair<const std::string, XmlRpc::XmlRpcValue>& member : tests[i])
-//    {
-//      if (member.first == "joints")
-//        parseVector(member.second, ground_truth);
-//      else if (!parseGoal(member.first, member.second, goal, desc))
-//        ROS_WARN_STREAM("unknown unit_tests' key: " << member.first);
-//    }
+
+//    if (param.first == param_prefix + ".joints")
+//      ground_truth = param.second.as_double_array();
+//    else if (!parseGoal(param_prefix, param.first, params, goal, desc))
+//      RCLCPP_WARN(LOGGER, "unknown unit_tests' key: %s", param.first.c_str());
+
 //    {
 //      SCOPED_TRACE(desc);
 //      validate_ik(tf2::toMsg(goal), ground_truth);

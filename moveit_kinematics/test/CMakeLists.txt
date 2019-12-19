@@ -14,6 +14,7 @@ if(BUILD_TESTING)
     rclcpp
     moveit_core
     moveit_ros_planning
+    Boost
   )
   target_compile_definitions(test_kinematics_plugin PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 

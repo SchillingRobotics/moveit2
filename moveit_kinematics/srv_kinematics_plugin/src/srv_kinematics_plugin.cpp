@@ -54,10 +54,11 @@ SrvKinematicsPlugin::SrvKinematicsPlugin() : active_(false)
 {
 }
 
-bool SrvKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model, const std::string& group_name,
-                                     const std::string& base_frame, const std::vector<std::string>& tip_frames,
-                                     double search_discretization)
+bool SrvKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModel& robot_model,
+                                     const std::string& group_name, const std::string& base_frame,
+                                     const std::vector<std::string>& tip_frames, double search_discretization)
 {
+  node_ = node;
   bool debug = false;
 
   RCLCPP_INFO(LOGGER, "SrvKinematicsPlugin initializing");

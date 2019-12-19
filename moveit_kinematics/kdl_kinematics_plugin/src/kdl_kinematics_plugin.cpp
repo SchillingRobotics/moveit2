@@ -133,10 +133,11 @@ void KDLKinematicsPlugin::getJointWeights()
   //                                         .transpose());
 }
 
-bool KDLKinematicsPlugin::initialize(const moveit::core::RobotModel& robot_model, const std::string& group_name,
-                                     const std::string& base_frame, const std::vector<std::string>& tip_frames,
-                                     double search_discretization)
+bool KDLKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModel& robot_model,
+                                     const std::string& group_name, const std::string& base_frame,
+                                     const std::vector<std::string>& tip_frames, double search_discretization)
 {
+  node_ = node;
   storeValues(robot_model, group_name, base_frame, tip_frames, search_discretization);
   joint_model_group_ = robot_model_->getJointModelGroup(group_name);
   if (!joint_model_group_)

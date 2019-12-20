@@ -47,10 +47,12 @@ add_library(${MOVEIT_LIB_NAME} SHARED
   src/occupancy_map_updater.cpp
   )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
-ament_target_dependencies(${MOVEIT_LIB_NAME} rclcpp ${Boost_LIBRARIES} moveit_core moveit_msgs geometric_shapes)
+ament_target_dependencies(${MOVEIT_LIB_NAME} rclcpp moveit_core moveit_msgs pluginlib octomap geometric_shapes)
+target_link_libraries(${MOVEIT_LIB_NAME} ${Boost_LIBRARIES})
 
-# add_executable(moveit_ros_occupancy_map_server src/occupancy_map_server.cpp)
-# ament_target_dependencies(moveit_ros_occupancy_map_server ${MOVEIT_LIB_NAME} rclcpp ${Boost_LIBRARIES})
+add_executable(moveit_ros_occupancy_map_server src/occupancy_map_server.cpp)
+ament_target_dependencies(moveit_ros_occupancy_map_server rclcpp moveit_core moveit_msgs pluginlib octomap geometric_shapes)
+target_link_libraries(moveit_ros_occupancy_map_server ${MOVEIT_LIB_NAME} ${Boost_LIBRARIES})
 
 ament_export_include_directories(include)
 ament_export_interfaces(${MOVEIT_LIB_NAME} HAS_LIBRARY_TARGET)
@@ -71,9 +73,9 @@ install(
   RUNTIME DESTINATION bin
 )
 
-# install(TARGETS moveit_ros_occupancy_map_server
-#   RUNTIME DESTINATION share/${PROJECT_NAME}/
-# )
+install(TARGETS moveit_ros_occupancy_map_server
+  RUNTIME DESTINATION share/${PROJECT_NAME}/
+)
 install(DIRECTORY include/ DESTINATION include)
 
 ament_package()

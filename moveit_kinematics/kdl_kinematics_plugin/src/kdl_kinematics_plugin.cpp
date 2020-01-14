@@ -127,10 +127,10 @@ void KDLKinematicsPlugin::getJointWeights()
     else
       joint_weights_[it - active_names.begin()] = weights[i];
   }
-  // RCLCPP_INFO( LOGGER, "Joint weights for group '%s' : ", getGroupName().c_str()
-  //                                  << getGroupName() << "': \n"
-  //                                  << Eigen::Map<const Eigen::VectorXd>(joint_weights_.data(), joint_weights_.size())
-  //                                         .transpose());
+  RCLCPP_INFO_STREAM(
+      LOGGER, "Joint weights for group '"
+                  << getGroupName() << "': \n"
+                  << Eigen::Map<const Eigen::VectorXd>(joint_weights_.data(), joint_weights_.size()).transpose());
 }
 
 bool KDLKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModel& robot_model,
@@ -369,13 +369,13 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   KDL::ChainIkSolverVelMimicSVD ik_solver_vel(kdl_chain_, mimic_joints_, orientation_vs_position_weight_ == 0.0);
   solution.resize(dimension_);
 
-  KDL::Frame pose_desired(KDL::Rotation::Quaternion(ik_pose.orientation.x, ik_pose.orientation.y, ik_pose.orientation.z,
-                                                    ik_pose.orientation.w),
-                          KDL::Vector(ik_pose.position.x, ik_pose.position.y, ik_pose.position.z));
+  KDL::Frame pose_desired;
+  tf2::fromMsg(ik_pose, pose_desired);
 
-  RCLCPP_DEBUG(LOGGER, "searchPositionIK: Position request pose is %.4f %.4f %.4f %.4f %.4f %.4f %.4f",
-               ik_pose.position.x, ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
-               ik_pose.orientation.z, ik_pose.orientation.w);
+  RCLCPP_DEBUG_STREAM(LOGGER, "searchPositionIK: Position request pose is "
+                                  << ik_pose.position.x << " " << ik_pose.position.y << " " << ik_pose.position.z << " "
+                                  << ik_pose.orientation.x << " " << ik_pose.orientation.y << " "
+                                  << ik_pose.orientation.z << " " << ik_pose.orientation.w);
 
   unsigned int attempt = 0;
   do
@@ -409,14 +409,14 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(LOGGER, "Solved after %f < %f s and %d attempts", (node_->now() - start_time).seconds(), timeout,
-                   attempt);
+      RCLCPP_DEBUG_STREAM(LOGGER, "Solved after " << (node_->now() - start_time).seconds() << " < " << timeout
+                                                  << "s and " << attempt << " attempts");
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(LOGGER, "IK timed out after %f < %f s and %d attempts", (node_->now() - start_time).seconds(), timeout,
-               attempt);
+  RCLCPP_DEBUG_STREAM(LOGGER, "IK timed out after " << (node_->now() - start_time).seconds() << " > " << timeout
+                                                    << "s and " << attempt << " attempts");
   error_code.val = error_code.TIMED_OUT;
   return false;
 }
@@ -435,7 +435,7 @@ int KDLKinematicsPlugin::CartToJnt(KDL::ChainIkSolverVelMimicSVD& ik_solver, con
   extra_joint_weights.setOnes(joint_weights.rows());
 
   q_out = q_init;
-  // RCLCPP_DEBUG( LOGGER, "Input: " << q_init);
+  RCLCPP_DEBUG_STREAM(LOGGER, "Input: " << q_init);
 
   unsigned int i;
   bool success = false;
@@ -443,7 +443,7 @@ int KDLKinematicsPlugin::CartToJnt(KDL::ChainIkSolverVelMimicSVD& ik_solver, con
   {
     fk_solver_->JntToCart(q_out, f);
     delta_twist = diff(f, p_in);
-    // ROS_DEBUG_STREAM_NAMED("kdl", "[" << std::setw(3) << i << "] delta_twist: " << delta_twist);
+    RCLCPP_DEBUG_STREAM(LOGGER, "[" << std::setw(3) << i << "] delta_twist: " << delta_twist);
 
     // check norms of position and orientation errors
     const double position_error = delta_twist.vel.Norm();
@@ -491,12 +491,12 @@ int KDLKinematicsPlugin::CartToJnt(KDL::ChainIkSolverVelMimicSVD& ik_solver, con
 
     KDL::Add(q_out, delta_q, q_out);
 
-    // ROS_DEBUG_STREAM_NAMED("kdl", "      delta_q: " << delta_q);
-    // ROS_DEBUG_STREAM_NAMED("kdl", "      q: " << q_out);
+    RCLCPP_DEBUG_STREAM(LOGGER, "      delta_q: " << delta_q);
+    RCLCPP_DEBUG_STREAM(LOGGER, "      q: " << q_out);
   }
 
   int result = (i == max_iter) ? -3 : (success ? 0 : -2);
-  // ROS_DEBUG_STREAM_NAMED("kdl", "Result " << result << " after " << i << " iterations: " << q_out);
+  RCLCPP_DEBUG_STREAM(LOGGER, "Result " << result << " after " << i << " iterations: " << q_out);
 
   return result;
 }
@@ -545,13 +545,7 @@ bool KDLKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
   {
     if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
     {
-      // TODO(JafarAbdi): un-comment when adding eloquent support
-      // poses[i] = tf2::toMsg(p_out);
-      poses[i].position.x = p_out.p[0];
-      poses[i].position.y = p_out.p[1];
-      poses[i].position.z = p_out.p[2];
-      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z,
-                            poses[i].orientation.w);
+      poses[i] = tf2::toMsg(p_out);
     }
     else
     {

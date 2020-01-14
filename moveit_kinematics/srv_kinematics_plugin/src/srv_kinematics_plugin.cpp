@@ -219,17 +219,6 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& options) const
 {
-  return searchPositionIK(ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code, consistency_limits,
-                          options);
-}
-
-bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_pose,
-                                           const std::vector<double>& ik_seed_state, double timeout,
-                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
-                                           moveit_msgs::msg::MoveItErrorCodes& error_code,
-                                           const std::vector<double>& consistency_limits,
-                                           const kinematics::KinematicsQueryOptions& options) const
-{
   // Convert single pose into a vector of one pose
   std::vector<geometry_msgs::msg::Pose> ik_poses;
   ik_poses.push_back(ik_pose);
@@ -239,9 +228,9 @@ bool SrvKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 }
 
 bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg::Pose>& ik_poses,
-                                           const std::vector<double>& ik_seed_state, double timeout,
-                                           const std::vector<double>& consistency_limits, std::vector<double>& solution,
-                                           const IKCallbackFn& solution_callback,
+                                           const std::vector<double>& ik_seed_state, double /*timeout*/,
+                                           const std::vector<double>& /*consistency_limits*/,
+                                           std::vector<double>& solution, const IKCallbackFn& solution_callback,
                                            moveit_msgs::msg::MoveItErrorCodes& error_code,
                                            const kinematics::KinematicsQueryOptions& /*options*/,
                                            const moveit::core::RobotState* /*context_state*/) const

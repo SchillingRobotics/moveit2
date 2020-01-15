@@ -68,7 +68,7 @@ inline bool getParam(const rclcpp::Node::SharedPtr& node, const std::string& par
   return false;
 }
 
-// // As loading of parameters is quite slow, we share them across all tests
+// As loading of parameters is quite slow, we share them across all tests
 class SharedData
 {
   friend class KinematicsTest;
@@ -100,6 +100,7 @@ class SharedData
   {
     node_ = std::make_shared<rclcpp::Node>("moveit_kinematics_test");
 
+    RCLCPP_INFO_STREAM(LOGGER, "Loading robot model from " << node_->get_namespace() << "." << ROBOT_DESCRIPTION_PARAM);
     // Parameter declaration (to avoid throwing an exception)
     // TODO(JafarAbdi): Make the parameter generic by providing launch file
     std::vector<std::string> joint_names{ "panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4",
@@ -150,9 +151,9 @@ class SharedData
     ASSERT_TRUE(getParam(node_, "num_ik_multiple_tests", num_ik_multiple_tests_));
     ASSERT_TRUE(getParam(node_, "num_nearest_ik_tests", num_nearest_ik_tests_));
 
+    ASSERT_TRUE(robot_model_->hasJointModelGroup(group_name_));
     ASSERT_TRUE(robot_model_->hasLinkModel(root_link_));
     ASSERT_TRUE(robot_model_->hasLinkModel(tip_link_));
-    ASSERT_TRUE(robot_model_->hasJointModelGroup(group_name_));
   }
 
 public:
@@ -204,7 +205,7 @@ protected:
 
     std::string plugin_name;
     ASSERT_TRUE(getParam(SharedData::instance().node_, std::string("ik_plugin_name"), plugin_name));
-    RCLCPP_INFO(LOGGER, "Loading %s", plugin_name.c_str());
+    RCLCPP_INFO_STREAM(LOGGER, "Loading " << plugin_name);
     kinematics_solver_ = SharedData::instance().createUniqueInstance(plugin_name);
     ASSERT_TRUE(bool(kinematics_solver_)) << "Failed to load plugin: " << plugin_name;
 

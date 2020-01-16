@@ -9,6 +9,7 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}
   random_numbers
   pluginlib
   moveit_core
+  moveit_msgs
   orocos_kdl
   kdl_parser
   EIGEN3

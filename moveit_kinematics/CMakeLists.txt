@@ -29,17 +29,7 @@ set(THIS_PACKAGE_INCLUDE_DIRS
 pluginlib_export_plugin_description_file(moveit_core kdl_kinematics_plugin_description.xml)
 ament_export_libraries(${PROJECT_NAME} kdl_kinematics_plugin)
 
-include_directories(${THIS_PACKAGE_INCLUDE_DIRS}
-  ${rclcpp_INCLUDE_DIRS}
-  ${tf2_kdl_INCLUDE_DIRS}
-  ${class_loader_INCLUDE_DIRS}
-  ${random_numbers_INCLUDE_DIRS}
-  ${moveit_msgs_INCLUDE_DIRS}
-  ${moveit_core_INCLUDE_DIRS}
-)
-
-include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS}
-)
+include_directories(${THIS_PACKAGE_INCLUDE_DIRS})
 
 add_subdirectory(kdl_kinematics_plugin)
 add_subdirectory(lma_kinematics_plugin)

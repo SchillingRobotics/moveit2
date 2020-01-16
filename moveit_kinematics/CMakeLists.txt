@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(moveit_kinematics)
 
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -27,6 +30,9 @@ set(THIS_PACKAGE_INCLUDE_DIRS
 )
 
 pluginlib_export_plugin_description_file(moveit_core kdl_kinematics_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core lma_kinematics_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core srv_kinematics_plugin_description.xml)
+
 ament_export_libraries(${PROJECT_NAME} kdl_kinematics_plugin)
 
 include_directories(${THIS_PACKAGE_INCLUDE_DIRS})

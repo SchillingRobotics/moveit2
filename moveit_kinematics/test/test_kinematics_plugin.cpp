@@ -227,7 +227,7 @@ protected:
   }
 
 public:
-  testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* abs_error_expr,
+  testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* /*abs_error_expr*/,
                                   const geometry_msgs::msg::Point& val1, const geometry_msgs::msg::Point& val2,
                                   double abs_error)
   {
@@ -243,7 +243,7 @@ public:
         << "Actual: " << expr2 << " [" << val2.x << ", " << val2.y << ", " << val2.z << "]";
     // clang-format on
   }
-  testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* abs_error_expr,
+  testing::AssertionResult isNear(const char* expr1, const char* expr2, const char* /*abs_error_expr*/,
                                   const geometry_msgs::msg::Quaternion& val1,
                                   const geometry_msgs::msg::Quaternion& val2, double abs_error)
   {

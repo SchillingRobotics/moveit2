@@ -37,7 +37,7 @@
 #pragma once
 
 // ROS2
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 #include <random_numbers/random_numbers.h>
 
 // ROS msgs

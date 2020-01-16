@@ -78,9 +78,10 @@ bool SrvKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const 
 
   // Get the dimension of the planning group
   dimension_ = joint_model_group_->getVariableCount();
-  RCLCPP_INFO(LOGGER, "Dimension planning group '%s': %d . Active Joints Models:  %d . Mimic Joint Models: %d",
-              group_name.c_str(), dimension_, joint_model_group_->getActiveJointModels().size(),
-              joint_model_group_->getMimicJointModels().size());
+  RCLCPP_INFO_STREAM(LOGGER, "Dimension planning group '"
+                                 << group_name << "': " << dimension_
+                                 << ". Active Joints Models: " << joint_model_group_->getActiveJointModels().size()
+                                 << ". Mimic Joint Models: " << joint_model_group_->getMimicJointModels().size());
 
   // Copy joint names
   for (std::size_t i = 0; i < joint_model_group_->getJointModels().size(); ++i)
@@ -119,10 +120,11 @@ bool SrvKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const 
   ik_service_client_ = node_->create_client<moveit_msgs::srv::GetPositionIK>(ik_service_name);
 
   if (!ik_service_client_->wait_for_service(std::chrono::seconds(1)))  // wait 0.1 seconds, blocking
-    RCLCPP_WARN(LOGGER, "Unable to connect to ROS service client with name: %s",
-                ik_service_client_->get_service_name());
+    RCLCPP_WARN_STREAM(LOGGER,
+                       "Unable to connect to ROS service client with name: " << ik_service_client_->get_service_name());
   else
-    RCLCPP_INFO(LOGGER, "Service client started with ROS service name: %s", ik_service_client_->get_service_name());
+    RCLCPP_INFO_STREAM(LOGGER,
+                       "Service client started with ROS service name: " << ik_service_client_->get_service_name());
 
   active_ = true;
   RCLCPP_DEBUG(LOGGER, "ROS service-based kinematics solver initialized");
@@ -246,7 +248,8 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
   // Check if seed state correct
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR(LOGGER, "Seed state must have size %d instead of size %d", dimension_, ik_seed_state.size());
+    RCLCPP_ERROR_STREAM(LOGGER,
+                        "Seed state must have size " << dimension_ << " instead of size " << ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -254,8 +257,9 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
   // Check that we have the same number of poses as tips
   if (tip_frames_.size() != ik_poses.size())
   {
-    RCLCPP_ERROR(LOGGER, "Mismatched number of pose requests (%d) to tip frames (%d) in searchPositionIK",
-                 ik_poses.size(), tip_frames_.size());
+    RCLCPP_ERROR_STREAM(LOGGER, "Mismatched number of pose requests (" << ik_poses.size() << ") to tip frames ("
+                                                                       << tip_frames_.size()
+                                                                       << ") in searchPositionIK");
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -300,7 +304,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
     error_code.val = response->error_code.val;
     if (error_code.val != error_code.SUCCESS)
     {
-      // TODO (anasarrak) Print the entire message for ROS2?
+      // TODO (JafarAbdi) Print the entire message for ROS2?
       // RCLCPP_DEBUG("srv", "An IK that satisifes the constraints and is collision free could not be found."
       //                                   << "\nRequest was: \n"
       //                                   << ik_srv.request.ik_request << "\nResponse was: \n"
@@ -314,14 +318,15 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
           RCLCPP_DEBUG(LOGGER, "Service failed with with error code: NO IK SOLUTION");
           break;
         default:
-          RCLCPP_DEBUG(LOGGER, "Service failed with with error code: %d", error_code.val);
+          RCLCPP_DEBUG_STREAM(LOGGER, "Service failed with with error code: " << error_code.val);
       }
       return false;
     }
   }
   else
   {
-    RCLCPP_DEBUG(LOGGER, "Service call failed to connect to service: %s", ik_service_client_->get_service_name());
+    RCLCPP_DEBUG_STREAM(LOGGER,
+                        "Service call failed to connect to service: " << ik_service_client_->get_service_name());
     error_code.val = error_code.FAILURE;
     return false;
   }
@@ -356,7 +361,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
                                "NO IK SOLUTION");
           break;
         default:
-          RCLCPP_ERROR(LOGGER, "IK solution callback failed with with error code: %d", error_code.val);
+          RCLCPP_ERROR_STREAM(LOGGER, "IK solution callback failed with with error code: " << error_code.val);
       }
       return false;
     }

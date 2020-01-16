@@ -387,7 +387,7 @@ bool KDLKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits_mimic, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      RCLCPP_DEBUG(LOGGER, "New random configuration (%d): ", attempt);  // << jnt_pos_in);
+      RCLCPP_DEBUG_STREAM(LOGGER, "New random configuration (" << attempt << "): " << jnt_pos_in);
     }
 
     int ik_valid =

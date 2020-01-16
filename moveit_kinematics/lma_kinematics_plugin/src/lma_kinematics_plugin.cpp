@@ -235,8 +235,8 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
   if (!consistency_limits.empty() && consistency_limits.size() != dimension_)
   {
-    RCLCPP_ERROR(LOGGER, "Consistency limits be empty or must have size %d instead of size %d", dimension_,
-                 consistency_limits.size());
+    RCLCPP_ERROR_STREAM(LOGGER, "Consistency limits be empty or must have size " << dimension_ << " instead of size "
+                                                                                 << consistency_limits.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -261,9 +261,10 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
   KDL::Frame pose_desired;
   tf2::fromMsg(ik_pose, pose_desired);
 
-  RCLCPP_DEBUG(LOGGER, "searchPositionIK2: Position request pose is %d %d %d %d %d %d %d", ik_pose.position.x,
-               ik_pose.position.y, ik_pose.position.z, ik_pose.orientation.x, ik_pose.orientation.y,
-               ik_pose.orientation.z, ik_pose.orientation.w);
+  RCLCPP_DEBUG_STREAM(LOGGER, "searchPositionIK2: Position request pose is "
+                                  << ik_pose.position.x << " " << ik_pose.position.y << " " << ik_pose.position.z << " "
+                                  << ik_pose.orientation.x << " " << ik_pose.orientation.y << " "
+                                  << ik_pose.orientation.z << " " << ik_pose.orientation.w);
   unsigned int attempt = 0;
   do
   {
@@ -274,9 +275,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
         getRandomConfiguration(jnt_seed_state.data, consistency_limits, jnt_pos_in.data);
       else
         getRandomConfiguration(jnt_pos_in.data);
-      std::stringstream ss;
-      ss << "New random configuration (" << attempt << "): " << jnt_pos_in;
-      RCLCPP_DEBUG(LOGGER, "%s", ss.str().c_str());
+      RCLCPP_DEBUG_STREAM(LOGGER, "New random configuration (" << attempt << "): " << jnt_pos_in);
     }
 
     int ik_valid = ik_solver_pos.CartToJnt(jnt_pos_in, pose_desired, jnt_pos_out);
@@ -298,14 +297,14 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
       // solution passed consistency check and solution callback
       error_code.val = error_code.SUCCESS;
-      RCLCPP_DEBUG(LOGGER, "Solved after %f < %fs and %d attempts", (node_->now() - start_time).seconds(), timeout,
-                   attempt);
+      RCLCPP_DEBUG_STREAM(LOGGER, "Solved after " << (node_->now() - start_time).seconds() << " < " << timeout
+                                                  << "s and " << attempt << " attempts");
       return true;
     }
   } while (!timedOut(start_time, timeout));
 
-  RCLCPP_DEBUG(LOGGER, "IK timed out after %f > %fs and %d attempts", (node_->now() - start_time).seconds(), timeout,
-               attempt);
+  RCLCPP_DEBUG_STREAM(LOGGER, "IK timed out after " << (node_->now() - start_time).seconds() << " > " << timeout
+                                                    << "s and " << attempt << " attempts");
   error_code.val = error_code.TIMED_OUT;
   return false;
 }
@@ -335,13 +334,7 @@ bool LMAKinematicsPlugin::getPositionFK(const std::vector<std::string>& link_nam
   {
     if (fk_solver_->JntToCart(jnt_pos_in, p_out) >= 0)
     {
-      // TODO(JafarAbdi): un-comment when adding eloquent support
-      // poses[i] = tf2::toMsg(p_out);
-      poses[i].position.x = p_out.p[0];
-      poses[i].position.y = p_out.p[1];
-      poses[i].position.z = p_out.p[2];
-      p_out.M.GetQuaternion(poses[i].orientation.x, poses[i].orientation.y, poses[i].orientation.z,
-                            poses[i].orientation.w);
+      poses[i] = tf2::toMsg(p_out);
     }
     else
     {

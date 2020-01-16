@@ -43,7 +43,7 @@ add_subdirectory(lma_kinematics_plugin)
 add_subdirectory(srv_kinematics_plugin)
 # add_subdirectory(ikfast_kinematics_plugin)
 # add_subdirectory(cached_ik_kinematics_plugin)
-# add_subdirectory(test)
+add_subdirectory(test)
 
 ament_export_include_directories(include)
 ament_export_dependencies(pluginlib)

@@ -30,11 +30,13 @@ set(THIS_PACKAGE_INCLUDE_DIRS
     cached_ik_kinematics_plugin/include
 )
 
+pluginlib_export_plugin_description_file(moveit_core kdl_kinematics_plugin_description.xml)
+
 ament_export_libraries(${PROJECT_NAME} kdl_kinematics_plugin)
 
 include_directories(${THIS_PACKAGE_INCLUDE_DIRS})
 
-# add_subdirectory(kdl_kinematics_plugin)
+add_subdirectory(kdl_kinematics_plugin)
 # add_subdirectory(lma_kinematics_plugin)
 # add_subdirectory(srv_kinematics_plugin)
 # add_subdirectory(ikfast_kinematics_plugin)

@@ -100,7 +100,7 @@ class SharedData
   {
     node_ = std::make_shared<rclcpp::Node>("moveit_kinematics_test");
 
-    RCLCPP_INFO_STREAM(LOGGER, "Loading robot model from " << node_->get_namespace() << "." << ROBOT_DESCRIPTION_PARAM);
+    RCLCPP_INFO_STREAM(LOGGER, "Loading robot model from " << node_->get_name() << "." << ROBOT_DESCRIPTION_PARAM);
     // Parameter declaration (to avoid throwing an exception)
     // TODO(JafarAbdi): Make the parameter generic by providing launch file
     std::vector<std::string> joint_names{ "panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4",
@@ -118,7 +118,7 @@ class SharedData
     node_->declare_parameter("tolerance", 1e-5);
     node_->declare_parameter("num_fk_tests", 100);
     node_->declare_parameter("num_ik_cb_tests", 0);
-    node_->declare_parameter("num_ik_tests", 1);
+    node_->declare_parameter("num_ik_tests", 100);
     node_->declare_parameter("num_ik_multiple_tests", 0);
     node_->declare_parameter("num_nearest_ik_tests", 0);
     node_->declare_parameter("ik_plugin_name", "kdl_kinematics_plugin/KDLKinematicsPlugin");
@@ -406,8 +406,7 @@ TEST_F(KinematicsTest, randomWalkIK)
     if (!diff.isZero(1.05 * NEAR_JOINT))
     {
       ++failures;
-      // TODO(JafarAbdi): Use eloquent stream logging
-      std::cout << "jump in [" << i << "]: " << diff.transpose() << std::endl;
+      RCLCPP_WARN_STREAM(LOGGER, "jump in [" << i << "]: " << diff.transpose());
     }
 
     // update robot state to found pose

@@ -41,9 +41,8 @@
 #include <moveit/macros/diagnostics.h>
 DIAGNOSTIC_PUSH
 SILENT_UNUSED_PARAM
-#include <rviz/ogre_helpers/point_cloud.h>
+#include <rviz_default_plugins/displays/pointcloud/point_cloud_helpers.hpp>
 DIAGNOSTIC_POP
-#include <moveit/rviz_plugin_render_tools/octomap_render.h>
 
 namespace octomap
 {
@@ -55,9 +54,9 @@ namespace Ogre
 class SceneManager;
 class SceneNode;
 class AxisAlignedBox;
-class Vector3;
+// class Vector3;
 class Quaternion;
-}
+}  // namespace Ogre
 
 namespace moveit_rviz_plugin
 {
@@ -85,14 +84,15 @@ public:
   void setOrientation(const Ogre::Quaternion& orientation);
 
 private:
-  void setColor(double z_pos, double min_z, double max_z, double color_factor, rviz::PointCloud::Point* point);
-  void setProbColor(double prob, rviz::PointCloud::Point* point);
+  void setColor(double z_pos, double min_z, double max_z, double color_factor,
+                rviz_rendering::PointCloud::Point* point);
+  void setProbColor(double prob, rviz_rendering::PointCloud::Point* point);
 
   void octreeDecoding(const std::shared_ptr<const octomap::OcTree>& octree,
                       OctreeVoxelRenderMode octree_voxel_rendering, OctreeVoxelColorMode octree_color_mode);
 
   // Ogre-rviz point clouds
-  std::vector<rviz::PointCloud*> cloud_;
+  std::vector<rviz_rendering::PointCloud*> cloud_;
   std::shared_ptr<const octomap::OcTree> octree_;
 
   Ogre::SceneNode* scene_node_;

@@ -39,24 +39,26 @@
 #include <memory>
 #include <vector>
 #include <moveit/macros/diagnostics.h>
+#include <octomap/octomap.h>
 DIAGNOSTIC_PUSH
 SILENT_UNUSED_PARAM
 #include <rviz_default_plugins/displays/pointcloud/point_cloud_helpers.hpp>
+#include <rviz_common/properties/color_property.hpp>
 DIAGNOSTIC_POP
 
-namespace octomap
-{
-class OcTree;
-}
+// namespace octomap
+//{
+// class OcTree;
+//}
 
-namespace Ogre
-{
-class SceneManager;
-class SceneNode;
-class AxisAlignedBox;
+// namespace Ogre
+//{
+// class SceneManager;
+// class SceneNode;
+// class AxisAlignedBox;
 // class Vector3;
-class Quaternion;
-}  // namespace Ogre
+// class Quaternion;
+//}  // namespace Ogre
 
 namespace moveit_rviz_plugin
 {

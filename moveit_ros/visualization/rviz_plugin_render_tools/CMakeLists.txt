@@ -12,7 +12,7 @@ set(HEADERS
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_library(${MOVEIT_LIB_NAME}
+add_library(${MOVEIT_LIB_NAME} SHARED
   src/render_shapes.cpp
   src/robot_state_visualization.cpp
   src/planning_scene_render.cpp
@@ -20,20 +20,24 @@ add_library(${MOVEIT_LIB_NAME}
   src/octomap_render.cpp
   src/trajectory_visualization.cpp
   src/trajectory_panel.cpp
-  ${HEADERS}
 )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 
 target_link_libraries(${MOVEIT_LIB_NAME}
-  ${catkin_LIBRARIES}
-  ${OGRE_LIBRARIES}
-  ${QT_LIBRARIES}
-  ${Boost_LIBRARIES}
+    rviz_ogre_vendor::OgreMain
 )
 
-install(DIRECTORY include/ DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION})
+ament_target_dependencies(${MOVEIT_LIB_NAME}
+    rclcpp
+    rviz2
+    moveit_core
+    Boost
+    octomap_msgs
+)
+
+install(DIRECTORY include/ DESTINATION include)
 
 install(TARGETS ${MOVEIT_LIB_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)

@@ -192,7 +192,7 @@ void TrajectoryVisualization::onRobotModelLoaded(const robot_model::RobotModelCo
   display_path_robot_->load(*robot_model_->getURDF());
   enabledRobotColor();  // force-refresh to account for saved display configuration
   // perform post-poned subscription to trajectory topic
-  // TODO(JafarAbdi): Check if empty
+  // Check if topic name is empty
   if (trajectory_topic_sub_->get_topic_name())
     changedTrajectoryTopic();
 }

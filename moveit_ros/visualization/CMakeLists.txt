@@ -35,7 +35,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rviz2 REQUIRED)
 find_package(tf2_eigen REQUIRED)
-find_package(object_recognition_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(rviz_ogre_vendor REQUIRED)
 
@@ -68,10 +67,6 @@ include_directories(rviz_plugin_render_tools/include
                     #trajectory_rviz_plugin/include
 )
 
-# TODO(JafarAbdi): Is this necessary .?
-include_directories(SYSTEM
-                    ${QT_INCLUDE_DIR})
-
 add_subdirectory(rviz_plugin_render_tools)
 add_subdirectory(robot_state_rviz_plugin)
 # add_subdirectory(planning_scene_rviz_plugin)
@@ -80,9 +75,9 @@ add_subdirectory(robot_state_rviz_plugin)
 
 install(DIRECTORY icons DESTINATION share)
 
-pluginlib_export_plugin_description_file(rviz_common motion_planning_rviz_plugin_description.xml)
-pluginlib_export_plugin_description_file(rviz_common trajectory_rviz_plugin_description.xml)
-pluginlib_export_plugin_description_file(rviz_common planning_scene_rviz_plugin_description.xml)
+#pluginlib_export_plugin_description_file(rviz_common motion_planning_rviz_plugin_description.xml)
+#pluginlib_export_plugin_description_file(rviz_common trajectory_rviz_plugin_description.xml)
+#pluginlib_export_plugin_description_file(rviz_common planning_scene_rviz_plugin_description.xml)
 pluginlib_export_plugin_description_file(rviz_common robot_state_rviz_plugin_description.xml)
 
 #if (CATKIN_ENABLE_TESTING)
@@ -91,10 +86,19 @@ pluginlib_export_plugin_description_file(rviz_common robot_state_rviz_plugin_des
 #endif()
 
 ament_export_include_directories(include)
-# TODO(JafarAbdi): export other libs
-ament_export_dependencies(pluginlib)
+ament_export_dependencies(class_loader)
+ament_export_dependencies(geometric_shapes)
+ament_export_dependencies(interactive_markers)
+ament_export_dependencies(moveit_ros_planning)
+ament_export_dependencies(moveit_msgs)
 ament_export_dependencies(moveit_core)
-ament_export_dependencies(rclcpp_action)
-ament_export_dependencies(moveit_simple_controller_manager)
-ament_export_dependencies(Boost)
+ament_export_dependencies(octomap_msgs)
+ament_export_dependencies(object_recognition_msgs)
+ament_export_dependencies(pluginlib)
+ament_export_dependencies(rclcpp)
+ament_export_dependencies(rclpy)
+ament_export_dependencies(rviz2)
+ament_export_dependencies(tf2_eigen)
+ament_export_dependencies(Eigen3)
+ament_export_dependencies(rviz_ogre_vendor)
 ament_package()

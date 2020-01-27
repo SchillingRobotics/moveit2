@@ -38,71 +38,69 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.trajectory_execution_manager.test_app");
+
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
   auto node = rclcpp::Node::make_shared("test_trajectory_execution_manager");
 
   robot_model_loader::RobotModelLoaderPtr rml(new robot_model_loader::RobotModelLoader(node));
-
-  printf("robot_model_loader::RobotModelLoaderPtr\n");
-
-  planning_scene_monitor::PlanningSceneMonitor psm(rml, node);
-  printf("planning_scene_monitor::PlanningSceneMonitor\n");
-  trajectory_execution_manager::TrajectoryExecutionManager tem(rml->getModel(), psm.getStateMonitor(), true, node);
-  printf("trajectory_execution_manager::TrajectoryExecutionManager\n");
+  planning_scene_monitor::PlanningSceneMonitor psm(node, rml);
+  trajectory_execution_manager::TrajectoryExecutionManager tem(node, rml->getModel(), psm.getStateMonitor(), true);
 
   std::cout << "1:\n";
-  if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "motor1")))
-    printf("Fail!\n");
+  if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "basej")))
+    RCLCPP_ERROR(LOGGER, "Fail!");
 
-  // std::cout << "2:\n";
-  // if (!tem.ensureActiveController("arms"))
-  //   printf("Fail!\n");
-  //
-  // std::cout << "3:\n";
-  // if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "rj2")))
-  //   printf("Fail!\n");
-  //
-  // std::cout << "4:\n";
-  // if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "lj1")))
-  //   printf("Fail!\n");
-  //
-  // std::cout << "5:\n";
-  // if (!tem.ensureActiveController("left_arm_head"))
-  //   printf("Fail!\n");
-  // std::cout << "6:\n";
-  // if (!tem.ensureActiveController("arms"))
-  //   printf("Fail!\n");
-  //
-  // // execute with empty set of trajectories
-  // tem.execute();
-  // if (!tem.waitForExecution())
-  //   printf("Fail!\n");
-  //
-  // moveit_msgs::msg::RobotTrajectory traj1;
-  // traj1.joint_trajectory.joint_names.push_back("rj1");
-  // traj1.joint_trajectory.points.resize(1);
-  // traj1.joint_trajectory.points[0].positions.push_back(0.0);
-  // if (!tem.push(traj1))
-  //   printf("Fail!\n");
-  //
-  // moveit_msgs::msg::RobotTrajectory traj2 = traj1;
-  // traj2.joint_trajectory.joint_names.push_back("lj2");
-  // traj2.joint_trajectory.points[0].positions.push_back(1.0);
-  // traj2.multi_dof_joint_trajectory.joint_names.push_back("basej");
-  // traj2.multi_dof_joint_trajectory.points.resize(1);
-  // traj2.multi_dof_joint_trajectory.points[0].transforms.resize(1);
-  //
-  // if (!tem.push(traj2))
-  //   printf("Fail!\n");
-  //
-  // traj1.multi_dof_joint_trajectory = traj2.multi_dof_joint_trajectory;
-  // if (!tem.push(traj1))
-  //   printf("Fail!\n");
-  //
-  // if (!tem.executeAndWait())
-  //   printf("Fail!\n");
+  std::cout << "2:\n";
+  if (!tem.ensureActiveController("arms"))
+    RCLCPP_ERROR(LOGGER, "Fail!");
 
+  std::cout << "3:\n";
+  if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "rj2")))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  std::cout << "4:\n";
+  if (!tem.ensureActiveControllersForJoints(std::vector<std::string>(1, "lj1")))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  std::cout << "5:\n";
+  if (!tem.ensureActiveController("left_arm_head"))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+  std::cout << "6:\n";
+  if (!tem.ensureActiveController("arms"))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  // execute with empty set of trajectories
+  tem.execute();
+  if (!tem.waitForExecution())
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  moveit_msgs::msg::RobotTrajectory traj1;
+  traj1.joint_trajectory.joint_names.push_back("rj1");
+  traj1.joint_trajectory.points.resize(1);
+  traj1.joint_trajectory.points[0].positions.push_back(0.0);
+  if (!tem.push(traj1))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  moveit_msgs::msg::RobotTrajectory traj2 = traj1;
+  traj2.joint_trajectory.joint_names.push_back("lj2");
+  traj2.joint_trajectory.points[0].positions.push_back(1.0);
+  traj2.multi_dof_joint_trajectory.joint_names.push_back("basej");
+  traj2.multi_dof_joint_trajectory.points.resize(1);
+  traj2.multi_dof_joint_trajectory.points[0].transforms.resize(1);
+
+  if (!tem.push(traj2))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  traj1.multi_dof_joint_trajectory = traj2.multi_dof_joint_trajectory;
+  if (!tem.push(traj1))
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  if (!tem.executeAndWait())
+    RCLCPP_ERROR(LOGGER, "Fail!");
+
+  rclcpp::spin(node);
   return 0;
 }

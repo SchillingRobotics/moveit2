@@ -109,6 +109,10 @@ public:
                                                controller_joints_["head"].begin(), controller_joints_["head"].end());
   }
 
+  void initialize(std::shared_ptr<rclcpp::Node>& node) override
+  {
+  }
+
   moveit_controller_manager::MoveItControllerHandlePtr getControllerHandle(const std::string& name) override
   {
     return moveit_controller_manager::MoveItControllerHandlePtr(new TestMoveItControllerHandle(name));

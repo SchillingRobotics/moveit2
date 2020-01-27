@@ -81,14 +81,12 @@ public:
   };
 
   /// Load the controller manager plugin, start listening for events on a topic.
-  TrajectoryExecutionManager(const robot_model::RobotModelConstPtr& robot_model,
-                             const planning_scene_monitor::CurrentStateMonitorPtr& csm,
-                             const std::shared_ptr<rclcpp::Node> node);
+  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const robot_model::RobotModelConstPtr& robot_model,
+                             const planning_scene_monitor::CurrentStateMonitorPtr& csm);
 
   /// Load the controller manager plugin, start listening for events on a topic.
-  TrajectoryExecutionManager(const robot_model::RobotModelConstPtr& robot_model,
-                             const planning_scene_monitor::CurrentStateMonitorPtr& csm, bool manage_controllers,
-                             const std::shared_ptr<rclcpp::Node> node);
+  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const robot_model::RobotModelConstPtr& robot_model,
+                             const planning_scene_monitor::CurrentStateMonitorPtr& csm, bool manage_controllers);
 
   /// Destructor. Cancels all running trajectories (if any)
   ~TrajectoryExecutionManager();
@@ -102,16 +100,13 @@ public:
   /** \brief Execute a named event (e.g., 'stop') */
   void processEvent(const std::string& event);
 
-  /** \brief Make sure the active controllers are such that trajectories that actuate joints in the specified group
-     can
+  /** \brief Make sure the active controllers are such that trajectories that actuate joints in the specified group can
      be executed.
-      \note If manage_controllers_ is false and the controllers that happen to be active do not cover the joints in
-     the
+      \note If manage_controllers_ is false and the controllers that happen to be active do not cover the joints in the
      group to be actuated, this function fails. */
   bool ensureActiveControllersForGroup(const std::string& group);
 
-  /** \brief Make sure the active controllers are such that trajectories that actuate joints in the specified set can
-     be
+  /** \brief Make sure the active controllers are such that trajectories that actuate joints in the specified set can be
      executed.
       \note If manage_controllers_ is false and the controllers that happen to be active do not cover the joints to be
      actuated, this function fails. */
@@ -133,28 +128,24 @@ public:
   /** \brief Check if a set of controllers are active */
   bool areControllersActive(const std::vector<std::string>& controllers);
 
-  /// Add a trajectory for future execution. Optionally specify a controller to use for the trajectory. If no
-  /// controller
+  /// Add a trajectory for future execution. Optionally specify a controller to use for the trajectory. If no controller
   /// is specified, a default is used.
   bool push(const moveit_msgs::msg::RobotTrajectory& trajectory, const std::string& controller = "");
 
-  /// Add a trajectory for future execution. Optionally specify a controller to use for the trajectory. If no
-  /// controller
+  /// Add a trajectory for future execution. Optionally specify a controller to use for the trajectory. If no controller
   /// is specified, a default is used.
   bool push(const trajectory_msgs::msg::JointTrajectory& trajectory, const std::string& controller = "");
 
   /// Add a trajectory for future execution. Optionally specify a set of controllers to consider using for the
   /// trajectory. Multiple controllers can be used simultaneously
-  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to
-  /// the
+  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to the
   /// already loaded ones.
   /// If no controller is specified, a default is used.
   bool push(const trajectory_msgs::msg::JointTrajectory& trajectory, const std::vector<std::string>& controllers);
 
   /// Add a trajectory for future execution. Optionally specify a set of controllers to consider using for the
   /// trajectory. Multiple controllers can be used simultaneously
-  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to
-  /// the
+  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to the
   /// already loaded ones.
   /// If no controller is specified, a default is used.
   bool push(const moveit_msgs::msg::RobotTrajectory& trajectory, const std::vector<std::string>& controllers);
@@ -189,8 +180,7 @@ public:
 
   /// Add a trajectory for immediate execution. Optionally specify a set of controllers to consider using for the
   /// trajectory. Multiple controllers can be used simultaneously
-  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to
-  /// the
+  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to the
   /// already loaded ones.
   /// If no controller is specified, a default is used. This call is non-blocking.
   bool pushAndExecute(const trajectory_msgs::msg::JointTrajectory& trajectory,
@@ -198,28 +188,23 @@ public:
 
   /// Add a trajectory for immediate execution. Optionally specify a set of controllers to consider using for the
   /// trajectory. Multiple controllers can be used simultaneously
-  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to
-  /// the
+  /// to execute the different parts of the trajectory. If multiple controllers can be used, preference is given to the
   /// already loaded ones.
   /// If no controller is specified, a default is used. This call is non-blocking.
   bool pushAndExecute(const moveit_msgs::msg::RobotTrajectory& trajectory, const std::vector<std::string>& controllers);
 
-  /// Add a trajectory that consists of a single state for immediate execution. Optionally specify a set of
-  /// controllers
+  /// Add a trajectory that consists of a single state for immediate execution. Optionally specify a set of controllers
   /// to consider using for the trajectory.
   /// Multiple controllers can be used simultaneously to execute the different parts of the trajectory. If multiple
   /// controllers can be used, preference
-  /// is given to the already loaded ones. If no controller is specified, a default is used. This call is
-  /// non-blocking.
+  /// is given to the already loaded ones. If no controller is specified, a default is used. This call is non-blocking.
   bool pushAndExecute(const sensor_msgs::msg::JointState& state, const std::vector<std::string>& controllers);
 
-  /// Wait until the execution is complete. This only works for executions started by execute().  If you call this
-  /// after
+  /// Wait until the execution is complete. This only works for executions started by execute().  If you call this after
   /// pushAndExecute(), it will immediately stop execution.
   moveit_controller_manager::ExecutionStatus waitForExecution();
 
-  /// Get the state that the robot is expected to be at, given current time, after execute() has been called. The
-  /// return
+  /// Get the state that the robot is expected to be at, given current time, after execute() has been called. The return
   /// value is a pair of two index values:
   /// first = the index of the trajectory to be executed (in the order push() was called), second = the index of the
   /// point within that trajectory.
@@ -320,10 +305,9 @@ private:
   // Name of this class for logging
   const std::string name_ = "trajectory_execution_manager";
 
+  rclcpp::Node::SharedPtr node_;
   robot_model::RobotModelConstPtr robot_model_;
   planning_scene_monitor::CurrentStateMonitorPtr csm_;
-  std::shared_ptr<rclcpp::Node> node_->get_logger();
-
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr event_topic_subscriber_;
   std::map<std::string, ControllerInformation> known_controllers_;
   bool manage_controllers_;
@@ -336,6 +320,7 @@ private:
 
   boost::mutex execution_state_mutex_;
   boost::mutex continuous_execution_mutex_;
+  boost::mutex execution_thread_mutex_;
 
   boost::condition_variable continuous_execution_condition_;
 
@@ -375,7 +360,5 @@ private:
   double allowed_start_tolerance_;  // joint tolerance for validate(): radians for revolute joints
   double execution_velocity_scaling_;
   bool wait_for_trajectory_completion_;
-
-  std::shared_ptr<rclcpp::SyncParametersClient> manage_controllers_parameters;
 };
 }

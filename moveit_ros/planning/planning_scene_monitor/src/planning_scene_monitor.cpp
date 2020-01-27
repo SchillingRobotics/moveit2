@@ -895,7 +895,7 @@ bool PlanningSceneMonitor::waitForCurrentRobotState(const rclcpp::Time& t, doubl
        If waitForCurrentState failed, we didn't get any new state updates within wait_time. */
     if (success)
     {
-      boost::mutex::scoped_lock lock(state_pending_mutex_);
+      std::unique_lock<std::mutex> lock(state_pending_mutex_);
       if (state_update_pending_)  // enforce state update
       {
         state_update_pending_ = false;
@@ -1033,7 +1033,7 @@ bool PlanningSceneMonitor::getShapeTransformCache(const std::string& target_fram
   }
   catch (tf2::TransformException& ex)
   {
-    rclcpp::Clock steady_clock = rclcpp::Clock(RCL_STEADY_TIME);
+    rclcpp::Clock steady_clock = rclcpp::Clock();
     RCLCPP_ERROR_THROTTLE(LOGGER, steady_clock, 1000, "Transform error: %s", ex.what());
     return false;
   }
@@ -1113,7 +1113,7 @@ void PlanningSceneMonitor::startStateMonitor(const std::string& joint_states_top
     current_state_monitor_->startStateMonitor(joint_states_topic);
 
     {
-      boost::mutex::scoped_lock lock(state_pending_mutex_);
+      std::unique_lock<std::mutex> lock(state_pending_mutex_);
       if (dt_state_update_.count() > 0)
         // ROS original: state_update_timer_.start();
         // TODO: re-enable WallTimer start()
@@ -1145,7 +1145,7 @@ void PlanningSceneMonitor::stopStateMonitor()
   // stop must be called with state_pending_mutex_ unlocked to avoid deadlock
   state_update_timer_.reset();
   {
-    boost::mutex::scoped_lock lock(state_pending_mutex_);
+    std::unique_lock<std::mutex> lock(state_pending_mutex_);
     state_update_pending_ = false;
   }
 }
@@ -1157,7 +1157,7 @@ void PlanningSceneMonitor::onStateUpdate(const sensor_msgs::msg::JointState::Con
 
   bool update = false;
   {
-    boost::mutex::scoped_lock lock(state_pending_mutex_);
+    std::unique_lock<std::mutex> lock(state_pending_mutex_);
 
     if (dt.count() < dt_state_update_.count())
     {
@@ -1175,7 +1175,7 @@ void PlanningSceneMonitor::onStateUpdate(const sensor_msgs::msg::JointState::Con
     updateSceneWithCurrentState();
 }
 
-void PlanningSceneMonitor::stateUpdateTimerCallback(/*const ros::WallTimerEvent& event*/)
+void PlanningSceneMonitor::stateUpdateTimerCallback()
 {
   if (state_update_pending_)
   {
@@ -1186,7 +1186,7 @@ void PlanningSceneMonitor::stateUpdateTimerCallback(/*const ros::WallTimerEvent&
 
     {
       // lock for access to dt_state_update_ and state_update_pending_
-      boost::mutex::scoped_lock lock(state_pending_mutex_);
+      std::unique_lock<std::mutex> lock(state_pending_mutex_);
       if (state_update_pending_ && dt.count() >= dt_state_update_.count())
       {
         state_update_pending_ = false;
@@ -1235,7 +1235,7 @@ void PlanningSceneMonitor::setStateUpdateFrequency(double hz)
   bool update = false;
   if (hz > std::numeric_limits<double>::epsilon())
   {
-    boost::mutex::scoped_lock lock(state_pending_mutex_);
+    std::unique_lock<std::mutex> lock(state_pending_mutex_);
     dt_state_update_ = std::chrono::duration<double>(1.0 / hz);
     // ROS original: state_update_timer_.start();
     // TODO: re-enable WallTimer start()
@@ -1248,7 +1248,7 @@ void PlanningSceneMonitor::setStateUpdateFrequency(double hz)
     // ROS original: state_update_timer_.stop();
     // TODO: re-enable WallTimer stop()
     state_update_timer_.reset();
-    boost::mutex::scoped_lock lock(state_pending_mutex_);
+    std::unique_lock<std::mutex> lock(state_pending_mutex_);
     dt_state_update_ = std::chrono::duration<double>(0.0);
     if (state_update_pending_)
       update = true;
@@ -1322,7 +1322,7 @@ void PlanningSceneMonitor::getUpdatedFrameTransforms(std::vector<geometry_msgs::
     geometry_msgs::msg::TransformStamped f;
     try
     {
-      f = tf_buffer_->lookupTransform(target, all_frame_name, tf2::get_now());
+      f = tf_buffer_->lookupTransform(target, all_frame_name, tf2::TimePointZero);
     }
     catch (tf2::TransformException& ex)
     {

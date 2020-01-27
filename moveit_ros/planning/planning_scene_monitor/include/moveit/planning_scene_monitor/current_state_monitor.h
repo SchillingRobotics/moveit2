@@ -47,7 +47,7 @@
 
 namespace planning_scene_monitor
 {
-typedef boost::function<void(const sensor_msgs::msg::JointState::ConstSharedPtr& joint_state)> JointStateUpdateCallback;
+typedef std::function<void(const sensor_msgs::msg::JointState::ConstSharedPtr& joint_state)> JointStateUpdateCallback;
 
 /** @class CurrentStateMonitor
     @brief Monitors the joint_states topic and tf to maintain the current state of the robot. */
@@ -196,8 +196,8 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_subscriber_;
   rclcpp::Time current_state_time_;
 
-  mutable boost::mutex state_update_lock_;
-  mutable boost::condition_variable state_update_condition_;
+  mutable std::mutex state_update_lock_;
+  mutable std::condition_variable state_update_condition_;
   std::vector<JointStateUpdateCallback> update_callbacks_;
 
   std::shared_ptr<TFConnection> tf_connection_;

@@ -306,7 +306,7 @@ public:
   /** @brief Get the maximum frequency (Hz) at which the current state of the planning scene is updated.*/
   double getStateUpdateFrequency() const
   {
-    if (!dt_state_update_.count())
+    if (dt_state_update_.count() > 0.0)
       return 1.0 / dt_state_update_.count();
     else
       return 0.0;
@@ -525,13 +525,13 @@ private:
   void onStateUpdate(const sensor_msgs::msg::JointState::ConstSharedPtr& joint_state);
 
   // called by state_update_timer_ when a state update it pending
-  void stateUpdateTimerCallback(/*const ros::WallTimerEvent& event*/);
+  void stateUpdateTimerCallback();
 
   // Callback for a new planning scene msg
   void newPlanningSceneCallback(const moveit_msgs::msg::PlanningScene::ConstSharedPtr scene);
 
   // Lock for state_update_pending_ and dt_state_update_
-  boost::mutex state_pending_mutex_;
+  std::mutex state_pending_mutex_;
 
   /// True when we need to update the RobotState from current_state_monitor_
   // This field is protected by state_pending_mutex_

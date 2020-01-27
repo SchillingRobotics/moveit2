@@ -75,7 +75,6 @@ void sendKnife(const rclcpp::Node::SharedPtr& node)
   co.primitive_poses[0].position.x = 0.1;
   co.primitive_poses[0].position.y = 0;
   co.primitive_poses[0].position.z = -0.2;
-  co.primitive_poses[0].orientation.w = 1.0;
 
   using namespace std::chrono_literals;
   pub_aco->publish(aco);

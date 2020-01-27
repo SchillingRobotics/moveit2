@@ -64,21 +64,21 @@ planning_scene_monitor::CurrentStateMonitor::~CurrentStateMonitor()
 
 robot_state::RobotStatePtr planning_scene_monitor::CurrentStateMonitor::getCurrentState() const
 {
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   robot_state::RobotState* result = new robot_state::RobotState(robot_state_);
   return robot_state::RobotStatePtr(result);
 }
 
 rclcpp::Time planning_scene_monitor::CurrentStateMonitor::getCurrentStateTime() const
 {
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   return current_state_time_;
 }
 
 std::pair<robot_state::RobotStatePtr, rclcpp::Time>
 planning_scene_monitor::CurrentStateMonitor::getCurrentStateAndTime() const
 {
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   robot_state::RobotState* result = new robot_state::RobotState(robot_state_);
   return std::make_pair(robot_state::RobotStatePtr(result), current_state_time_);
 }
@@ -86,7 +86,7 @@ planning_scene_monitor::CurrentStateMonitor::getCurrentStateAndTime() const
 std::map<std::string, double> planning_scene_monitor::CurrentStateMonitor::getCurrentStateValues() const
 {
   std::map<std::string, double> m;
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   const double* pos = robot_state_.getVariablePositions();
   const std::vector<std::string>& names = robot_state_.getVariableNames();
   for (std::size_t i = 0; i < names.size(); ++i)
@@ -96,7 +96,7 @@ std::map<std::string, double> planning_scene_monitor::CurrentStateMonitor::getCu
 
 void planning_scene_monitor::CurrentStateMonitor::setToCurrentState(robot_state::RobotState& upd) const
 {
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   const double* pos = robot_state_.getVariablePositions();
   upd.setVariablePositions(pos);
   if (copy_dynamics_)
@@ -187,7 +187,7 @@ bool planning_scene_monitor::CurrentStateMonitor::haveCompleteState() const
 {
   bool result = true;
   const std::vector<const moveit::core::JointModel*>& joints = robot_model_->getActiveJointModels();
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   for (const moveit::core::JointModel* joint : joints)
     if (joint_time_.find(joint) == joint_time_.end())
     {
@@ -204,7 +204,7 @@ bool planning_scene_monitor::CurrentStateMonitor::haveCompleteState(std::vector<
 {
   bool result = true;
   const std::vector<const moveit::core::JointModel*>& joints = robot_model_->getActiveJointModels();
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   for (const moveit::core::JointModel* joint : joints)
     if (joint_time_.find(joint) == joint_time_.end())
       if (!joint->isPassive() && !joint->getMimic())
@@ -221,7 +221,7 @@ bool planning_scene_monitor::CurrentStateMonitor::haveCompleteState(const rclcpp
   const std::vector<const moveit::core::JointModel*>& joints = robot_model_->getActiveJointModels();
   rclcpp::Time now = rclcpp::Clock().now();
   rclcpp::Time old = now - age;
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   for (const moveit::core::JointModel* joint : joints)
   {
     if (joint->isPassive() || joint->getMimic())
@@ -249,7 +249,7 @@ bool planning_scene_monitor::CurrentStateMonitor::haveCompleteState(const rclcpp
   const std::vector<const moveit::core::JointModel*>& joints = robot_model_->getActiveJointModels();
   rclcpp::Time now = rclcpp::Clock().now();
   rclcpp::Time old = now - age;
-  boost::mutex::scoped_lock slock(state_update_lock_);
+  std::unique_lock<std::mutex> slock(state_update_lock_);
   for (const moveit::core::JointModel* joint : joints)
   {
     if (joint->isPassive() || joint->getMimic())
@@ -278,10 +278,10 @@ bool planning_scene_monitor::CurrentStateMonitor::waitForCurrentState(const rclc
   rclcpp::Duration elapsed(0, 0);
   rclcpp::Duration timeout(wait_time, 0);
 
-  boost::mutex::scoped_lock lock(state_update_lock_);
+  std::unique_lock<std::mutex> lock(state_update_lock_);
   while (current_state_time_ < t)
   {
-    state_update_condition_.wait_for(lock, boost::chrono::nanoseconds((int64_t)(timeout - elapsed).seconds()));
+    state_update_condition_.wait_for(lock, (timeout - elapsed).to_chrono<std::chrono::seconds>());
     elapsed = rclcpp::Clock().now() - start;
     if (elapsed > timeout)
     {
@@ -349,7 +349,7 @@ void planning_scene_monitor::CurrentStateMonitor::jointStateCallback(
   bool update = false;
 
   {
-    boost::mutex::scoped_lock _(state_update_lock_);
+    std::unique_lock<std::mutex> _(state_update_lock_);
     // read the received values, and update their time stamps
     std::size_t n = joint_state->name.size();
     current_state_time_ = joint_state->header.stamp;
@@ -391,7 +391,6 @@ void planning_scene_monitor::CurrentStateMonitor::jointStateCallback(
         // update joint velocities
         if (joint_state->name.size() == joint_state->velocity.size() &&
             robot_state_.getJointVelocities(jm)[0] != joint_state->velocity[i])
-
         {
           update = true;
           robot_state_.setJointVelocities(jm, &(joint_state->velocity[i]));
@@ -425,8 +424,7 @@ void planning_scene_monitor::CurrentStateMonitor::tfCallback()
   bool update = false;
   bool changes = false;
   {
-    boost::mutex::scoped_lock _(state_update_lock_);
-    rclcpp::Time rclcpp_time = rclcpp::Clock().now();
+    std::unique_lock<std::mutex> _(state_update_lock_);
     for (const moveit::core::JointModel* joint : multi_dof_joints)
     {
       const std::string& child_frame = joint->getChildLinkModel()->getName();
@@ -437,7 +435,7 @@ void planning_scene_monitor::CurrentStateMonitor::tfCallback()
       geometry_msgs::msg::TransformStamped transf;
       try
       {
-        transf = tf_buffer_->lookupTransform(parent_frame, child_frame, tf2::TimePoint());
+        transf = tf_buffer_->lookupTransform(parent_frame, child_frame, tf2::TimePointZero);
         latest_common_time = transf.header.stamp;
       }
       catch (tf2::TransformException& ex)

@@ -42,10 +42,8 @@
 #include <OgreSceneManager.h>
 #include <OgreManualObject.h>
 #include <OgreMaterialManager.h>
-
 #include <rviz_rendering/objects/shape.hpp>
-// #include <rviz/ogre_helpers/mesh_shape.h>
-
+#include <ogre_helpers/mesh_shape.hpp>
 #include <moveit/macros/diagnostics.h>
 DIAGNOSTIC_PUSH
 SILENT_UNUSED_PARAM
@@ -124,8 +122,7 @@ void RenderShapes::renderShape(Ogre::SceneNode* node, const shapes::Shape* s, co
       const shapes::Mesh* mesh = static_cast<const shapes::Mesh*>(s);
       if (mesh->triangle_count > 0)
       {
-        rviz_rendering::Shape* m =
-            new rviz_rendering::Shape(rviz_rendering::Shape::Mesh, context_->getSceneManager(), node);
+        rviz_rendering::MeshShape* m = new rviz_rendering::MeshShape(context_->getSceneManager(), node);
         ogre_shape = m;
 
         Ogre::Vector3 normal(0.0, 0.0, 0.0);
@@ -146,17 +143,16 @@ void RenderShapes::renderShape(Ogre::SceneNode* node, const shapes::Shape* s, co
             if (mesh->vertex_normals)
             {
               Ogre::Vector3 n(mesh->vertex_normals[vi], mesh->vertex_normals[vi + 1], mesh->vertex_normals[vi + 2]);
-              // m->addVertex(v, n);
+              m->addVertex(v, n);
             }
             else if (mesh->triangle_normals)
-              1;
-            // m->addVertex(v, normal);
+              m->addVertex(v, normal);
             else
-              1;
-            // m->addVertex(v);
+
+              m->addVertex(v);
           }
         }
-        // m->endTriangles();
+        m->endTriangles();
       }
     }
     break;

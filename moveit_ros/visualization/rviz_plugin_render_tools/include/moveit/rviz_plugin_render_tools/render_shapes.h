@@ -42,22 +42,10 @@
 #include <rviz_common/properties/color_property.hpp>
 #include <rviz_common/display_context.hpp>
 #include <rviz_rendering/objects/shape.hpp>
-#include <rviz_common/properties/color_property.hpp>
 #include <OgreColourValue.h>
 #include <Eigen/Geometry>
 #include <string>
 #include <memory>
-
-// namespace Ogre
-//{
-// class SceneNode;
-//}
-
-// namespace rviz
-//{
-// class DisplayContext;
-// class Shape;
-//}
 
 namespace moveit_rviz_plugin
 {

@@ -75,8 +75,8 @@ public:
   virtual void update(float wall_dt, float ros_dt);
   virtual void reset();
 
-  void onInitialize(Ogre::SceneNode* scene_node, rviz_common::DisplayContext* context,
-                    const rclcpp::Node::SharedPtr& node);
+  void onInitialize(const rclcpp::Node::SharedPtr& node, Ogre::SceneNode* scene_node,
+                    rviz_common::DisplayContext* context);
   void onRobotModelLoaded(const robot_model::RobotModelConstPtr& robot_model);
   void onEnable();
   void onDisable();

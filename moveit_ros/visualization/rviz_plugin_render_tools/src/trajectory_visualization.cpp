@@ -140,8 +140,8 @@ TrajectoryVisualization::~TrajectoryVisualization()
     delete trajectory_slider_dock_panel_;
 }
 
-void TrajectoryVisualization::onInitialize(Ogre::SceneNode* scene_node, rviz_common::DisplayContext* context,
-                                           const rclcpp::Node::SharedPtr& node)
+void TrajectoryVisualization::onInitialize(const rclcpp::Node::SharedPtr& node, Ogre::SceneNode* scene_node,
+                                           rviz_common::DisplayContext* context)
 {
   // Save pointers for later use
   scene_node_ = scene_node;

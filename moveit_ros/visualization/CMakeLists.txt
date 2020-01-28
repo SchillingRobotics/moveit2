@@ -51,14 +51,14 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 include_directories(rviz_plugin_render_tools/include
                     robot_state_rviz_plugin/include
-                    #planning_scene_rviz_plugin/include
+                    planning_scene_rviz_plugin/include
                     #motion_planning_rviz_plugin/include
                     #trajectory_rviz_plugin/include
 )
 
 add_subdirectory(rviz_plugin_render_tools)
 add_subdirectory(robot_state_rviz_plugin)
-# add_subdirectory(planning_scene_rviz_plugin)
+add_subdirectory(planning_scene_rviz_plugin)
 # add_subdirectory(motion_planning_rviz_plugin)
 # add_subdirectory(trajectory_rviz_plugin)
 

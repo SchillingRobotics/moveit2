@@ -47,21 +47,6 @@
 #include <rclcpp/rclcpp.hpp>
 #endif
 
-// namespace Ogre
-//{
-// class SceneNode;
-//}
-
-// namespace rviz
-//{
-// class Robot;
-// class StringProperty;
-// class BoolProperty;
-// class FloatProperty;
-// class RosTopicProperty;
-// class ColorProperty;
-//}
-
 namespace moveit_rviz_plugin
 {
 class RobotStateVisualization;

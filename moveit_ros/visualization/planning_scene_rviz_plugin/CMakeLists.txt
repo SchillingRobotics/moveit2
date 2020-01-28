@@ -12,7 +12,7 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}_core
 
 add_library(${MOVEIT_LIB_NAME} SHARED src/plugin_init.cpp)
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
-target_link_libraries(${MOVEIT_LIB_NAME} ${MOVEIT_LIB_NAME}_core)
+target_link_libraries(${MOVEIT_LIB_NAME} ${MOVEIT_LIB_NAME}_core  Qt5::Widgets)
 ament_target_dependencies(${MOVEIT_LIB_NAME}_core
     rclcpp
     rviz2

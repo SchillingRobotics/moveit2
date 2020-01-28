@@ -27,6 +27,7 @@ set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_V
 
 target_link_libraries(${MOVEIT_LIB_NAME}
     rviz_ogre_vendor::OgreMain
+    Qt5::Widgets
 )
 
 ament_target_dependencies(${MOVEIT_LIB_NAME}

@@ -66,10 +66,10 @@ static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros_visualizatio
 PlanningSceneDisplay::PlanningSceneDisplay(bool listen_to_planning_scene, bool show_scene_robot)
   : Display(), model_is_loading_(false), planning_scene_needs_render_(true), current_scene_time_(0.0f)
 {
-  move_group_ns_property_ = new rviz_common::properties::StringProperty("Move Group Namespace", "",
-                                                                        "The name of the ROS namespace in "
-                                                                        "which the move_group node is running",
-                                                                        this, SLOT(changedMoveGroupNS()), this);
+  move_group_ns_property_ =
+      new rviz_common::properties::StringProperty("Move Group Namespace", "", "The name of the ROS namespace in "
+                                                                              "which the move_group node is running",
+                                                  this, SLOT(changedMoveGroupNS()), this);
   robot_description_property_ = new rviz_common::properties::StringProperty(
       "Robot Description", "robot_description", "The name of the ROS parameter where the URDF for the robot is loaded",
       this, SLOT(changedRobotDescription()), this);
@@ -118,11 +118,10 @@ PlanningSceneDisplay::PlanningSceneDisplay(bool listen_to_planning_scene, bool s
   octree_coloring_property_->addOption("Z-Axis", OCTOMAP_Z_AXIS_COLOR);
   octree_coloring_property_->addOption("Cell Probability", OCTOMAP_PROBABLILTY_COLOR);
 
-  scene_display_time_property_ =
-      new rviz_common::properties::FloatProperty("Scene Display Time", 0.2f,
-                                                 "The amount of wall-time to wait in between rendering "
-                                                 "updates to the planning scene (if any)",
-                                                 scene_category_, SLOT(changedSceneDisplayTime()), this);
+  scene_display_time_property_ = new rviz_common::properties::FloatProperty(
+      "Scene Display Time", 0.2f, "The amount of wall-time to wait in between rendering "
+                                  "updates to the planning scene (if any)",
+      scene_category_, SLOT(changedSceneDisplayTime()), this);
   scene_display_time_property_->setMin(0.0001);
 
   if (show_scene_robot)
@@ -130,15 +129,13 @@ PlanningSceneDisplay::PlanningSceneDisplay(bool listen_to_planning_scene, bool s
     robot_category_ = new rviz_common::properties::Property("Scene Robot", QVariant(), "", this);
 
     scene_robot_visual_enabled_property_ = new rviz_common::properties::BoolProperty(
-        "Show Robot Visual", true,
-        "Indicates whether the robot state specified by the planning scene should be "
-        "displayed as defined for visualisation purposes.",
+        "Show Robot Visual", true, "Indicates whether the robot state specified by the planning scene should be "
+                                   "displayed as defined for visualisation purposes.",
         robot_category_, SLOT(changedSceneRobotVisualEnabled()), this);
 
     scene_robot_collision_enabled_property_ = new rviz_common::properties::BoolProperty(
-        "Show Robot Collision", false,
-        "Indicates whether the robot state specified by the planning scene should be "
-        "displayed as defined for collision detection purposes.",
+        "Show Robot Collision", false, "Indicates whether the robot state specified by the planning scene should be "
+                                       "displayed as defined for collision detection purposes.",
         robot_category_, SLOT(changedSceneRobotCollisionEnabled()), this);
 
     robot_alpha_property_ =

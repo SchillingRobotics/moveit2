@@ -66,7 +66,7 @@ install(DIRECTORY icons DESTINATION share)
 
 #pluginlib_export_plugin_description_file(rviz_common motion_planning_rviz_plugin_description.xml)
 #pluginlib_export_plugin_description_file(rviz_common trajectory_rviz_plugin_description.xml)
-#pluginlib_export_plugin_description_file(rviz_common planning_scene_rviz_plugin_description.xml)
+pluginlib_export_plugin_description_file(rviz_common planning_scene_rviz_plugin_description.xml)
 pluginlib_export_plugin_description_file(rviz_common robot_state_rviz_plugin_description.xml)
 
 #if (CATKIN_ENABLE_TESTING)

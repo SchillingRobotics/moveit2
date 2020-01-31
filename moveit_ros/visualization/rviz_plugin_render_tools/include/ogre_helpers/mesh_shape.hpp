@@ -37,6 +37,7 @@ namespace Ogre
 class ManualObject;
 }
 
+// TODO(JafarAbdi): This's taken from https://github.com/ros2/rviz for MoveIt 2 beta release -- remove when it's ported
 namespace rviz_rendering
 {
 /** \brief This class allows constructing Ogre shapes manually, from triangle lists.

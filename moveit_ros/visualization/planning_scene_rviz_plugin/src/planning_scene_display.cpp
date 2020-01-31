@@ -492,11 +492,11 @@ void PlanningSceneDisplay::unsetLinkColor(rviz_default_plugins::robot::Robot* ro
 // Load
 // ******************************************************************************************
 planning_scene_monitor::PlanningSceneMonitorPtr
-PlanningSceneDisplay::createPlanningSceneMonitor(const rclcpp::Node::SharedPtr node)
+PlanningSceneDisplay::createPlanningSceneMonitor(const rclcpp::Node::SharedPtr& node)
 {
   std::shared_ptr<tf2_ros::Buffer> tf_buffer = moveit::planning_interface::getSharedTF();
-  return planning_scene_monitor::PlanningSceneMonitorPtr(new planning_scene_monitor::PlanningSceneMonitor(
-      node, robot_description_property_->getStdString(), tf_buffer, getNameStd() + "_planning_scene_monitor"));
+  return std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(
+      node, robot_description_property_->getStdString(), tf_buffer, getNameStd() + "_planning_scene_monitor");
 }
 
 void PlanningSceneDisplay::clearRobotModel()
@@ -506,7 +506,7 @@ void PlanningSceneDisplay::clearRobotModel()
                                     // instance of a scene monitor is constructed
 }
 
-void PlanningSceneDisplay::loadRobotModel(const rclcpp::Node::SharedPtr node)
+void PlanningSceneDisplay::loadRobotModel(const rclcpp::Node::SharedPtr& node)
 {
   // wait for other robot loadRobotModel() calls to complete;
   boost::mutex::scoped_lock _(robot_model_loading_lock_);

@@ -40,7 +40,6 @@
 DIAGNOSTIC_PUSH
 SILENT_UNUSED_PARAM
 #include <rviz_default_plugins/robot/link_updater.hpp>
-#include <OgreVector3.h>
 DIAGNOSTIC_POP
 #include <moveit/robot_state/robot_state.h>
 

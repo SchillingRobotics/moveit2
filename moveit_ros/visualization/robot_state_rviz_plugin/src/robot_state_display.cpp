@@ -409,8 +409,7 @@ void RobotStateDisplay::onEnable()
 // ******************************************************************************************
 void RobotStateDisplay::onDisable()
 {
-  // TODO(JafarAbdi): Does this works .?
-  //  robot_state_subscriber_.shutdown();
+  robot_state_subscriber_.reset();
   if (robot_)
     robot_->setVisible(false);
   Display::onDisable();

@@ -286,7 +286,7 @@ private:
 
   template <class T = KinematicsPlugin>
   typename std::enable_if<!hasRobotModelAPI<T>::value, bool>::type
-  initializeImpl(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModel&, const std::string&,
+  initializeImpl(const rclcpp::Node::SharedPtr&, const moveit::core::RobotModel&, const std::string&,
                  const std::string&, const std::vector<std::string>&, double)
   {
     return false;  // API not supported

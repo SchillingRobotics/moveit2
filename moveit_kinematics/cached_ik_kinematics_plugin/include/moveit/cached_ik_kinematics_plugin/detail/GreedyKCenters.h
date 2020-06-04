@@ -38,9 +38,9 @@
 
 #pragma once
 
+#include <boost/numeric/ublas/matrix.hpp>
 #include <functional>
 #include <random>
-#include <boost/numeric/ublas/matrix.hpp>
 
 namespace cached_ik_kinematics_plugin
 {
@@ -127,4 +127,4 @@ protected:
   /** Random number generator used to select first center */
   std::mt19937 generator_{ std::random_device{}() };
 };
-}
+}  // namespace cached_ik_kinematics_plugin

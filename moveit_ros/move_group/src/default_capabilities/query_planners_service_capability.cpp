@@ -106,8 +106,8 @@ bool MoveGroupQueryPlannersService::getParams(
 
     for (const auto& key_value_pair : config)
     {
-      res.params.keys.push_back(key_value_pair.first);
-      res.params.values.push_back(key_value_pair.second);
+      res->params.keys.push_back(key_value_pair.first);
+      res->params.values.push_back(key_value_pair.second);
     }
   }
   return true;

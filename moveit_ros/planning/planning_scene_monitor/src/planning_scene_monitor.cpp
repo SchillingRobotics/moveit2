@@ -1156,14 +1156,18 @@ void PlanningSceneMonitor::stopWorldGeometryMonitor()
     octomap_monitor_->stopMonitor();
 }
 
-void PlanningSceneMonitor::startStateMonitor(const std::string& joint_states_topic,
-                                             const std::string& attached_objects_topic)
+void PlanningSceneMonitor::startStateMonitor(const rclcpp::Node::SharedPtr& listening_node,
+                                            const std::string& joint_states_topic,
+                                            const std::string& attached_objects_topic)
 {
   stopStateMonitor();
   if (scene_)
   {
     if (!current_state_monitor_)
-      current_state_monitor_.reset(new CurrentStateMonitor(node_, getRobotModel(), tf_buffer_));
+    {
+      current_state_monitor_.reset(new CurrentStateMonitor(listening_node ? listening_node : node_,
+        getRobotModel(), tf_buffer_));
+    }
     current_state_monitor_->addUpdateCallback(boost::bind(&PlanningSceneMonitor::onStateUpdate, this, _1));
     current_state_monitor_->startStateMonitor(joint_states_topic);
 

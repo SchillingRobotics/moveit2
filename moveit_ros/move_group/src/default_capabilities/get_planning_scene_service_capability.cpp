@@ -52,5 +52,4 @@ void MoveGroupGetPlanningSceneService::initialize()
 
 #include <pluginlib/class_list_macros.hpp>
 
-PLUGINLIB_EXPORT_CLASS(
-  move_group::MoveGroupGetPlanningSceneService, move_group::MoveGroupCapability)
+PLUGINLIB_EXPORT_CLASS(move_group::MoveGroupGetPlanningSceneService, move_group::MoveGroupCapability)

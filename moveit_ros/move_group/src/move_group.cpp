@@ -81,7 +81,7 @@ public:
     bool allow_trajectory_execution;
     node_->get_parameter_or("allow_trajectory_execution", allow_trajectory_execution, true);
 
-    context_.reset(new MoveGroupContext(n, psm, allow_trajectory_execution, debug));
+    context_.reset(new MoveGroupContext(node_, psm, allow_trajectory_execution, debug));
 
     // start the capabilities
     configureCapabilities();
@@ -195,7 +195,6 @@ T getParameterFromRemoteNode(const rclcpp::Node::SharedPtr& node,
   using namespace std::chrono_literals;
   auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(node, node_name);
   while (!parameters_client->wait_for_service(0.5s)) {
-    RCLCPP_INFO(LOGGER, "wtf");
     if (!rclcpp::ok()) {
       RCLCPP_ERROR(LOGGER, "Interrupted while waiting for the service. Exiting.");
       return 0;
@@ -211,8 +210,6 @@ int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
   
-  rcutils_logging_set_logger_level("", RCUTILS_LOG_SEVERITY_INFO);
-
   rclcpp::NodeOptions opt;
   opt.allow_undeclared_parameters(true);
   opt.automatically_declare_parameters_from_overrides(true);
@@ -227,16 +224,9 @@ int main(int argc, char** argv)
 
     std::string semantic_file = nh->get_parameter("robot_description_semantic").as_string();
     std::ifstream file(semantic_file);
-    RCLCPP_INFO(LOGGER, "%s", semantic_file.c_str());
     std::stringstream buffer;
     buffer << file.rdbuf();
     nh->set_parameter(rclcpp::Parameter("robot_description_semantic", buffer.str()));
-
-    // auto allparams = nh->get_node_parameters_interface()->get_parameter_overrides();
-    // for (auto param : allparams)
-    // {
-    //   RCLCPP_INFO(LOGGER, "%s", param.first.c_str());
-    // }
   }
 
   std::shared_ptr<tf2_ros::Buffer> tf_buffer = std::make_shared<tf2_ros::Buffer>(nh->get_clock(), 

@@ -95,12 +95,6 @@ void MoveGroupExecuteTrajectoryAction::executePathCallback(
     goal->publish_feedback(fb);
     goal->succeed(action_res);
   }
-  else if (action_res->error_code.val == moveit_msgs::msg::MoveItErrorCodes::PREEMPTED)
-  {
-    //@todo: wait for preempt?
-    //execute_action_server_->setPreempted(action_res, response);
-    goal->publish_feedback(fb);
-  }
   else
   {
     goal->publish_feedback(fb);

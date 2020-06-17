@@ -167,21 +167,21 @@ void TrajectoryExecutionManager::initialize()
       try
       {
         //@note: because of things being singlethreaded, we make a node named "moveit_simple_controller_manager"
-        //then copy parameters from the move_group node and then add it to the multithreadedexecutor
-        //alternatives:
-        //node_->create_sub_node doesnt work
-        //rename the node under ros_controllers.yaml to moveit_simple_controller_manager
+        // then copy parameters from the move_group node and then add it to the multithreadedexecutor
+        // alternatives:
+        // node_->create_sub_node doesnt work
+        // rename the node under ros_controllers.yaml to moveit_simple_controller_manager
         rclcpp::NodeOptions opt;
         opt.allow_undeclared_parameters(true);
         opt.automatically_declare_parameters_from_overrides(true);
         controller_mgr_node_.reset(new rclcpp::Node("moveit_simple_controller_manager", opt));
 
-        //the alternative is to create a node with name "moveit_simple_controller_manager"
+        // the alternative is to create a node with name "moveit_simple_controller_manager"
         // auto allparams = node_->get_node_parameters_interface()->get_parameter_overrides();
         // for (auto param : allparams)
         // {
         //   RCLCPP_INFO(LOGGER, "%s", param.first.c_str());
-          
+
         //   controller_mgr_node_->set_parameter(rclcpp::Parameter(param.first, param.second));
         // }
 
@@ -200,8 +200,10 @@ void TrajectoryExecutionManager::initialize()
       EXECUTION_EVENT_TOPIC, 100, std::bind(&TrajectoryExecutionManager::receiveEvent, this, std::placeholders::_1));
 
   reconfigure_impl_ = new DynamicReconfigureImpl(this);
-  controller_mgr_node_->get_parameter("trajectory_execution.allowed_execution_duration_scaling", allowed_execution_duration_scaling_);
-  controller_mgr_node_->get_parameter("trajectory_execution.allowed_goal_duration_margin", allowed_goal_duration_margin_);
+  controller_mgr_node_->get_parameter("trajectory_execution.allowed_execution_duration_scaling",
+                                      allowed_execution_duration_scaling_);
+  controller_mgr_node_->get_parameter("trajectory_execution.allowed_goal_duration_margin",
+                                      allowed_goal_duration_margin_);
   controller_mgr_node_->get_parameter("trajectory_execution.allowed_start_tolerance", allowed_start_tolerance_);
 
   if (manage_controllers_)

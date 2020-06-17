@@ -243,7 +243,11 @@ public:
   /// Enable or disable waiting for trajectory completion
   void setWaitForTrajectoryCompletion(bool flag);
 
-  rclcpp::Node::SharedPtr getControllerManagerNode() { return controller_mgr_node_; } 
+  rclcpp::Node::SharedPtr getControllerManagerNode()
+  {
+    return controller_mgr_node_;
+  }
+
 private:
   struct ControllerInformation
   {

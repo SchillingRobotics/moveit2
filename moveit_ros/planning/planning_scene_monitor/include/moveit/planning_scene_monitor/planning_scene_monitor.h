@@ -541,8 +541,8 @@ private:
   void newPlanningSceneCallback(const moveit_msgs::msg::PlanningScene::SharedPtr scene);
 
   // Callback for requesting the full planning scene via service
-  void getPlanningSceneServiceCallback(moveit_msgs::srv::GetPlanningScene::Request::SharedPtr req,
-                                       moveit_msgs::srv::GetPlanningScene::Response::SharedPtr res);
+  void getPlanningSceneServiceCallback(const moveit_msgs::srv::GetPlanningScene::Request::SharedPtr& req,
+                                       const moveit_msgs::srv::GetPlanningScene::Response::SharedPtr& res);
 
   // Lock for state_update_pending_ and dt_state_update_
   std::mutex state_pending_mutex_;

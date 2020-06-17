@@ -181,7 +181,7 @@ public:
   }
 
 private:
-  void jointStateCallback(const sensor_msgs::msg::JointState::ConstSharedPtr joint_state);
+  void jointStateCallback(const sensor_msgs::msg::JointState::ConstSharedPtr& joint_state);
   void tfCallback();
 
   std::shared_ptr<rclcpp::Node> node_;

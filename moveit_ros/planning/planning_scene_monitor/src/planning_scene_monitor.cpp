@@ -1429,7 +1429,7 @@ void PlanningSceneMonitor::configureCollisionMatrix(const planning_scene::Planni
   // read overriding values from the param server
 
   // first we do default collision operations
-  if (!node_->has_parameter(robot_description_ + "_planning/default_collision_operations"))
+  if (!node_->has_parameter(robot_description_ + "_planning.default_collision_operations"))
     RCLCPP_DEBUG(LOGGER, "No additional default collision operations specified");
   else
   {

@@ -32,18 +32,18 @@ set_target_properties(moveit_move_group_capabilities_base
   PROPERTIES
   VERSION "${${PROJECT_NAME}_VERSION}")
 target_include_directories(moveit_move_group_capabilities_base PRIVATE include)
-ament_target_dependencies(moveit_move_group_capabilities_base 
+ament_target_dependencies(moveit_move_group_capabilities_base
   rclcpp moveit_core moveit_ros_planning tf2_geometry_msgs)
 
 add_executable(move_group src/move_group.cpp)
 target_include_directories(move_group PRIVATE include)
-ament_target_dependencies(move_group 
+ament_target_dependencies(move_group
   rclcpp rclcpp_action moveit_core moveit_ros_planning tf2_ros Boost)
 target_link_libraries(move_group moveit_move_group_capabilities_base)
 
 add_executable(list_move_group_capabilities src/list_capabilities.cpp)
 target_include_directories(list_move_group_capabilities PRIVATE include)
-ament_target_dependencies(list_move_group_capabilities 
+ament_target_dependencies(list_move_group_capabilities
   rclcpp moveit_core moveit_ros_planning Boost pluginlib)
 
 add_library(moveit_move_group_default_capabilities SHARED
@@ -62,7 +62,7 @@ set_target_properties(moveit_move_group_default_capabilities
   PROPERTIES
   VERSION "${${PROJECT_NAME}_VERSION}")
 target_include_directories(moveit_move_group_default_capabilities PRIVATE include)
-ament_target_dependencies(moveit_move_group_default_capabilities 
+ament_target_dependencies(moveit_move_group_default_capabilities
   rclcpp rclcpp_action moveit_core moveit_ros_planning std_srvs)
 
 install(TARGETS move_group list_move_group_capabilities

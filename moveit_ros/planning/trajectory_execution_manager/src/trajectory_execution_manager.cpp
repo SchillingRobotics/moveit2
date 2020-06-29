@@ -173,8 +173,6 @@ void TrajectoryExecutionManager::initialize()
   auto controller_mgr_parameter_set_callback = [this](std::vector<rclcpp::Parameter> parameters) {
     auto result = rcl_interfaces::msg::SetParametersResult();
     result.successful = true;
-    bool publish_planning_scene = false, publish_geometry_updates = false, publish_state_updates = false,
-         publish_transform_updates = false;
     for (auto parameter : parameters)
     {
       std::string name = parameter.get_name();

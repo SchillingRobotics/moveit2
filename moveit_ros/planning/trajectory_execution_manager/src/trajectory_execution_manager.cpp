@@ -164,8 +164,8 @@ void TrajectoryExecutionManager::initialize()
     if (!controller.empty())
       try
       {
-        // We make a node called moveit_simple_controller_manager so it's able to 
-        // receive callbacks on another thread. We then copy parameters from the move_group node 
+        // We make a node called moveit_simple_controller_manager so it's able to
+        // receive callbacks on another thread. We then copy parameters from the move_group node
         // and then add it to the multithreadedexecutor
         rclcpp::NodeOptions opt;
         opt.allow_undeclared_parameters(true);

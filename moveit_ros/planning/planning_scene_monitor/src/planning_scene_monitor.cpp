@@ -58,7 +58,6 @@ static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.planning_sce
 
 namespace planning_scene_monitor
 {
-
 const std::string PlanningSceneMonitor::DEFAULT_JOINT_STATES_TOPIC = "joint_states";
 const std::string PlanningSceneMonitor::DEFAULT_ATTACHED_COLLISION_OBJECT_TOPIC = "attached_collision_object";
 const std::string PlanningSceneMonitor::DEFAULT_COLLISION_OBJECT_TOPIC = "collision_object";
@@ -211,15 +210,13 @@ void PlanningSceneMonitor::initialize(const planning_scene::PlanningScenePtr& sc
   bool publish_state_updates = node_->get_parameter("planning_scene_monitor.publish_state_updates").as_bool();
   bool publish_transform_updates = node_->get_parameter("planning_scene_monitor.publish_transforms_updates").as_bool();
 
-  updatePublishSettings(publish_geom_updates, publish_state_updates,
-                        publish_transform_updates, publish_planning_scene);
+  updatePublishSettings(publish_geom_updates, publish_state_updates, publish_transform_updates, publish_planning_scene);
 
-  auto psm_parameter_set_callback = [this](std::vector<rclcpp::Parameter> parameters)
-  {
+  auto psm_parameter_set_callback = [this](std::vector<rclcpp::Parameter> parameters) {
     auto result = rcl_interfaces::msg::SetParametersResult();
     result.successful = true;
-    bool publish_planning_scene = false, publish_geometry_updates = false,
-      publish_state_updates = false, publish_transform_updates = false;
+    bool publish_planning_scene = false, publish_geometry_updates = false, publish_state_updates = false,
+         publish_transform_updates = false;
     for (auto parameter : parameters)
     {
       rclcpp::ParameterType parameter_type = parameter.get_type();
@@ -241,8 +238,8 @@ void PlanningSceneMonitor::initialize(const planning_scene::PlanningScenePtr& sc
         result.successful = false;
     }
     if (result.successful)
-      updatePublishSettings(publish_geometry_updates, publish_state_updates,
-                            publish_transform_updates, publish_planning_scene);
+      updatePublishSettings(publish_geometry_updates, publish_state_updates, publish_transform_updates,
+                            publish_planning_scene);
     return result;
   };
   callback_handler_ = node_->add_on_set_parameters_callback(psm_parameter_set_callback);

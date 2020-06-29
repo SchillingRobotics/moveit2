@@ -173,9 +173,9 @@ void TrajectoryExecutionManager::initialize()
   auto controller_mgr_parameter_set_callback = [this](std::vector<rclcpp::Parameter> parameters) {
     auto result = rcl_interfaces::msg::SetParametersResult();
     result.successful = true;
-    for (auto parameter : parameters)
+    for (const auto& parameter : parameters)
     {
-      std::string name = parameter.get_name();
+      const std::string& name = parameter.get_name();
       if (name == "trajectory_execution.execution_duration_monitoring")
         enableExecutionDurationMonitoring(parameter.as_bool());
       else if (name == "trajectory_execution.allowed_execution_duration_scaling")

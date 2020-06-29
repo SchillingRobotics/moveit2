@@ -164,15 +164,16 @@ void TrajectoryExecutionManager::initialize()
     if (!controller.empty())
       try
       {
-        // We make a node so it's able to receive callbacks on a seperate thread.
-        // We then copy parameters from the move_group node and then add it to the multithreadedexecutor
-        // rename the node under ros_controllers.yaml to moveit_simple_controller_manager
+        // We make a node called moveit_simple_controller_manager so it's able to 
+        // receive callbacks on another thread. We then copy parameters from the move_group node 
+        // and then add it to the multithreadedexecutor
         rclcpp::NodeOptions opt;
         opt.allow_undeclared_parameters(true);
         opt.automatically_declare_parameters_from_overrides(true);
         controller_mgr_node_.reset(new rclcpp::Node("moveit_simple_controller_manager", opt));
 
-        for (auto param : allparams)
+        auto all_params = node_->get_node_parameters_interface()->get_parameter_overrides();
+        for (auto param : all_params)
           controller_mgr_node_->set_parameter(rclcpp::Parameter(param.first, param.second));
 
         controller_manager_ = controller_manager_loader_->createUniqueInstance(controller);

@@ -552,8 +552,8 @@ void PlanningSceneMonitor::providePlanningSceneService(const std::string& servic
                               std::placeholders::_2));
 }
 
-void PlanningSceneMonitor::getPlanningSceneServiceCallback(const moveit_msgs::srv::GetPlanningScene::Request::SharedPtr& req,
-                                                           const moveit_msgs::srv::GetPlanningScene::Response::SharedPtr& res)
+void PlanningSceneMonitor::getPlanningSceneServiceCallback(moveit_msgs::srv::GetPlanningScene::Request::SharedPtr req,
+                                                           moveit_msgs::srv::GetPlanningScene::Response::SharedPtr res)
 {
   if (req->components.components & moveit_msgs::msg::PlanningSceneComponents::TRANSFORMS)
     updateFrameTransforms();
@@ -565,7 +565,7 @@ void PlanningSceneMonitor::getPlanningSceneServiceCallback(const moveit_msgs::sr
   scene_->getPlanningSceneMsg(res->scene, req->components.components ? req->components : all_components);
 }
 
-void PlanningSceneMonitor::newPlanningSceneCallback(const moveit_msgs::msg::PlanningScene::SharedPtr& scene)
+void PlanningSceneMonitor::newPlanningSceneCallback(moveit_msgs::msg::PlanningScene::SharedPtr scene)
 {
   newPlanningSceneMessage(*scene);
 }
@@ -663,8 +663,7 @@ bool PlanningSceneMonitor::newPlanningSceneMessage(const moveit_msgs::msg::Plann
   return result;
 }
 
-void PlanningSceneMonitor::newPlanningSceneWorldCallback(
-    const moveit_msgs::msg::PlanningSceneWorld::ConstSharedPtr& world)
+void PlanningSceneMonitor::newPlanningSceneWorldCallback(moveit_msgs::msg::PlanningSceneWorld::SharedPtr world)
 {
   if (scene_)
   {
@@ -688,7 +687,7 @@ void PlanningSceneMonitor::newPlanningSceneWorldCallback(
   }
 }
 
-void PlanningSceneMonitor::collisionObjectCallback(const moveit_msgs::msg::CollisionObject::ConstSharedPtr& obj)
+void PlanningSceneMonitor::collisionObjectCallback(moveit_msgs::msg::CollisionObject::SharedPtr obj)
 {
   if (!scene_)
     return;
@@ -703,7 +702,7 @@ void PlanningSceneMonitor::collisionObjectCallback(const moveit_msgs::msg::Colli
   triggerSceneUpdateEvent(UPDATE_GEOMETRY);
 }
 
-void PlanningSceneMonitor::attachObjectCallback(const moveit_msgs::msg::AttachedCollisionObject::ConstSharedPtr& obj)
+void PlanningSceneMonitor::attachObjectCallback(moveit_msgs::msg::AttachedCollisionObject::SharedPtr obj)
 {
   if (scene_)
   {

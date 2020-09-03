@@ -201,15 +201,14 @@ void MotionPlanningFrame::setAsStartStateButtonClicked()
 
 void MotionPlanningFrame::setAsGoalStateButtonClicked()
 {
-  // TODO (ddengster): Enable when moveit_ros_robot_interaction is ported
-  //  QListWidgetItem* item = ui_->list_states->currentItem();
-  //
-  //  if (item)
-  //  {
-  //    moveit::core::RobotState robot_state(*planning_display_->getQueryGoalState());
-  //    moveit::core::robotStateMsgToRobotState(robot_states_[item->text().toStdString()], robot_state);
-  //    planning_display_->setQueryGoalState(robot_state);
-  //  }
+  QListWidgetItem* item = ui_->list_states->currentItem();
+
+  if (item)
+  {
+    moveit::core::RobotState robot_state(*planning_display_->getQueryGoalState());
+    moveit::core::robotStateMsgToRobotState(robot_states_[item->text().toStdString()], robot_state);
+    planning_display_->setQueryGoalState(robot_state);
+  }
 }
 
 void MotionPlanningFrame::removeStateButtonClicked()

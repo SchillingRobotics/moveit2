@@ -26,6 +26,8 @@ int main(int argc, char** argv)
   rclcpp::NodeOptions node_options;
   node_options.automatically_declare_parameters_from_overrides(true);
   auto move_group_node = rclcpp::Node::make_shared("move_group_interface_tutorial", node_options);
+
+
   // For current state monitor
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(move_group_node);

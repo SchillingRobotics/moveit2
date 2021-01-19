@@ -8,7 +8,7 @@
     <xacro:include filename="panda.ros2_control.xacro" />
     <xacro:include filename="panda_hand.ros2_control.xacro" />
 
-    <xacro:panda_ros2_control name="PandaFakeJointDriver" />
-    <xacro:panda_hand_ros2_control name="PandaHandFakeJointDriver" />
+    <xacro:panda_ros2_control name="PandaFakeSystem" />
+    <xacro:panda_hand_ros2_control name="PandaHandFakeSystem" />
 
 </robot>

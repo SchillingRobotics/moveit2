@@ -1469,9 +1469,16 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
                                         margin_it->second :
                                         allowed_goal_duration_margin_;
 
+      RCLCPP_ERROR_STREAM(LOGGER, "Before expected_trajectory_duration: "
+                                      << expected_trajectory_duration.seconds() << " - other: "
+                                      << (d * current_scaling + rclcpp::Duration::from_seconds(current_margin)).seconds());
+      RCLCPP_ERROR_STREAM(LOGGER, "controller_allowed_execution_duration_scaling_: "
+                                      << current_scaling << " - controller_allowed_goal_duration_margin_: "
+                                      << current_margin << " - d: " << d.seconds());
       // expected duration is the duration of the longest part
       expected_trajectory_duration =
           std::max(d * current_scaling + rclcpp::Duration::from_seconds(current_margin), expected_trajectory_duration);
+      RCLCPP_ERROR_STREAM(LOGGER, "After expected_trajectory_duration: " << expected_trajectory_duration.seconds());
     }
 
     // construct a map from expected time to state index, for easy access to expected state location

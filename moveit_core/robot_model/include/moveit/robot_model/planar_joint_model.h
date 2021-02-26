@@ -75,6 +75,16 @@ public:
     angular_distance_weight_ = weight;
   }
 
+  double isDifferentialDrive() const
+  {
+    return is_differential_drive_;
+  }
+
+  void setDifferentialDrive(bool is_differential_drive)
+  {
+    is_differential_drive_ = is_differential_drive;
+  }
+
   /// Make the yaw component of a state's value vector be in the range [-Pi, Pi]. enforceBounds() also calls this
   /// function;
   /// Return true if a change is actually made
@@ -82,6 +92,7 @@ public:
 
 private:
   double angular_distance_weight_;
+  bool is_differential_drive_ = false;
 };
 }  // namespace core
 }  // namespace moveit

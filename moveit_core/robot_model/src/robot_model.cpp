@@ -975,6 +975,17 @@ JointModel* RobotModel::constructJointModel(const urdf::Joint* urdf_joint, const
         break;
       }
     }
+    const auto& diff_drive_joints = srdf_model.getDifferentialDriveJoints();
+    for (const auto& diff_drive_joint : diff_drive_joints)
+    {
+      if (new_joint_model->getName() == diff_drive_joint.name_)
+      {
+        auto planar_joint_model = dynamic_cast<PlanarJointModel*>(new_joint_model);
+        planar_joint_model->setAngularDistanceWeight(diff_drive_joint.angular_weight_);
+        planar_joint_model->setDifferentialDrive(true);
+        break;
+      }
+    }
   }
 
   return new_joint_model;

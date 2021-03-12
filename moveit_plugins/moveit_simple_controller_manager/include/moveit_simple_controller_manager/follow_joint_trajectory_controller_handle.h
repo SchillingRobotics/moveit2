@@ -39,6 +39,7 @@
 
 #include <moveit_simple_controller_manager/action_based_controller_handle.h>
 #include <control_msgs/action/follow_joint_trajectory.hpp>
+#include <control_msgs/action/follow_multi_dof_joint_trajectory.hpp>
 #include <control_msgs/msg/joint_tolerance.hpp>
 #include <functional>
 
@@ -48,13 +49,13 @@ namespace moveit_simple_controller_manager
  * This is generally used for arms, but could also be used for multi-dof hands,
  * or anything using a control_mgs/FollowJointTrajectoryAction.
  */
-class FollowJointTrajectoryControllerHandle
-  : public ActionBasedControllerHandle<control_msgs::action::FollowJointTrajectory>
+template <typename ActionType>
+class FollowTrajectoryControllerHandle : public ActionBasedControllerHandle<ActionType>
 {
 public:
-  FollowJointTrajectoryControllerHandle(const rclcpp::Node::SharedPtr& node, const std::string& name,
-                                        const std::string& action_ns)
-    : ActionBasedControllerHandle<control_msgs::action::FollowJointTrajectory>(
+  FollowTrajectoryControllerHandle(const rclcpp::Node::SharedPtr& node, const std::string& name,
+                                   const std::string& action_ns)
+    : ActionBasedControllerHandle<ActionType>(
           node, name, action_ns, "moveit.simple_controller_manager.follow_joint_trajectory_controller_handle")
   {
   }
@@ -69,10 +70,13 @@ protected:
                                                          const std::string& name);
 
   void controllerDoneCallback(
-      const rclcpp_action::ClientGoalHandle<control_msgs::action::FollowJointTrajectory>::WrappedResult& wrapped_result)
-      override;
+      const typename rclcpp_action::ClientGoalHandle<ActionType>::WrappedResult& wrapped_result) override;
 
-  control_msgs::action::FollowJointTrajectory::Goal goal_template_;
+  typename ActionType::Goal goal_template_;
 };
 
+using FollowJointTrajectoryControllerHandle =
+    FollowTrajectoryControllerHandle<control_msgs::action::FollowJointTrajectory>;
+using FollowMultiDOFJointTrajectoryControllerHandle =
+    FollowTrajectoryControllerHandle<control_msgs::action::FollowMultiDOFJointTrajectory>;
 }  // end namespace moveit_simple_controller_manager

@@ -41,53 +41,60 @@ using namespace std::placeholders;
 
 namespace moveit_simple_controller_manager
 {
-bool FollowJointTrajectoryControllerHandle::sendTrajectory(const moveit_msgs::msg::RobotTrajectory& trajectory)
+template <typename ActionType>
+bool FollowTrajectoryControllerHandle<ActionType>::sendTrajectory(const moveit_msgs::msg::RobotTrajectory& trajectory)
 {
-  RCLCPP_DEBUG_STREAM(LOGGER, "new trajectory to " << name_);
+  RCLCPP_DEBUG_STREAM(this->LOGGER, "new trajectory to " << this->name_);
 
-  if (!controller_action_client_)
+  if (!this->controller_action_client_)
     return false;
 
-  if (!trajectory.multi_dof_joint_trajectory.points.empty())
+  if constexpr (std::is_same_v<ActionType, control_msgs::action::FollowJointTrajectory>)
   {
-    RCLCPP_WARN_STREAM(LOGGER, name_ << " cannot execute multi-dof trajectories.");
+    if (!trajectory.multi_dof_joint_trajectory.points.empty())
+    {
+      RCLCPP_WARN_STREAM(this->LOGGER, this->name_ << " cannot execute multi-dof trajectories.");
+    }
   }
 
-  if (done_)
-    RCLCPP_INFO_STREAM(LOGGER, "sending trajectory to " << name_);
+  if (this->done_)
+    RCLCPP_INFO_STREAM(this->LOGGER, "sending trajectory to " << this->name_);
   else
-    RCLCPP_INFO_STREAM(LOGGER, "sending continuation for the currently executed trajectory to " << name_);
+    RCLCPP_INFO_STREAM(this->LOGGER, "sending continuation for the currently executed trajectory to " << this->name_);
 
-  control_msgs::action::FollowJointTrajectory::Goal goal = goal_template_;
-  goal.trajectory = trajectory.joint_trajectory;
+  typename ActionType::Goal goal = goal_template_;
+  if constexpr (std::is_same_v<ActionType, control_msgs::action::FollowJointTrajectory>)
+    goal.trajectory = trajectory.joint_trajectory;
+  else
+    goal.trajectory = trajectory.multi_dof_joint_trajectory;
 
-  rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SendGoalOptions send_goal_options;
+  typename rclcpp_action::Client<ActionType>::SendGoalOptions send_goal_options;
   // Active callback
   send_goal_options.goal_response_callback = [this](const auto& future) {
-    RCLCPP_INFO_STREAM(LOGGER, name_ << " started execution");
+    RCLCPP_INFO_STREAM(this->LOGGER, this->name_ << " started execution");
     const auto& goal_handle = future.get();
     if (!goal_handle)
-      RCLCPP_WARN(LOGGER, "Goal request rejected");
+      RCLCPP_WARN(this->LOGGER, "Goal request rejected");
     else
-      RCLCPP_INFO(LOGGER, "Goal request accepted!");
+      RCLCPP_INFO(this->LOGGER, "Goal request accepted!");
   };
 
-  done_ = false;
-  last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
+  this->done_ = false;
+  this->last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
 
   // Send goal
-  auto current_goal_future = controller_action_client_->async_send_goal(goal, send_goal_options);
-  current_goal_ = current_goal_future.get();
-  if (!current_goal_)
+  auto current_goal_future = this->controller_action_client_->async_send_goal(goal, send_goal_options);
+  this->current_goal_ = current_goal_future.get();
+  if (!this->current_goal_)
   {
-    RCLCPP_ERROR(LOGGER, "Goal was rejected by server");
+    RCLCPP_ERROR(this->LOGGER, "Goal was rejected by server");
     return false;
   }
   return true;
 }
 
 // TODO(JafarAbdi): Revise parameter lookup
-// void FollowJointTrajectoryControllerHandle::configure(XmlRpc::XmlRpcValue& config)
+// void FollowTrajectoryControllerHandle::configure(XmlRpc::XmlRpcValue& config)
 //{
 //  if (config.hasMember("path_tolerance"))
 //    configure(config["path_tolerance"], "path_tolerance", goal_template_.path_tolerance);
@@ -155,7 +162,7 @@ const char* errorCodeToMessage(int error_code)
 }  // namespace
 
 // TODO(JafarAbdi): Revise parameter lookup
-// void FollowJointTrajectoryControllerHandle::configure(XmlRpc::XmlRpcValue& config, const std::string& config_name,
+// void FollowTrajectoryControllerHandle::configure(XmlRpc::XmlRpcValue& config, const std::string& config_name,
 //                                                      std::vector<control_msgs::JointTolerance>& tolerances)
 //{
 //  if (isStruct(config))  // config should be either a struct of position, velocity, acceleration
@@ -196,9 +203,10 @@ const char* errorCodeToMessage(int error_code)
 //    ROS_WARN_STREAM_NAMED(LOGNAME, "Invalid " << config_name);
 //}
 
+template <typename ActionType>
 control_msgs::msg::JointTolerance&
-FollowJointTrajectoryControllerHandle::getTolerance(std::vector<control_msgs::msg::JointTolerance>& tolerances,
-                                                    const std::string& name)
+FollowTrajectoryControllerHandle<ActionType>::getTolerance(std::vector<control_msgs::msg::JointTolerance>& tolerances,
+                                                           const std::string& name)
 {
   auto it = std::lower_bound(tolerances.begin(), tolerances.end(), name,
                              [](const control_msgs::msg::JointTolerance& lhs, const std::string& rhs) {
@@ -212,19 +220,22 @@ FollowJointTrajectoryControllerHandle::getTolerance(std::vector<control_msgs::ms
   return *it;
 }
 
-void FollowJointTrajectoryControllerHandle::controllerDoneCallback(
-    const rclcpp_action::ClientGoalHandle<control_msgs::action::FollowJointTrajectory>::WrappedResult& wrapped_result)
+template <typename ActionType>
+void FollowTrajectoryControllerHandle<ActionType>::controllerDoneCallback(
+    const typename rclcpp_action::ClientGoalHandle<ActionType>::WrappedResult& wrapped_result)
 {
   // Output custom error message for FollowJointTrajectoryResult if necessary
   if (!wrapped_result.result)
-    RCLCPP_WARN_STREAM(LOGGER, "Controller " << name_ << " done, no result returned");
-  else if (wrapped_result.result->error_code == control_msgs::action::FollowJointTrajectory::Result::SUCCESSFUL)
-    RCLCPP_INFO_STREAM(LOGGER, "Controller " << name_ << " successfully finished");
+    RCLCPP_WARN_STREAM(this->LOGGER, "Controller " << this->name_ << " done, no result returned");
+  else if (wrapped_result.result->error_code == ActionType::Result::SUCCESSFUL)
+    RCLCPP_INFO_STREAM(this->LOGGER, "Controller " << this->name_ << " successfully finished");
   else
-    RCLCPP_WARN_STREAM(LOGGER, "Controller " << name_ << " failed with error "
-                                             << errorCodeToMessage(wrapped_result.result->error_code) << ": "
-                                             << wrapped_result.result->error_string);
-  finishControllerExecution(wrapped_result.code);
+    RCLCPP_WARN_STREAM(this->LOGGER, "Controller " << this->name_ << " failed with error "
+                                                   << errorCodeToMessage(wrapped_result.result->error_code) << ": "
+                                                   << wrapped_result.result->error_string);
+  this->finishControllerExecution(wrapped_result.code);
 }
-
+// Instantiate templates.
+template class FollowTrajectoryControllerHandle<control_msgs::action::FollowJointTrajectory>;
+template class FollowTrajectoryControllerHandle<control_msgs::action::FollowMultiDOFJointTrajectory>;
 }  // end namespace moveit_simple_controller_manager

@@ -144,6 +144,16 @@ public:
             controllers_[controller_name] = new_handle;
           }
         }
+        else if (type == "FollowMultiDOFJointTrajectory")
+        {
+          auto h = new FollowMultiDOFJointTrajectoryControllerHandle(node_, controller_name, action_ns);
+          new_handle.reset(h);
+          if (h->isConnected())
+          {
+            RCLCPP_INFO_STREAM(LOGGER, "Added FollowJointTrajectory controller for " << controller_name);
+            controllers_[controller_name] = new_handle;
+          }
+        }
         else
         {
           RCLCPP_ERROR_STREAM(LOGGER, "Unknown controller type: " << type);

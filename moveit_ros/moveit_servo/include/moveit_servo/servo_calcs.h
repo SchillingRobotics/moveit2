@@ -166,6 +166,12 @@ protected:
   void suddenHalt(sensor_msgs::msg::JointState& joint_state,
                   const std::vector<const moveit::core::JointModel*>& joints_to_halt) const;
 
+<<<<<<< HEAD
+=======
+  /** \brief  Scale the delta theta to match joint velocity/acceleration limits */
+  bool enforceVelAccelLimitsWithReflexxes(Eigen::ArrayXd& delta_theta);
+
+>>>>>>> Use Reflexxes for limit checks. It compiles but does not run.
   /** \brief Avoid overshooting joint limits
       \return Vector of the joints that would move farther past position margin limits
    */
@@ -182,8 +188,8 @@ protected:
   void composeJointTrajMessage(const sensor_msgs::msg::JointState& joint_state,
                                trajectory_msgs::msg::JointTrajectory& joint_trajectory);
 
-  /** \brief Set the filters to the specified values */
-  void resetLowPassFilters(const sensor_msgs::msg::JointState& joint_state);
+  /** \brief Reset current state of Reflexxes to the specified position. Assume zero velocities/accelerations. */
+  void resetReflexxesState(const sensor_msgs::msg::JointState& joint_state);
 
   /** \brief Handles all aspects of the servoing after the desired joint commands are established
    * Joint and Cartesian calcs feed into here
@@ -278,7 +284,7 @@ protected:
   bool wait_for_servo_commands_ = true;
 
   // Flag saying if the filters were updated during the timer callback
-  bool updated_filters_ = false;
+  bool updated_reflexxes_state_ = false;
 
   // Nonzero status flags
   bool have_nonzero_twist_stamped_ = false;
@@ -366,6 +372,7 @@ protected:
   // Use Reflexxes for command smoothing
   std::unique_ptr<ReflexxesAPI> reflexxes_;
   std::unique_ptr<RMLPositionInputParameters> reflexxes_position_input_param_;
-  std::unique_ptr<RMLPositionOutputParameters> reflexxes_position_output_param_;
+  std::shared_ptr<RMLPositionOutputParameters> reflexxes_position_output_param_;
+  RMLPositionFlags reflexxes_flags_;
 };
 }  // namespace moveit_servo

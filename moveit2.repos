@@ -7,6 +7,18 @@ repositories:
     type: git
     url: https://github.com/ros-planning/moveit_resources
     version: ros2
+  ros_reflexxes:
+    type: git
+    url: https://github.com/PickNikRobotics/ros_reflexxes
+    version: foxy
+  ros2_control:
+    type: git
+    url: https://github.com/ros-controls/ros2_control
+    version: master
+  ros2_controllers:
+    type: git
+    url: https://github.com/ros-controls/ros2_controllers
+    version: master
   warehouse_ros:
     type: git
     url: https://github.com/ros-planning/warehouse_ros

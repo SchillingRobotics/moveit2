@@ -1506,6 +1506,7 @@ public:
   }
   bool satisfiesPositionBounds(const JointModel* joint, double margin = 0.0) const
   {
+    std::cout << joint->satisfiesPositionBounds(getJointPositions(joint), margin) << std::endl;
     return joint->satisfiesPositionBounds(getJointPositions(joint), margin);
   }
   bool satisfiesVelocityBounds(const JointModel* joint, double margin = 0.0) const

@@ -180,12 +180,10 @@ if(BUILD_TESTING)
   # Run all lint tests in package.xml except those listed above
   ament_lint_auto_find_test_dependencies()
 
-  # Lowpass filter unit test
-  ament_add_gtest(test_low_pass_filter test/test_low_pass_filter.cpp)
-  target_link_libraries(test_low_pass_filter ${SERVO_LIB_NAME})
+  # TODO(andyz): re-enable integration tests when they are less flakey.
+  # The issue is that the test completes successfully but a results file is not generated.
 
-  # Unit test for ServoCalcs
-  # TODO (vatanaksoytezer): Rewrite this similar to enforce limits test
+  # # Unit test for ServoCalcs
   # ament_add_gtest_executable(
   #   unit_test_servo_calcs
   #   test/unit_test_servo_calcs.cpp

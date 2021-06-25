@@ -893,9 +893,10 @@ ServoCalcs::enforcePositionLimits(sensor_msgs::msg::JointState& joint_state) con
   if (!joints_to_halt.empty())
   {
     std::ostringstream joints_names;
-    auto joiner = std::experimental::make_ostream_joiner(joints_names, ", ");
-    std::transform(joints_to_halt.cbegin(), joints_to_halt.cend(), joiner,
+    std::transform(joints_to_halt.cbegin(), std::prev(joints_to_halt.cend()),
+                   std::ostream_iterator<std::string>(joints_names, ", "),
                    [](const auto& joint) { return joint->getName(); });
+    joints_names << joints_to_halt.back()->getName();
     RCLCPP_WARN_STREAM_THROTTLE(LOGGER, *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
                                 node_->get_name()
                                     << " " << joints_names.str() << " close to a position limit. Halting.");

@@ -215,7 +215,7 @@ static void _attachedBodyToMsg(const AttachedBody& attached_body, moveit_msgs::m
     shapes::ShapeMsg sm;
     if (shapes::constructMsgFromShape(ab_shapes[j].get(), sm))
     {
-      geometry_msgs::Pose p;
+      geometry_msgs::msg::Pose p;
       p = tf2::toMsg(shape_poses[j]);
       sv.addToObject(sm, p);
     }
@@ -275,7 +275,7 @@ static void _msgToAttachedBody(const Transforms* tf, const moveit_msgs::msg::Att
         shapes.reserve(num_shapes);
         shape_poses.reserve(num_shapes);
 
-        auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::Pose& pose_msg) {
+        auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::msg::Pose& pose_msg) {
           if (!s)
             return;
           Eigen::Isometry3d pose;

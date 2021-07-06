@@ -1381,7 +1381,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
         if (obj_in_world)
         {
           RCLCPP_DEBUG(LOGGER, "Attaching world object '%s' to link '%s'", object.object.id.c_str(),
-                          object.link_name.c_str());
+                       object.link_name.c_str());
           object_pose_in_link = robot_state_->getGlobalLinkTransform(link_model).inverse() * obj_in_world->pose_;
           shapes = obj_in_world->shapes_;
           shape_poses = obj_in_world->shape_poses_;
@@ -1482,8 +1482,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
 
         robot_state_->attachBody(object.object.id, object_pose_in_link, shapes, shape_poses, object.touch_links,
                                  object.link_name, object.detach_posture, subframe_poses);
-        RCLCPP_DEBUG(LOGGER, "Attached object '%s' to link '%s'", object.object.id.c_str(),
-                        object.link_name.c_str());
+        RCLCPP_DEBUG(LOGGER, "Attached object '%s' to link '%s'", object.object.id.c_str(), object.link_name.c_str());
       }
       else  // APPEND: augment to existing attached object
       {
@@ -1510,7 +1509,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
         robot_state_->attachBody(object.object.id, object_pose_in_link, shapes, shape_poses, touch_links,
                                  object.link_name, detach_posture, subframe_poses);
         RCLCPP_DEBUG(LOGGER, "Appended things to object '%s' attached to link '%s'", object.object.id.c_str(),
-                        object.link_name.c_str());
+                     object.link_name.c_str());
       }
       return true;
     }
@@ -1566,16 +1565,16 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
         world_->addToObject(name, pose, attached_body->getShapes(), attached_body->getShapePoses());
         world_->setSubframesOfObject(name, attached_body->getSubframes());
         RCLCPP_DEBUG(LOGGER, "Detached object '%s' from link '%s' and added it back in the collision world",
-                        name.c_str(), object.link_name.c_str());
+                     name.c_str(), object.link_name.c_str());
       }
 
       robot_state_->clearAttachedBody(name);
     }
+    if (!attached_bodies.empty() || object.object.id.empty())
+      return true;
   }
   else if (object.object.operation == moveit_msgs::msg::CollisionObject::MOVE)
   {
-    if (!attached_bodies.empty() || object.object.id.empty())
-      return true;
     RCLCPP_ERROR(LOGGER, "Move for attached objects not yet implemented");
   }
   else
@@ -1678,7 +1677,7 @@ bool PlanningScene::processCollisionObjectAdd(const moveit_msgs::msg::CollisionO
   shapes.reserve(num_shapes);
   shape_poses.reserve(num_shapes);
 
-  auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::Pose& pose_msg) {
+  auto append = [&shapes, &shape_poses](shapes::Shape* s, const geometry_msgs::msg::Pose& pose_msg) {
     if (!s)
       return;
     Eigen::Isometry3d pose;

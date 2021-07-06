@@ -283,7 +283,7 @@ TEST_F(LoadPlanningModelsPr2, ObjectPoseAndSubframes)
   moveit::core::FixedTransformsMap subframes;
   subframes["frame1"] = Eigen::Isometry3d(Eigen::Translation3d(0, 0, 1));
 
-  trajectory_msgs::JointTrajectory empty_state;
+  trajectory_msgs::msg::JointTrajectory empty_state;
   moveit::core::AttachedBody* attached_body_a =
       new moveit::core::AttachedBody(robot_model->getLinkModel("r_gripper_palm_link"), "boxA", pose_a, shapes, poses,
                                      touch_links, empty_state, subframes);

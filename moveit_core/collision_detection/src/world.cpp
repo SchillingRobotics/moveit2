@@ -199,7 +199,7 @@ const Eigen::Isometry3d& World::getGlobalShapeTransform(const std::string& objec
   }
   else
   {
-    ROS_ERROR_STREAM("Could not find global shape transform for object " << object_id);
+    RCLCPP_ERROR_STREAM(LOGGER, "Could not find global shape transform for object " << object_id);
     static const Eigen::Isometry3d IDENTITY_TRANSFORM = Eigen::Isometry3d::Identity();
     return IDENTITY_TRANSFORM;
   }
@@ -214,7 +214,7 @@ const EigenSTL::vector_Isometry3d& World::getGlobalShapeTransforms(const std::st
   }
   else
   {
-    ROS_ERROR_STREAM("Could not find global shape transforms for object " << object_id);
+    RCLCPP_ERROR_STREAM(LOGGER, "Could not find global shape transforms for object " << object_id);
     static const EigenSTL::vector_Isometry3d IDENTITY_TRANSFORM_VECTOR;
     return IDENTITY_TRANSFORM_VECTOR;
   }

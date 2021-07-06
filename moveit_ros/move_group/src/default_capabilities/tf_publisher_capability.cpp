@@ -61,7 +61,7 @@ TfPublisher::~TfPublisher()
 namespace
 {
 void publishSubframes(tf2_ros::TransformBroadcaster& broadcaster, const moveit::core::FixedTransformsMap& subframes,
-                      const std::string& parent_object, const ros::Time& stamp)
+                      const std::string& parent_object, const rclcpp::Time& stamp)
 {
   geometry_msgs::msg::TransformStamped transform;
   for (auto& subframe : subframes)

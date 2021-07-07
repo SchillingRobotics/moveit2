@@ -11,8 +11,8 @@
 
   <license>BSD</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <depend>actionlib</depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp_action</depend>
   <depend>controller_manager_msgs</depend>
   <depend>moveit_core</depend>
   <depend>moveit_simple_controller_manager</depend>
@@ -20,7 +20,6 @@
   <depend>trajectory_msgs</depend>
 
   <export>
-     <moveit_core plugin="${prefix}/moveit_core_plugins.xml" />
-     <moveit_ros_control_interface plugin="${prefix}/moveit_ros_control_interface_plugins.xml" />
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

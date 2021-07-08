@@ -72,12 +72,12 @@ def generate_launch_description():
         "moveit_resources_panda_moveit_config", "config/panda_controllers.yaml"
     )
     moveit_controllers = {
-        "moveit_simple_controller_manager": moveit_simple_controllers_yaml,
-        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+        # "moveit_simple_controller_manager": moveit_simple_controllers_yaml,
+        "moveit_controller_manager": "moveit_ros_control_interface/MoveItControllerManager",
     }
 
     trajectory_execution = {
-        "moveit_manage_controllers": True,
+        "moveit_manage_controllers": False,
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
@@ -162,6 +162,7 @@ def generate_launch_description():
     load_controllers = []
     for controller in [
         "panda_arm_controller",
+        "panda2_arm_controller",
         "panda_hand_controller",
         "joint_state_controller",
     ]:

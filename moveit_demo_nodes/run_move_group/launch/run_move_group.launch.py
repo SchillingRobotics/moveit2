@@ -72,12 +72,12 @@ def generate_launch_description():
         "moveit_resources_panda_moveit_config", "config/panda_controllers.yaml"
     )
     moveit_controllers = {
-        "moveit_simple_controller_manager": moveit_simple_controllers_yaml,
-        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+        # "moveit_simple_controller_manager": moveit_simple_controllers_yaml,
+        "moveit_controller_manager": "moveit_ros_control_interface/MoveItMultiControllerManager",
     }
 
     trajectory_execution = {
-        "moveit_manage_controllers": True,
+        "moveit_manage_controllers": False,
         "trajectory_execution.allowed_execution_duration_scaling": 1.2,
         "trajectory_execution.allowed_goal_duration_margin": 0.5,
         "trajectory_execution.allowed_start_tolerance": 0.01,
@@ -158,6 +158,22 @@ def generate_launch_description():
         },
     )
 
+    ros2_controllers_path_2 = os.path.join(
+        get_package_share_directory("moveit_resources_panda_moveit_config"),
+        "config",
+        "panda2_ros_controllers.yaml",
+    )
+    ros2_control_node_2 = Node(
+        namespace="panda2",
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[robot_description, ros2_controllers_path_2],
+        output={
+            "stdout": "screen",
+            "stderr": "screen",
+        },
+    )
+
     # Load controllers
     load_controllers = []
     for controller in [
@@ -173,6 +189,16 @@ def generate_launch_description():
             )
         ]
 
+    for controller in [
+        "panda2_arm_controller",
+    ]:
+        load_controllers += [
+            ExecuteProcess(
+                cmd=["ros2 run controller_manager spawner.py -c /panda2/controller_manager -u {}".format(controller)],
+                shell=True,
+                output="screen",
+            )
+        ]
     # Warehouse mongodb server
     mongodb_server_node = Node(
         package="warehouse_ros_mongo",
@@ -192,6 +218,7 @@ def generate_launch_description():
             robot_state_publisher,
             run_move_group_node,
             ros2_control_node,
+            ros2_control_node_2,
             mongodb_server_node,
         ]
         + load_controllers

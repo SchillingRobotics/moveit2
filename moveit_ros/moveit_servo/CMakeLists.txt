@@ -80,6 +80,8 @@ ament_target_dependencies(${SERVO_PARAM_LIB_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS
 # This library provides a C++ interface for sending realtime twist or joint commands to a robot
 add_library(${SERVO_LIB_NAME} SHARED
   # These files are used to produce differential motion
+  src/servo.cpp
+  src/servo_calcs.cpp
   src/collision_check.cpp
 )
 set_target_properties(${SERVO_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
@@ -234,12 +236,6 @@ if(BUILD_TESTING)
   ament_target_dependencies(basic_servo_tests ${THIS_PACKAGE_INCLUDE_DEPENDS})
   target_link_libraries(basic_servo_tests ${POSE_TRACKING})
   add_ros_test(test/launch/test_basic_servo.test.py TIMEOUT 120 ARGS "test_binary_dir:=${CMAKE_CURRENT_BINARY_DIR}")
-
-  # Enforce limits unit tests
-  ament_add_gtest(enforce_limits_tests
-    test/enforce_limits_tests.cpp
-  )
-  target_link_libraries(enforce_limits_tests ${SERVO_LIB_NAME})
 
 endif()
 

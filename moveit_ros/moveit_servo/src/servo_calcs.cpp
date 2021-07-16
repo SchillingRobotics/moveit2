@@ -47,7 +47,6 @@
 
 // #include <moveit_servo/make_shared_from_pool.h> // TODO(adamp): create an issue about this
 #include <moveit_servo/servo_calcs.h>
-#include <moveit_servo/enforce_limits.hpp>
 
 using namespace std::chrono_literals;  // for s, ms, etc.
 
@@ -611,9 +610,6 @@ bool ServoCalcs::internalServoUpdate(Eigen::ArrayXd& delta_theta,
   // Loop thru joints and update them, calculate velocities, and smooth
   if (!applyJointUpdate(delta_theta, internal_joint_state_, prev_joint_velocity_))
     return false;
-
-  // Mark Reflexxes as updated for this cycle
-  updated_reflexxes_state_ = true;
 
   // Enforce SRDF position limits, might halt if needed, set prev_vel to 0
   const auto joints_to_halt = enforcePositionLimits(internal_joint_state_);

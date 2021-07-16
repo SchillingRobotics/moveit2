@@ -617,9 +617,6 @@ bool ServoCalcs::internalServoUpdate(Eigen::ArrayXd& delta_theta,
   if (!applyJointUpdate(delta_theta, internal_joint_state_, prev_joint_velocity_))
     return false;
 
-  // Mark Reflexxes as updated for this cycle
-  updated_reflexxes_state_ = true;
-
   // Enforce SRDF position limits, might halt if needed, set prev_vel to 0
   const auto joints_to_halt = enforcePositionLimits(internal_joint_state_);
   if (!joints_to_halt.empty())

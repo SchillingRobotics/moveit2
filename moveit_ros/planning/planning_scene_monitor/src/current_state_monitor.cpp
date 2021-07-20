@@ -204,8 +204,12 @@ bool CurrentStateMonitor::haveCompleteStateHelper(const rclcpp::Time& oldest_all
     else
       continue;
 
-    if (missing_joints)
-      missing_joints->push_back(joint->getName());
+    if (missing_joints) {
+      // TODO (nbbrooks): remove this FLOATING check once https://github.com/ros-planning/moveit2/pull/310 is merged in
+      if(joint->getType() != moveit::core::JointModel::FLOATING) {
+        missing_joints->push_back(joint->getName());
+      }
+    }
     else
       return false;
   }

@@ -8,3 +8,7 @@ repositories:
     type: git
     url: https://github.com/ros-controls/ros2_controllers
     version: master
+  parameter_tools:
+    type: git
+    url: https://github.com/JafarAbdi/parameter_tools
+    version: pr-add_parameter_builder

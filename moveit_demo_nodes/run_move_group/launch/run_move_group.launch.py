@@ -1,21 +1,19 @@
 import os
-import yaml
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import ExecuteProcess
 from ament_index_python.packages import get_package_share_directory
-import xacro
-from moveit_configs_utils.moveit_configs_builder import MoveItConfigsBuilder
+from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("moveit_resources_panda")
-        .robot_description(file_name="panda.urdf.xacro")
+        .robot_description(file_name="config/panda.urdf.xacro")
         .robot_description_semantic()
         .robot_description_kinematics()
         .joint_limits()
-        .trajectory_execution(file_name="panda_gripper_controllers.yaml")
+        .trajectory_execution(file_name="config/panda_gripper_controllers.yaml")
         .planning_scene_monitor()
         .planning_pipelines()
         .moveit_configs()
@@ -80,6 +78,7 @@ def generate_launch_description():
         "config",
         "panda_ros_controllers.yaml",
     )
+
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",

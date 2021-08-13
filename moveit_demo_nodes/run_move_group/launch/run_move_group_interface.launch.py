@@ -1,15 +1,12 @@
-import os
-import yaml
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils.moveit_configs_builder import MoveItConfigsBuilder
 
 
 def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("moveit_resources_panda")
-        .robot_description(file_name="panda.urdf.xacro")
+        .robot_description(file_name="config/panda.urdf.xacro")
         .robot_description_semantic()
         .robot_description_kinematics()
         .joint_limits()

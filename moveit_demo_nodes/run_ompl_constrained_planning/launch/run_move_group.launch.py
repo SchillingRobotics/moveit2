@@ -10,11 +10,11 @@ def generate_launch_description():
 
     moveit_config = (
         MoveItConfigsBuilder("moveit_resources_panda")
-        .robot_description(file_name="config/panda.urdf.xacro")
+        .robot_description(file_path="config/panda.urdf.xacro")
         .robot_description_semantic()
         .robot_description_kinematics()
         .joint_limits()
-        .trajectory_execution(file_name="config/panda_gripper_controllers.yaml")
+        .trajectory_execution(file_path="config/panda_gripper_controllers.yaml")
         .planning_pipelines()
         .planning_scene_monitor()
         .moveit_configs()

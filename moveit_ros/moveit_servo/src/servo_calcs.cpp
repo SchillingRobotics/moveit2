@@ -162,6 +162,7 @@ ServoCalcs::ServoCalcs(rclcpp::Node::SharedPtr node,
 
   // Publish status
   status_pub_ = node_->create_publisher<std_msgs::msg::Int8>(parameters_->status_topic, ROS_QUEUE_SIZE);
+  condition_pub_= node_->create_publisher<std_msgs::msg::Float64>("~/condition", ROS_QUEUE_SIZE);
 
   internal_joint_state_.name = joint_model_group_->getActiveJointModelNames();
   num_joints_ = internal_joint_state_.name.size();
@@ -752,6 +753,10 @@ double ServoCalcs::velocityScalingFactorForSingularity(const Eigen::VectorXd& co
 
   double ini_condition = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size() - 1);
 
+  auto condition_msg = std::make_unique<std_msgs::msg::Float64>();
+  condition_msg->data = ini_condition;
+  condition_pub_->publish(std::move(condition_msg));
+
   // This singular vector tends to flip direction unpredictably. See R. Bro,
   // "Resolving the Sign Ambiguity in the Singular Value Decomposition".
   // Look ahead to see if the Jacobian's condition will decrease in this
@@ -776,10 +781,10 @@ double ServoCalcs::velocityScalingFactorForSingularity(const Eigen::VectorXd& co
     vector_toward_singularity *= -1;
   }
 
-  // If this dot product is positive, we're moving toward singularity ==> decelerate
-  double dot = vector_toward_singularity.dot(commanded_velocity);
-  if (dot > 0)
-  {
+  // // If this dot product is positive, we're moving toward singularity ==> decelerate
+  // double dot = vector_toward_singularity.dot(commanded_velocity);
+  // if (dot > 0)
+  // {
     // Ramp velocity down linearly when the Jacobian condition is between lower_singularity_threshold and
     // hard_stop_singularity_threshold, and we're moving towards the singularity
     if ((ini_condition > parameters_->lower_singularity_threshold) &&
@@ -801,7 +806,7 @@ double ServoCalcs::velocityScalingFactorForSingularity(const Eigen::VectorXd& co
       rclcpp::Clock& clock = *node_->get_clock();
       RCLCPP_WARN_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD, SERVO_STATUS_CODE_MAP.at(status_));
     }
-  }
+  // }
 
   return velocity_scale;
 }

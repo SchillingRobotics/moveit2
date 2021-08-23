@@ -41,11 +41,16 @@ def generate_launch_description():
     )
     robot_description = {"robot_description": robot_description_config.toxml()}
 
-    robot_description_semantic_config = load_file(
-        "moveit_resources_panda_moveit_config", "config/panda.srdf"
+    robot_description_semantic_config = xacro.process_file(
+        os.path.join(
+            get_package_share_directory("moveit_resources_panda_moveit_config"),
+            "config",
+            "panda.srdf",
+        )
     )
+
     robot_description_semantic = {
-        "robot_description_semantic": robot_description_semantic_config
+        "robot_description_semantic": robot_description_semantic_config.toxml()
     }
 
     kinematics_yaml = load_yaml(
@@ -58,7 +63,7 @@ def generate_launch_description():
         "planning_pipelines": ["ompl"],
         "ompl": {
             "planning_plugin": "ompl_interface/OMPLPlanner",
-            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints""",
+            "request_adapters": """default_planner_request_adapters/AddTimeOptimalParameterization default_planner_request_adapters/FixWorkspaceBounds default_planner_request_adapters/FixStartStateBounds default_planner_request_adapters/FixStartStateCollision default_planner_request_adapters/FixStartStatePathConstraints default_planner_request_adapters/ToolChangingAdapter""",
             "start_state_max_bounds_error": 0.1,
         },
     }
@@ -96,6 +101,7 @@ def generate_launch_description():
         )
     }
 
+    move_group_capabilities = {"capabilities": """move_group/ToolChangingCapability"""}
     # Start the actual move_group node/action server
     run_move_group_node = Node(
         package="moveit_ros_move_group",
@@ -110,6 +116,8 @@ def generate_launch_description():
             moveit_controllers,
             planning_scene_monitor_parameters,
             joint_limits_yaml,
+            move_group_capabilities,
+            {"initial_end_effector": "hand_2"},
         ],
     )
 

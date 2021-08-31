@@ -58,7 +58,6 @@ private:
   rclcpp::TimerBase::SharedPtr initialization_timer_;
 
   std::unique_ptr<moveit_servo::Servo> servo_;
-  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> planning_scene_monitor_;
 
   /** \brief Start the servo loop. Must be called once to begin Servoing. */

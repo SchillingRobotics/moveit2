@@ -38,6 +38,7 @@
  */
 
 #include <cassert>
+#include <thread>
 #include <chrono>
 #include <math.h>
 #include <mutex>

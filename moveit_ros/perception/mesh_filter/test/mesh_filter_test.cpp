@@ -306,7 +306,7 @@ TEST_P(MeshFilterTestFloat, float)
   this->setMeshDistance(this->GetParam());
   this->test();
 }
-INSTANTIATE_TEST_CASE_P(float_test, MeshFilterTestFloat, ::testing::Range<double>(0.0f, 6.0f, 0.5f));
+INSTANTIATE_TEST_SUITE_P(float_test, MeshFilterTestFloat, ::testing::Range<double>(0.0f, 6.0f, 0.5f));
 
 typedef mesh_filter_test::MeshFilterTest<unsigned short> MeshFilterTestUnsignedShort;
 TEST_P(MeshFilterTestUnsignedShort, unsigned_short)
@@ -314,7 +314,7 @@ TEST_P(MeshFilterTestUnsignedShort, unsigned_short)
   this->setMeshDistance(this->GetParam());
   this->test();
 }
-INSTANTIATE_TEST_CASE_P(ushort_test, MeshFilterTestUnsignedShort, ::testing::Range<double>(0.0f, 6.0f, 0.5f));
+INSTANTIATE_TEST_SUITE_P(ushort_test, MeshFilterTestUnsignedShort, ::testing::Range<double>(0.0f, 6.0f, 0.5f));
 
 int main(int argc, char** argv)
 {

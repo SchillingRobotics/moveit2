@@ -165,12 +165,9 @@ protected:
   void suddenHalt(sensor_msgs::msg::JointState& joint_state,
                   const std::vector<const moveit::core::JointModel*>& joints_to_halt) const;
 
-<<<<<<< HEAD
-=======
   /** \brief  Scale the delta theta to match joint velocity/acceleration limits */
   bool enforceVelAccelLimitsWithReflexxes(Eigen::ArrayXd& delta_theta);
 
->>>>>>> Use Reflexxes for limit checks. It compiles but does not run.
   /** \brief Avoid overshooting joint limits
       \return Vector of the joints that would move farther past position margin limits
    */

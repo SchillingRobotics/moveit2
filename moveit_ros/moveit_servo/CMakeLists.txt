@@ -81,6 +81,10 @@ ament_target_dependencies(${SERVO_PARAM_LIB_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS
 add_library(${SERVO_LIB_NAME} SHARED
   # These files are used to produce differential motion
   src/collision_check.cpp
+  src/enforce_limits.cpp
+  src/servo.cpp
+  src/servo_calcs.cpp
+
 )
 set_target_properties(${SERVO_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 ament_target_dependencies(${SERVO_LIB_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})

@@ -1,9 +1,5 @@
 # TODO(henningkayser): Remove once ros2_control is released (https://github.com/ros-controls/ros2_control/issues/421)
 repositories:
-  moveit_resources:
-    type: git
-    url: https://github.com/JafarAbdi/moveit_resources
-    version: pr-moveit_configs_utils
   ros2_control:
     type: git
     url: https://github.com/ros-controls/ros2_control
@@ -12,7 +8,3 @@ repositories:
     type: git
     url: https://github.com/ros-controls/ros2_controllers
     version: master
-  parameter_tools:
-    type: git
-    url: https://github.com/PickNikRobotics/parameter_tools
-    version: main

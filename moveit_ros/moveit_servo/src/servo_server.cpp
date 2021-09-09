@@ -95,7 +95,9 @@ bool ServoServer::init()
     planning_scene_monitor_->setPlanningScenePublishingFrequency(25);
     planning_scene_monitor_->startPublishingPlanningScene(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE,
                                                           "/moveit_servo/publish_planning_scene");
-    planning_scene_monitor_->startSceneMonitor();
+    planning_scene_monitor_->startSceneMonitor(
+        planning_scene_monitor::PlanningSceneMonitor::MONITORED_PLANNING_SCENE_TOPIC);
+    planning_scene_monitor_->requestPlanningSceneState();
   }
   else
   {

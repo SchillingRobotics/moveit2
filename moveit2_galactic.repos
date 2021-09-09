@@ -14,5 +14,5 @@ repositories:
     version: master
   parameter_tools:
     type: git
-    url: https://github.com/JafarAbdi/parameter_tools
-    version: pr-add_parameter_builder
+    url: https://github.com/PickNikRobotics/parameter_tools
+    version: main

@@ -10,7 +10,7 @@ def generate_launch_description():
         .robot_description_semantic()
         .robot_description_kinematics()
         .joint_limits()
-        .moveit_configs()
+        .to_moveit_configs()
     )
 
     # MoveGroupInterface demo executable

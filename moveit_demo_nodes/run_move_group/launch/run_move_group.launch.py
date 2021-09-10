@@ -16,7 +16,7 @@ def generate_launch_description():
         .trajectory_execution(file_path="config/panda_gripper_controllers.yaml")
         .planning_scene_monitor()
         .planning_pipelines()
-        .moveit_configs()
+        .to_moveit_configs()
     )
 
     # Start the actual move_group node/action server

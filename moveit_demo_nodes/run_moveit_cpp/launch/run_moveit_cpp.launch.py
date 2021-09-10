@@ -19,7 +19,7 @@ def generate_launch_description():
             file_path=get_package_share_directory("run_moveit_cpp")
             + "/config/moveit_cpp.yaml"
         )
-        .moveit_configs()
+        .to_moveit_configs()
     )
 
     # MoveItCpp demo executable

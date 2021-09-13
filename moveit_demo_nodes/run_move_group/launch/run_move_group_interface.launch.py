@@ -20,12 +20,7 @@ def generate_launch_description():
         executable="run_move_group",
         prefix="xterm -e",
         output="screen",
-        parameters=[
-            moveit_config.robot_description,
-            moveit_config.robot_description_semantic,
-            moveit_config.robot_description_kinematics,
-            moveit_config.joint_limits,
-        ],
+        parameters=[moveit_config.to_dict()],
     )
 
     return LaunchDescription([run_move_group_demo])

@@ -25,15 +25,7 @@ def generate_launch_description():
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[
-            moveit_config.robot_description,
-            moveit_config.robot_description_semantic,
-            moveit_config.robot_description_kinematics,
-            moveit_config.planning_pipelines,
-            moveit_config.trajectory_execution,
-            moveit_config.planning_scene_monitor,
-            moveit_config.joint_limits,
-        ],
+        parameters=[moveit_config.to_dict()],
     )
 
     # RViz

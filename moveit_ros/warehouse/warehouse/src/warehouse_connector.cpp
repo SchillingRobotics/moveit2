@@ -36,9 +36,24 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <unistd.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <moveit/warehouse/warehouse_connector.h>
+
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit.ros.warehouse.warehouse_connector");
+
+#ifdef _WIN32
+void kill(int, int)
+{
+  RCLCPP_ERROR(LOGGER, "Warehouse connector not supported on Windows");
+}  // Should never be called
+int fork()
+{
+  RCLCPP_ERROR(LOGGER, "Warehouse connector not supported on Windows");
+  return -1;
+}
+#else
+#include <unistd.h>
+#endif
 
 namespace moveit_warehouse
 {
@@ -60,7 +75,7 @@ bool WarehouseConnector::connectToDatabase(const std::string& dirname)
   child_pid_ = fork();
   if (child_pid_ == -1)
   {
-    ROS_ERROR("Error forking process.");
+    RCLCPP_ERROR(LOGGER, "Error forking process.");
     child_pid_ = 0;
     return false;
   }
@@ -88,14 +103,16 @@ bool WarehouseConnector::connectToDatabase(const std::string& dirname)
       delete[] argv[1];
       delete[] argv[2];
       delete[] argv;
-      ROS_ERROR_STREAM("execv() returned " << code << ", errno=" << errno << " string errno = " << strerror(errno));
+      RCLCPP_ERROR_STREAM(LOGGER,
+                          "execv() returned " << code << ", errno=" << errno << " string errno = " << strerror(errno));
     }
     return false;
   }
   else
   {
     // sleep so mongod has time to come up
-    ros::WallDuration(1.0).sleep();
+    using namespace std::chrono_literals;
+    rclcpp::sleep_for(1s);
   }
   return true;
 }

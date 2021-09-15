@@ -2,10 +2,121 @@
 Changelog for package moveit_kinematics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+* Pluginlib Deprecation Fix (`#542 <https://github.com/ros-planning/moveit2/issues/542>`_)
+* Contributors: David V. Lu!!
+
+2.2.0 (2021-06-30)
+------------------
+* [sync] MoveIt's master branch up-to https://github.com/ros-planning/moveit/commit/0d0a6a171b3fbea97a0c4f284e13433ba66a4ea4
+  * Improve ikfast QUIET handling (`#2685 <https://github.com/ros-planning/moveit/issues/2685>`_)
+  * ikfast script: install sympy 0.7.1 from git (`#2650 <https://github.com/ros-planning/moveit/issues/2650>`_)
+  * Replaced eigen+kdl conversions with tf2_eigen + tf2_kdl (`#2472 <https://github.com/ros-planning/moveit/issues/2472>`_)
+* Contributors: JafarAbdi, Robert Haschke, Tyler Weaver, ags-dy, petkovich
+
+2.1.4 (2021-05-31)
+------------------
+* Enable LMA and KDL kinematic launch tests (`#435 <https://github.com/ros-planning/moveit2/issues/435>`_)
+* Contributors: Vatan Aksoy Tezer
+
+2.1.3 (2021-05-22)
+------------------
+* Replace last ament_export_libraries macro calls with ament_export_targets (`#448 <https://github.com/ros-planning/moveit2/issues/448>`_)
+* Contributors: Sebastian Jahr
+
+2.1.2 (2021-04-20)
+------------------
+* Unify PickNik name in copyrights (`#419 <https://github.com/ros-planning/moveit2/issues/419>`_)
+* Contributors: Tyler Weaver
+
+2.1.1 (2021-04-12)
+------------------
+* Fix EXPORT install in CMake (`#372 <https://github.com/ros-planning/moveit2/issues/372>`_)
+* Sync main branch with MoveIt 1 from previous head https://github.com/ros-planning/moveit/commit/0247ed0027ca9d7f1a7f066e62c80c9ce5dbbb5e up to https://github.com/ros-planning/moveit/commit/74b3e30db2e8683ac17b339cc124675ae52a5114
+* [fix] export cmake library install (`#339 <https://github.com/ros-planning/moveit2/issues/339>`_)
+* Python3 compatibility for ikfast's round_collada_numbers.py (`#2473 <https://github.com/ros-planning/moveit2/issues/2473>`_)
+* Fix repo URLs in package.xml files
+* Contributors: Henning Kayser, Jafar Abdi, Tobias Fischer, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+* [maint] Wrap common cmake code in 'moveit_package()' macro (`#285 <https://github.com/ros-planning/moveit2/issues/285>`_)
+  * New moveit_package() macro for compile flags, Windows support etc
+  * Add package 'moveit_common' as build dependency for moveit_package()
+  * Added -Wno-overloaded-virtual compiler flag for moveit_ros_planners_ompl
+* [maint] small compilation fixes for macOS (`#271 <https://github.com/ros-planning/moveit2/issues/271>`_)
+* [maint] kinematics_base: remove deprecated initialize function (`#232 <https://github.com/ros-planning/moveit2/issues/232>`_)
+* [maint] Enable clang-tidy-fix and ament_lint_cmake (`#210 <https://github.com/ros-planning/moveit2/issues/210>`_)
+* [maint] Simplify kdl now that kinetic support is dropped (`#237 <https://github.com/ros-planning/moveit2/issues/237>`_)
+* [ros2-migration] Migrate to ROS 2 Foxy (`#227 <https://github.com/ros-planning/moveit2/issues/227>`_)
+* [ros2-migration] Port Ikfast kinematics solver (`#205 <https://github.com/ros-planning/moveit2/issues/205>`_)
+* [ros2-migration] Port CachedIKKinematicsPlugin to ROS2 (`#207 <https://github.com/ros-planning/moveit2/issues/207>`_)
+* Contributors: Henning Kayser, Jafar Abdi, Lior Lustgarten, Mark Moll, Mohmmad Ayman, Nathan Brooks, Ruffin
+
 2.0.0 (2020-02-17)
 ------------------
 * [port] Port moveit kinematics to ROS2 (`#128 <https://github.com/ros-planning/moveit2/issues/128>`_)
 * Contributors: Henning Kayser, Jafar Abdi
+
+1.1.1 (2020-10-13)
+------------------
+* [fix] various issues with Noetic build (`#2327 <https://github.com/ros-planning/moveit/issues/2327>`_)
+* [fix] python3 issues (`#2323 <https://github.com/ros-planning/moveit/issues/2323>`_)
+* Contributors: G.A. vd. Hoorn, Michael Görner, Robert Haschke
+
+1.1.0 (2020-09-04)
+------------------
+* [feature] Implementation of parameter TranslationXY2D IKFast (`#1949 <https://github.com/ros-planning/moveit/issues/1949>`_)
+* [fix] Various fixes for upcoming Noetic release (`#2180 <https://github.com/ros-planning/moveit/issues/2180>`_)
+* [fix] Delete IKCache copy constructor (`#1750 <https://github.com/ros-planning/moveit/issues/1750>`_)
+* [maint] Move NOLINT instructions to intended positions (`#2058 <https://github.com/ros-planning/moveit/issues/2058>`_)
+* [maint] clang-tidy fixes (`#2050 <https://github.com/ros-planning/moveit/issues/2050>`_) (`#2004 <https://github.com/ros-planning/moveit/issues/2004>`_, `#1419 <https://github.com/ros-planning/moveit/issues/1419>`_)
+* [maint] Replace namespaces robot_state and robot_model with moveit::core (`#1924 <https://github.com/ros-planning/moveit/issues/1924>`_)
+* [maint] Fix various build issues on Windows (`#1880 <https://github.com/ros-planning/moveit/issues/1880>`_)
+* [maint] Fix compiler warnings (`#1773 <https://github.com/ros-planning/moveit/issues/1773>`_)
+* [maint] Switch from include guards to pragma once (`#1615 <https://github.com/ros-planning/moveit/issues/1615>`_)
+* [maint] Use CMAKE_CXX_STANDARD to enforce c++14 for portability (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* [maint] Remove ! from MoveIt name (`#1590 <https://github.com/ros-planning/moveit/issues/1590>`_)
+* [maint] Relax dependencies of moveit_kinematics (`#1529 <https://github.com/ros-planning/moveit/issues/1529>`_)
+* Contributors: Ayush Garg, Christian Henkel, Dave Coleman, Henning Kayser, Immanuel Martini, Jonathan Binney, Markus Vieth, Martin Günther, Michael Ferguson, Michael Görner, Robert Haschke, Sean Yen, Tyler Weaver, Yu, Yan, edetleon, jschleicher, v4hn
+
+1.0.6 (2020-08-19)
+------------------
+* [maint] Adapt repository for splitted moveit_resources layout (`#2199 <https://github.com/ros-planning/moveit/issues/2199>`_)
+* [maint] Migrate to clang-format-10
+* [maint] Optimize includes (`#2229 <https://github.com/ros-planning/moveit/issues/2229>`_)
+* Contributors: Markus Vieth, Robert Haschke, Michael Görner
+
+1.0.5 (2020-07-08)
+------------------
+
+1.0.4 (2020-05-30)
+------------------
+* Fix broken IKFast generator (`#2116 <https://github.com/ros-planning/moveit/issues/2116>`_)
+* Contributors: Robert Haschke
+
+1.0.3 (2020-04-26)
+------------------
+* [feature] KDL IK: constrain wiggled joints to limits (`#1953 <https://github.com/ros-planning/moveit/issues/1953>`_)
+* [feature] IKFast: optional prefix for link names (`#1599 <https://github.com/ros-planning/moveit/issues/1599>`_)
+  If you pass a `link_prefix` parameter in your `kinematics.yaml`, this string is prepended to the base and tip links.
+  It allows multi-robot setups (e.g. dual-arm) and still instantiate the same solver for both manipulators.
+* [feature] IKFast: increase verbosity of generated script (`#1434 <https://github.com/ros-planning/moveit/issues/1434>`_)
+* [maint]   Apply clang-tidy fix to entire code base (`#1394 <https://github.com/ros-planning/moveit/issues/1394>`_)
+* [maint]   Fix errors: catkin_lint 1.6.7 (`#1987 <https://github.com/ros-planning/moveit/issues/1987>`_)
+* [maint]   Windows build: Fix binary artifact install locations. (`#1575 <https://github.com/ros-planning/moveit/issues/1575>`_)
+* [maint]   Use CMAKE_CXX_STANDARD to enforce c++14 (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* [feature] IKFast: implement `Translation*AxisAngle4D` IK type (`#1823 <https://github.com/ros-planning/moveit/issues/1823>`_)
+* [fix]     Fix possible division-by-zero (`#1809 <https://github.com/ros-planning/moveit/issues/1809>`_)
+* Contributors: Christian Henkel, Martin Günther, Max Krichenbauer, Michael Görner, Robert Haschke, Sean Yen, Yu, Yan, jschleicher
+
+1.0.2 (2019-06-28)
+------------------
+* [fix] KDL IK solver: fix handling of mimic joints (`#1490 <https://github.com/ros-planning/moveit/issues/1490>`_)
+* [fix] Fix ROS apt-key in OpenRAVE docker image (`#1503 <https://github.com/ros-planning/moveit/issues/1503>`_)
+* [fix] Fix ikfast plugin-generator script (`#1492 <https://github.com/ros-planning/moveit/issues/1492>`_, `#1449 <https://github.com/ros-planning/moveit/issues/1449>`_)
+* Contributors: Immanuel Martini, Michael Görner, Robert Haschke
 
 1.0.1 (2019-03-08)
 ------------------
@@ -102,7 +213,7 @@ Changelog for package moveit_kinematics
 
 0.9.5 (2017-03-08)
 ------------------
-* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_ 
+* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_
 * Contributors: Dave Coleman
 
 0.9.4 (2017-02-06)

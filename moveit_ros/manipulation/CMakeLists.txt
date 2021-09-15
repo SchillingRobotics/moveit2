@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(moveit_ros_manipulation)
 
-set(CMAKE_CXX_STANDARD 14)
+if(NOT "${CMAKE_CXX_STANDARD}")
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
@@ -32,9 +35,12 @@ catkin_package(
   LIBRARIES
     moveit_pick_place_planner
   CATKIN_DEPENDS
+    actionlib
+    dynamic_reconfigure
     moveit_core
     moveit_msgs
     moveit_ros_planning
+    roscpp
   DEPENDS
     EIGEN3
 )
@@ -42,9 +48,9 @@ catkin_package(
 include_directories(pick_place/include)
 include_directories(move_group_pick_place_capability/include)
 
-include_directories(${catkin_INCLUDE_DIRS}
-                    ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM
+                    ${catkin_INCLUDE_DIRS}
+                    ${Boost_INCLUDE_DIRS}
                     ${EIGEN3_INCLUDE_DIRS})
 
 add_subdirectory(pick_place)

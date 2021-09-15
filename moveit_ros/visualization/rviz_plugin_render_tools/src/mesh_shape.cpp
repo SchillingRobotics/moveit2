@@ -59,7 +59,7 @@ MeshShape::~MeshShape()
 
 void MeshShape::estimateVertexCount(size_t vcount)
 {
-  if (entity_ == NULL && started_ == false)
+  if (entity_ == nullptr && !started_)
     manual_object_->estimateVertexCount(vcount);
 }
 
@@ -74,7 +74,7 @@ void MeshShape::beginTriangles()
   if (!started_)
   {
     started_ = true;
-    manual_object_->begin(material_name_, Ogre::RenderOperation::OT_TRIANGLE_LIST);
+    manual_object_->begin(material_name_, Ogre::RenderOperation::OT_TRIANGLE_LIST, "rviz_rendering");
   }
 }
 
@@ -126,7 +126,7 @@ void MeshShape::endTriangles()
     entity_ = scene_manager_->createEntity(name);
     if (entity_)
     {
-      entity_->setMaterialName(material_name_);
+      entity_->setMaterialName(material_name_, "rviz_rendering");
       offset_node_->attachObject(entity_);
     }
     else
@@ -143,7 +143,7 @@ void MeshShape::clear()
     entity_->detachFromParent();
     Ogre::MeshManager::getSingleton().remove(entity_->getMesh()->getName());
     scene_manager_->destroyEntity(entity_);
-    entity_ = NULL;
+    entity_ = nullptr;
   }
   manual_object_->clear();
   started_ = false;

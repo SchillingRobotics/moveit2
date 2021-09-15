@@ -54,41 +54,13 @@ public:
   void initialize(const rclcpp::Node::SharedPtr& node, const std::string& parameter_namespace) override
   {
     node_ = node;
-    if (!node_->get_parameter(parameter_namespace + "." + DT_PARAM_NAME, max_dt_offset_))
+    max_dt_offset_ = getParam(node_, LOGGER, parameter_namespace, DT_PARAM_NAME, 0.5);
+    jiggle_fraction_ = getParam(node_, LOGGER, parameter_namespace, JIGGLE_PARAM_NAME, 0.02);
+    sampling_attempts_ = getParam(node_, LOGGER, parameter_namespace, ATTEMPTS_PARAM_NAME, 100);
+    if (sampling_attempts_ < 1)
     {
-      max_dt_offset_ = 0.5;
-      RCLCPP_INFO(LOGGER, "Param '%s' was not set. Using default value: %f", DT_PARAM_NAME.c_str(), max_dt_offset_);
-    }
-    else
-    {
-      RCLCPP_INFO(LOGGER, "Param '%s' was set to %f", DT_PARAM_NAME.c_str(), max_dt_offset_);
-    }
-
-    if (!node_->get_parameter(parameter_namespace + "." + JIGGLE_PARAM_NAME, jiggle_fraction_))
-    {
-      jiggle_fraction_ = 0.02;
-      RCLCPP_INFO(LOGGER, "Param '%s' was not set. Using default value: %f", JIGGLE_PARAM_NAME.c_str(),
-                  jiggle_fraction_);
-    }
-    else
-    {
-      RCLCPP_INFO(LOGGER, "Param '%s' was set to %f", JIGGLE_PARAM_NAME.c_str(), jiggle_fraction_);
-    }
-
-    if (!node_->get_parameter(parameter_namespace + "." + ATTEMPTS_PARAM_NAME, sampling_attempts_))
-    {
-      sampling_attempts_ = 100;
-      RCLCPP_INFO(LOGGER, "Param '%s' was not set. Using default value: %f,", ATTEMPTS_PARAM_NAME.c_str(),
-                  sampling_attempts_);
-    }
-    else
-    {
-      if (sampling_attempts_ < 1)
-      {
-        sampling_attempts_ = 1;
-        RCLCPP_WARN(LOGGER, "Param '%s' needs to be at least 1.", ATTEMPTS_PARAM_NAME.c_str());
-      }
-      RCLCPP_INFO(LOGGER, "Param '%s' was set to %f", ATTEMPTS_PARAM_NAME.c_str(), sampling_attempts_);
+      sampling_attempts_ = 1;
+      RCLCPP_WARN(LOGGER, "Param '%s' needs to be at least 1.", ATTEMPTS_PARAM_NAME.c_str());
     }
   }
 
@@ -104,8 +76,8 @@ public:
     RCLCPP_DEBUG(LOGGER, "Running '%s'", getDescription().c_str());
 
     // get the specified start state
-    robot_state::RobotState start_state = planning_scene->getCurrentState();
-    robot_state::robotStateMsgToRobotState(planning_scene->getTransforms(), req.start_state, start_state);
+    moveit::core::RobotState start_state = planning_scene->getCurrentState();
+    moveit::core::robotStateMsgToRobotState(planning_scene->getTransforms(), req.start_state, start_state);
 
     collision_detection::CollisionRequest creq;
     creq.group_name = req.group_name;
@@ -124,10 +96,10 @@ public:
       else
         RCLCPP_INFO(LOGGER, "Start state appears to be in collision with respect to group %s", creq.group_name.c_str());
 
-      robot_state::RobotStatePtr prefix_state(new robot_state::RobotState(start_state));
+      moveit::core::RobotStatePtr prefix_state(new moveit::core::RobotState(start_state));
       random_numbers::RandomNumberGenerator& rng = prefix_state->getRandomNumberGenerator();
 
-      const std::vector<const robot_model::JointModel*>& jmodels =
+      const std::vector<const moveit::core::JointModel*>& jmodels =
           planning_scene->getRobotModel()->hasJointModelGroup(req.group_name) ?
               planning_scene->getRobotModel()->getJointModelGroup(req.group_name)->getJointModels() :
               planning_scene->getRobotModel()->getJointModels();
@@ -156,14 +128,14 @@ public:
       if (found)
       {
         planning_interface::MotionPlanRequest req2 = req;
-        robot_state::robotStateToRobotStateMsg(start_state, req2.start_state);
+        moveit::core::robotStateToRobotStateMsg(start_state, req2.start_state);
         bool solved = planner(planning_scene, req2, res);
         if (solved && !res.trajectory_->empty())
         {
           // heuristically decide a duration offset for the trajectory (induced by the additional point added as a
           // prefix to the computed trajectory)
-          res.trajectory_->setWayPointDurationFromPrevious(
-              0, std::min(max_dt_offset_, res.trajectory_->getAverageSegmentDuration()));
+          res.trajectory_->setWayPointDurationFromPrevious(0, std::min(max_dt_offset_,
+                                                                       res.trajectory_->getAverageSegmentDuration()));
           res.trajectory_->addPrefixWayPoint(prefix_state, 0.0);
           // we add a prefix point, so we need to bump any previously added index positions
           for (std::size_t& added_index : added_path_index)

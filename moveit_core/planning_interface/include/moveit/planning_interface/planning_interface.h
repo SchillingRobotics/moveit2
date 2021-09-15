@@ -45,7 +45,7 @@
 
 namespace planning_scene
 {
-MOVEIT_CLASS_FORWARD(PlanningScene)
+MOVEIT_CLASS_FORWARD(PlanningScene);  // Defines PlanningScenePtr, ConstPtr, WeakPtr... etc
 }
 
 /** \brief This namespace includes the base class for MoveIt planners */
@@ -74,7 +74,7 @@ struct PlannerConfigurationSettings
 /** \brief Map from PlannerConfigurationSettings.name to PlannerConfigurationSettings */
 typedef std::map<std::string, PlannerConfigurationSettings> PlannerConfigurationMap;
 
-MOVEIT_CLASS_FORWARD(PlanningContext)
+MOVEIT_CLASS_FORWARD(PlanningContext);  // Defines PlanningContextPtr, ConstPtr, WeakPtr... etc
 
 /** \brief Representation of a particular planning context -- the planning scene and the request are known,
     solution is not yet computed. */
@@ -145,7 +145,7 @@ protected:
   MotionPlanRequest request_;
 };
 
-MOVEIT_CLASS_FORWARD(PlannerManager)
+MOVEIT_CLASS_FORWARD(PlannerManager);  // Defines PlannerManagerPtr, ConstPtr, WeakPtr... etc
 
 /** \brief Base class for a MoveIt planner */
 class PlannerManager
@@ -161,9 +161,10 @@ public:
 
   /// Initialize a planner. This function will be called after the construction of the plugin, before any other call is
   /// made.
-  /// It is assumed that motion plans will be computed for the robot described by \e model
-  /// and the node is passed as an argument to get some ROS parameters
-  virtual bool initialize(const robot_model::RobotModelConstPtr& model, const rclcpp::Node::SharedPtr& node,
+  /// It is assumed that motion plans will be computed for the robot described by \e model and that any exposed ROS
+  /// functionality
+  ///  or required ROS parameters are namespaced by \e parameter_namespace
+  virtual bool initialize(const moveit::core::RobotModelConstPtr& model, const rclcpp::Node::SharedPtr& node,
                           const std::string& parameter_namespace);
 
   /// Get \brief a short string that identifies the planning interface
@@ -212,4 +213,4 @@ protected:
   PlannerConfigurationMap config_settings_;
 };
 
-}  // planning_interface
+}  // namespace planning_interface

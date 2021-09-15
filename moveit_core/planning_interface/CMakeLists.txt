@@ -6,8 +6,8 @@ add_library(${MOVEIT_LIB_NAME} SHARED
 )
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
 ament_target_dependencies(${MOVEIT_LIB_NAME}
+  moveit_msgs
   urdf
-  visualization_msgs
   urdfdom
   urdfdom_headers
 )
@@ -16,8 +16,4 @@ target_link_libraries(${MOVEIT_LIB_NAME}
   moveit_robot_state
 )
 
-install(TARGETS ${MOVEIT_LIB_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)

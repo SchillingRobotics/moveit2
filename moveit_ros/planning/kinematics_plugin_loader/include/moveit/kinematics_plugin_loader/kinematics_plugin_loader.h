@@ -43,7 +43,7 @@
 
 namespace kinematics_plugin_loader
 {
-MOVEIT_CLASS_FORWARD(KinematicsPluginLoader)
+MOVEIT_CLASS_FORWARD(KinematicsPluginLoader);  // Defines KinematicsPluginLoaderPtr, ConstPtr, WeakPtr... etc
 
 /** \brief Helper class for loading kinematics solvers */
 class KinematicsPluginLoader
@@ -81,11 +81,11 @@ public:
 
   /** \brief Get a function pointer that allocates and initializes a kinematics solver. If not previously called, this
    * function reads the SRDF and calls the variant below. */
-  robot_model::SolverAllocatorFn getLoaderFunction();
+  moveit::core::SolverAllocatorFn getLoaderFunction();
 
   /** \brief Get a function pointer that allocates and initializes a kinematics solver. If not previously called, this
    * function reads ROS parameters for the groups defined in the SRDF. */
-  robot_model::SolverAllocatorFn getLoaderFunction(const srdf::ModelSharedPtr& srdf_model);
+  moveit::core::SolverAllocatorFn getLoaderFunction(const srdf::ModelSharedPtr& srdf_model);
 
   /** \brief Get the groups for which the function pointer returned by getLoaderFunction() can allocate a solver */
   const std::vector<std::string>& getKnownGroups() const
@@ -106,7 +106,7 @@ private:
   std::string robot_description_;
   double default_search_resolution_;
 
-  MOVEIT_CLASS_FORWARD(KinematicsLoaderImpl)
+  MOVEIT_CLASS_FORWARD(KinematicsLoaderImpl);  // Defines KinematicsLoaderImplPtr, ConstPtr, WeakPtr... etc
   KinematicsLoaderImplPtr loader_;
 
   std::vector<std::string> groups_;
@@ -116,4 +116,4 @@ private:
   std::string default_solver_plugin_;
   double default_solver_timeout_;
 };
-}
+}  // namespace kinematics_plugin_loader

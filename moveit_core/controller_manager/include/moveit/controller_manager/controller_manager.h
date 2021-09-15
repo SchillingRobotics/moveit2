@@ -99,7 +99,7 @@ private:
   Value status_;
 };
 
-MOVEIT_CLASS_FORWARD(MoveItControllerHandle)
+MOVEIT_CLASS_FORWARD(MoveItControllerHandle);  // Defines MoveItControllerHandlePtr, ConstPtr, WeakPtr... etc
 
 /** \brief MoveIt sends commands to a controller via a handle that satisfies this interface. */
 class MoveItControllerHandle
@@ -137,8 +137,8 @@ public:
    *
    * Return true if the execution is complete (whether successful or not).
    * Return false if timeout was reached.
-   * If timeout is 0 (default argument), wait until the execution is complete (no timeout). */
-  virtual bool waitForExecution(const rclcpp::Duration& timeout = rclcpp::Duration(0.0)) = 0;
+   * If timeout is -1 (default argument), wait until the execution is complete (no timeout). */
+  virtual bool waitForExecution(const rclcpp::Duration& timeout = rclcpp::Duration(-1)) = 0;
 
   /** \brief Return the execution status of the last trajectory sent to the controller. */
   virtual ExecutionStatus getLastExecutionStatus() = 0;
@@ -147,7 +147,7 @@ protected:
   std::string name_;
 };
 
-MOVEIT_CLASS_FORWARD(MoveItControllerManager)
+MOVEIT_CLASS_FORWARD(MoveItControllerManager);  // Defines MoveItControllerManagerPtr, ConstPtr, WeakPtr... etc
 
 /** @brief MoveIt does not enforce how controllers are implemented.
     To make your controllers usable by MoveIt, this interface needs to be implemented.
@@ -210,4 +210,4 @@ public:
   virtual bool switchControllers(const std::vector<std::string>& activate,
                                  const std::vector<std::string>& deactivate) = 0;
 };
-}
+}  // namespace moveit_controller_manager

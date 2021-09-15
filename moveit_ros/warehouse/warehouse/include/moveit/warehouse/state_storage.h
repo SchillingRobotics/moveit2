@@ -40,14 +40,16 @@
 #include <moveit/macros/class_forward.h>
 #include <moveit_msgs/msg/robot_state.hpp>
 
+#include "moveit_warehouse_export.h"
+
 namespace moveit_warehouse
 {
 typedef warehouse_ros::MessageWithMetadata<moveit_msgs::msg::RobotState>::ConstPtr RobotStateWithMetadata;
 typedef warehouse_ros::MessageCollection<moveit_msgs::msg::RobotState>::Ptr RobotStateCollection;
 
-MOVEIT_CLASS_FORWARD(RobotStateStorage)
+MOVEIT_CLASS_FORWARD(RobotStateStorage);  // Defines RobotStateStoragePtr, ConstPtr, WeakPtr... etc
 
-class RobotStateStorage : public MoveItMessageStorage
+class MOVEIT_WAREHOUSE_EXPORT RobotStateStorage : public MoveItMessageStorage
 {
 public:
   static const std::string DATABASE_NAME;
@@ -77,4 +79,4 @@ private:
 
   RobotStateCollection state_collection_;
 };
-}
+}  // namespace moveit_warehouse

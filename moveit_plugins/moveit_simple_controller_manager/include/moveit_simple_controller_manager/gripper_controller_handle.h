@@ -119,10 +119,8 @@ public:
     RCLCPP_DEBUG(LOGGER, "Sending command from trajectory point %d", tpoint);
 
     // fill in goal from last point
-    for (std::size_t i = 0; i < gripper_joint_indexes.size(); ++i)
+    for (std::size_t idx : gripper_joint_indexes)
     {
-      std::size_t idx = gripper_joint_indexes[i];
-
       if (trajectory.joint_trajectory.points[tpoint].positions.size() <= idx)
       {
         RCLCPP_ERROR(LOGGER, "GripperController expects a joint trajectory with one \
@@ -138,19 +136,11 @@ public:
     }
     rclcpp_action::Client<control_msgs::action::GripperCommand>::SendGoalOptions send_goal_options;
     // Active callback
-    send_goal_options.goal_response_callback = [this](const auto& /* unused-arg */) {
-      RCLCPP_DEBUG_STREAM(LOGGER, name_ << " started execution");
-    };
-    // Result callback
-    send_goal_options.result_callback =
-        std::bind(&GripperControllerHandle::controllerDoneCallback, this, std::placeholders::_1);
+    send_goal_options.goal_response_callback =
+        [this](std::shared_future<rclcpp_action::Client<control_msgs::action::GripperCommand>::GoalHandle::SharedPtr>
+               /* unused-arg */) { RCLCPP_DEBUG_STREAM(LOGGER, name_ << " started execution"); };
     // Send goal
     auto current_goal_future = controller_action_client_->async_send_goal(goal, send_goal_options);
-    if (rclcpp::spin_until_future_complete(node_, current_goal_future) != rclcpp::executor::FutureReturnCode::SUCCESS)
-    {
-      RCLCPP_ERROR(LOGGER, "Send goal call failed");
-      return false;
-    }
     current_goal_ = current_goal_future.get();
     if (!current_goal_)
     {
@@ -188,7 +178,7 @@ public:
 
 private:
   void controllerDoneCallback(
-      const rclcpp_action::ClientGoalHandle<control_msgs::action::GripperCommand>::WrappedResult& wrapped_result)
+      const rclcpp_action::ClientGoalHandle<control_msgs::action::GripperCommand>::WrappedResult& wrapped_result) override
   {
     if (wrapped_result.code == rclcpp_action::ResultCode::ABORTED && allow_failure_)
       finishControllerExecution(rclcpp_action::ResultCode::SUCCEEDED);
@@ -223,6 +213,6 @@ private:
    * joint is considered the command.
    */
   std::set<std::string> command_joints_;
-};
+};  // namespace moveit_simple_controller_manager
 
 }  // end namespace moveit_simple_controller_manager

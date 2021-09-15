@@ -36,7 +36,9 @@
 
 #include <moveit/robot_interaction/kinematic_options.h>
 #include <boost/static_assert.hpp>
-#include <ros/console.h>
+#include <rclcpp/logging.hpp>
+
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros_robot_interaction.kinematic_options");
 
 robot_interaction::KinematicOptions::KinematicOptions() : timeout_seconds_(0.0)  // 0.0 = use default timeout
 {
@@ -44,13 +46,14 @@ robot_interaction::KinematicOptions::KinematicOptions() : timeout_seconds_(0.0) 
 
 // This is intended to be called as a ModifyStateFunction to modify the state
 // maintained by a LockedRobotState in place.
-bool robot_interaction::KinematicOptions::setStateFromIK(robot_state::RobotState& state, const std::string& group,
-                                                         const std::string& tip, const geometry_msgs::Pose& pose) const
+bool robot_interaction::KinematicOptions::setStateFromIK(moveit::core::RobotState& state, const std::string& group,
+                                                         const std::string& tip,
+                                                         const geometry_msgs::msg::Pose& pose) const
 {
-  const robot_model::JointModelGroup* jmg = state.getJointModelGroup(group);
+  const moveit::core::JointModelGroup* jmg = state.getJointModelGroup(group);
   if (!jmg)
   {
-    ROS_ERROR("No getJointModelGroup('%s') found", group.c_str());
+    RCLCPP_ERROR(LOGGER, "No getJointModelGroup('%s') found", group.c_str());
     return false;
   }
   bool result = state.setFromIK(jmg, pose, tip,
@@ -72,7 +75,7 @@ void robot_interaction::KinematicOptions::setOptions(const KinematicOptions& sou
 // robot_interaction::KinematicOptions except options_
 #define O_FIELDS(F)                                                                                                    \
   F(double, timeout_seconds_, TIMEOUT)                                                                                 \
-  F(robot_state::GroupStateValidityCallbackFn, state_validity_callback_, STATE_VALIDITY_CALLBACK)
+  F(moveit::core::GroupStateValidityCallbackFn, state_validity_callback_, STATE_VALIDITY_CALLBACK)
 
 // This needs to represent all the fields in
 // kinematics::KinematicsQueryOptions

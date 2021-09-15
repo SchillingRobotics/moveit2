@@ -41,7 +41,7 @@
 #include <random_numbers/random_numbers.h>
 
 // ROS msgs
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose.hpp>
 #include <moveit_msgs/srv/get_position_fk.hpp>
 #include <moveit_msgs/srv/get_position_ik.hpp>
 #include <moveit_msgs/msg/kinematic_solver_info.hpp>
@@ -71,10 +71,10 @@ public:
    */
   LMAKinematicsPlugin();
 
-  bool getPositionIK(
-      const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, std::vector<double>& solution,
-      moveit_msgs::msg::MoveItErrorCodes& error_code,
-      const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
+  bool
+  getPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
+                std::vector<double>& solution, moveit_msgs::msg::MoveItErrorCodes& error_code,
+                const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
 
   bool searchPositionIK(
       const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, double timeout,
@@ -147,11 +147,11 @@ private:
   unsigned int dimension_;                             ///< Dimension of the group
   moveit_msgs::msg::KinematicSolverInfo solver_info_;  ///< Stores information for the inverse kinematics solver
 
-  const robot_model::JointModelGroup* joint_model_group_;
-  robot_state::RobotStatePtr state_;
+  const moveit::core::JointModelGroup* joint_model_group_;
+  moveit::core::RobotStatePtr state_;
   KDL::Chain kdl_chain_;
   std::unique_ptr<KDL::ChainFkSolverPos> fk_solver_;
-  std::vector<const robot_model::JointModel*> joints_;
+  std::vector<const moveit::core::JointModel*> joints_;
   std::vector<std::string> joint_names_;
   rclcpp::Node::SharedPtr node_;
 
@@ -164,4 +164,4 @@ private:
    * = 0.0: perform position-only IK */
   double orientation_vs_position_weight_;
 };
-}
+}  // namespace lma_kinematics_plugin

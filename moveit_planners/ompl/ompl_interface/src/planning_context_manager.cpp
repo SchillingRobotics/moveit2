@@ -37,8 +37,6 @@
 #include <moveit/ompl_interface/planning_context_manager.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/profiler/profiler.h>
-#include <algorithm>
-#include <set>
 #include <utility>
 
 #include <ompl/geometric/planners/AnytimePathShortening.h>
@@ -69,25 +67,177 @@
 #include <ompl/geometric/planners/prm/SPARS.h>
 #include <ompl/geometric/planners/prm/SPARStwo.h>
 
+#include <ompl/base/ConstrainedSpaceInformation.h>
+#include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
+
 #include <moveit/ompl_interface/parameterization/joint_space/joint_model_state_space_factory.h>
 #include <moveit/ompl_interface/parameterization/joint_space/joint_model_state_space.h>
+#include <moveit/ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.h>
+#include <moveit/ompl_interface/parameterization/joint_space/constrained_planning_state_space.h>
 #include <moveit/ompl_interface/parameterization/work_space/pose_model_state_space_factory.h>
+#include <moveit/ompl_interface/detail/ompl_constraints.h>
 
 using namespace std::placeholders;
 
 namespace ompl_interface
 {
-static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ompl_planning.planning_context_manager");
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit.ompl_planning.planning_context_manager");
+
 struct PlanningContextManager::CachedContexts
 {
   std::map<std::pair<std::string, std::string>, std::vector<ModelBasedPlanningContextPtr> > contexts_;
   std::mutex lock_;
 };
 
-}  // namespace ompl_interface
+MultiQueryPlannerAllocator::~MultiQueryPlannerAllocator()
+{
+  // Store all planner data
+  for (const auto& entry : planner_data_storage_paths_)
+  {
+    RCLCPP_INFO(LOGGER, "Storing planner data");
+    ob::PlannerData data(planners_[entry.first]->getSpaceInformation());
+    planners_[entry.first]->getPlannerData(data);
+    storage_.store(data, entry.second.c_str());
+  }
+}
 
-ompl_interface::PlanningContextManager::PlanningContextManager(robot_model::RobotModelConstPtr robot_model,
-                                                               constraint_samplers::ConstraintSamplerManagerPtr csm)
+template <typename T>
+ompl::base::PlannerPtr MultiQueryPlannerAllocator::allocatePlanner(const ob::SpaceInformationPtr& si,
+                                                                   const std::string& new_name,
+                                                                   const ModelBasedPlanningContextSpecification& spec)
+{
+  // Store planner instance if multi-query planning is enabled
+  auto cfg = spec.config_;
+  auto it = cfg.find("multi_query_planning_enabled");
+  bool multi_query_planning_enabled = false;
+  if (it != cfg.end())
+  {
+    multi_query_planning_enabled = boost::lexical_cast<bool>(it->second);
+    cfg.erase(it);
+  }
+  if (multi_query_planning_enabled)
+  {
+    // If we already have an instance, use that one
+    auto planner_map_it = planners_.find(new_name);
+    if (planner_map_it != planners_.end())
+    {
+      return planner_map_it->second;
+    }
+
+    // Certain multi-query planners allow loading and storing the generated planner data. This feature can be
+    // selectively enabled for loading and storing using the bool parameters 'load_planner_data' and
+    // 'store_planner_data'. The storage file path is set using the parameter 'planner_data_path'.
+    // File read and write access are handled by the PlannerDataStorage class. If the file path is invalid
+    // an error message is printed and the planner is constructed/destructed with default values.
+    it = cfg.find("load_planner_data");
+    bool load_planner_data = false;
+    if (it != cfg.end())
+    {
+      load_planner_data = boost::lexical_cast<bool>(it->second);
+      cfg.erase(it);
+    }
+    it = cfg.find("store_planner_data");
+    bool store_planner_data = false;
+    if (it != cfg.end())
+    {
+      store_planner_data = boost::lexical_cast<bool>(it->second);
+      cfg.erase(it);
+    }
+    it = cfg.find("planner_data_path");
+    std::string planner_data_path;
+    if (it != cfg.end())
+    {
+      planner_data_path = it->second;
+      cfg.erase(it);
+    }
+    // Store planner instance for multi-query use
+    planners_[new_name] =
+        allocatePlannerImpl<T>(si, new_name, spec, load_planner_data, store_planner_data, planner_data_path);
+    return planners_[new_name];
+  }
+  else
+  {
+    // Return single-shot planner instance
+    return allocatePlannerImpl<T>(si, new_name, spec);
+  }
+}
+
+template <typename T>
+ompl::base::PlannerPtr
+MultiQueryPlannerAllocator::allocatePlannerImpl(const ob::SpaceInformationPtr& si, const std::string& new_name,
+                                                const ModelBasedPlanningContextSpecification& spec,
+                                                bool load_planner_data, bool store_planner_data,
+                                                const std::string& file_path)
+{
+  ob::PlannerPtr planner;
+  // Try to initialize planner with loaded planner data
+  if (load_planner_data)
+  {
+    RCLCPP_INFO(LOGGER, "Loading planner data");
+    ob::PlannerData data(si);
+    storage_.load(file_path.c_str(), data);
+    planner.reset(allocatePersistentPlanner<T>(data));
+    if (!planner)
+    {
+      RCLCPP_ERROR(LOGGER,
+                   "Creating a '%s' planner from persistent data is not supported. Going to create a new instance.",
+                   new_name.c_str());
+    }
+  }
+
+  if (!planner)
+  {
+    planner.reset(new T(si));
+  }
+
+  if (!new_name.empty())
+  {
+    planner->setName(new_name);
+  }
+
+  planner->params().setParams(spec.config_, true);
+  //  Remember which planner instances to store when the destructor is called
+  if (store_planner_data)
+  {
+    planner_data_storage_paths_[new_name] = file_path;
+  }
+
+  return planner;
+}
+
+// default implementation
+template <typename T>
+inline ompl::base::Planner* MultiQueryPlannerAllocator::allocatePersistentPlanner(const ob::PlannerData& /*data*/)
+{
+  return nullptr;
+};
+template <>
+inline ompl::base::Planner*
+MultiQueryPlannerAllocator::allocatePersistentPlanner<ompl::geometric::PRM>(const ob::PlannerData& data)
+{
+  return new og::PRM(data);
+};
+template <>
+inline ompl::base::Planner*
+MultiQueryPlannerAllocator::allocatePersistentPlanner<ompl::geometric::PRMstar>(const ob::PlannerData& data)
+{
+  return new og::PRMstar(data);
+};
+template <>
+inline ompl::base::Planner*
+MultiQueryPlannerAllocator::allocatePersistentPlanner<ompl::geometric::LazyPRM>(const ob::PlannerData& data)
+{
+  return new og::LazyPRM(data);
+};
+template <>
+inline ompl::base::Planner*
+MultiQueryPlannerAllocator::allocatePersistentPlanner<ompl::geometric::LazyPRMstar>(const ob::PlannerData& data)
+{
+  return new og::LazyPRMstar(data);
+};
+
+PlanningContextManager::PlanningContextManager(moveit::core::RobotModelConstPtr robot_model,
+                                               constraint_samplers::ConstraintSamplerManagerPtr csm)
   : robot_model_(std::move(robot_model))
   , constraint_sampler_manager_(std::move(csm))
   , max_goal_samples_(10)
@@ -102,30 +252,15 @@ ompl_interface::PlanningContextManager::PlanningContextManager(robot_model::Robo
   registerDefaultStateSpaces();
 }
 
-ompl_interface::PlanningContextManager::~PlanningContextManager() = default;
+PlanningContextManager::~PlanningContextManager() = default;
 
-namespace
-{
-using namespace ompl_interface;
-
-template <typename T>
-static ompl::base::PlannerPtr allocatePlanner(const ob::SpaceInformationPtr& si, const std::string& new_name,
-                                              const ModelBasedPlanningContextSpecification& spec)
-{
-  ompl::base::PlannerPtr planner(new T(si));
-  if (!new_name.empty())
-    planner->setName(new_name);
-  planner->params().setParams(spec.config_, true);
-  return planner;
-}
-}  // namespace
-
-ompl_interface::ConfiguredPlannerAllocator
-ompl_interface::PlanningContextManager::plannerSelector(const std::string& planner) const
+ConfiguredPlannerAllocator PlanningContextManager::plannerSelector(const std::string& planner) const
 {
   auto it = known_planners_.find(planner);
   if (it != known_planners_.end())
+  {
     return it->second;
+  }
   else
   {
     RCLCPP_ERROR(LOGGER, "Unknown planner: '%s'", planner.c_str());
@@ -133,57 +268,67 @@ ompl_interface::PlanningContextManager::plannerSelector(const std::string& plann
   }
 }
 
-void ompl_interface::PlanningContextManager::registerDefaultPlanners()
+template <typename T>
+void PlanningContextManager::registerPlannerAllocatorHelper(const std::string& planner_id)
 {
-  registerPlannerAllocator("geometric::AnytimePathShortening", allocatePlanner<og::AnytimePathShortening>);
-  registerPlannerAllocator("geometric::BFMT", allocatePlanner<og::BFMT>);
-  registerPlannerAllocator("geometric::BiEST", allocatePlanner<og::BiEST>);
-  registerPlannerAllocator("geometric::BiTRRT", allocatePlanner<og::BiTRRT>);
-  registerPlannerAllocator("geometric::BKPIECE", allocatePlanner<og::BKPIECE1>);
-  registerPlannerAllocator("geometric::EST", allocatePlanner<og::EST>);
-  registerPlannerAllocator("geometric::FMT", allocatePlanner<og::FMT>);
-  registerPlannerAllocator("geometric::KPIECE", allocatePlanner<og::KPIECE1>);
-  registerPlannerAllocator("geometric::LazyPRM", allocatePlanner<og::LazyPRM>);
-  registerPlannerAllocator("geometric::LazyPRMstar", allocatePlanner<og::LazyPRMstar>);
-  registerPlannerAllocator("geometric::LazyRRT", allocatePlanner<og::LazyRRT>);
-  registerPlannerAllocator("geometric::LBKPIECE", allocatePlanner<og::LBKPIECE1>);
-  registerPlannerAllocator("geometric::LBTRRT", allocatePlanner<og::LBTRRT>);
-  registerPlannerAllocator("geometric::PDST", allocatePlanner<og::PDST>);
-  registerPlannerAllocator("geometric::PRM", allocatePlanner<og::PRM>);
-  registerPlannerAllocator("geometric::PRMstar", allocatePlanner<og::PRMstar>);
-  registerPlannerAllocator("geometric::ProjEST", allocatePlanner<og::ProjEST>);
-  registerPlannerAllocator("geometric::RRT", allocatePlanner<og::RRT>);
-  registerPlannerAllocator("geometric::RRTConnect", allocatePlanner<og::RRTConnect>);
-  registerPlannerAllocator("geometric::RRTstar", allocatePlanner<og::RRTstar>);
-  registerPlannerAllocator("geometric::SBL", allocatePlanner<og::SBL>);
-  registerPlannerAllocator("geometric::SPARS", allocatePlanner<og::SPARS>);
-  registerPlannerAllocator("geometric::SPARStwo", allocatePlanner<og::SPARStwo>);
-  registerPlannerAllocator("geometric::STRIDE", allocatePlanner<og::STRIDE>);
-  registerPlannerAllocator("geometric::TRRT", allocatePlanner<og::TRRT>);
+  registerPlannerAllocator(planner_id, [&](const ob::SpaceInformationPtr& si, const std::string& new_name,
+                                           const ModelBasedPlanningContextSpecification& spec) {
+    return planner_allocator_.allocatePlanner<T>(si, new_name, spec);
+  });
 }
 
-void ompl_interface::PlanningContextManager::registerDefaultStateSpaces()
+void PlanningContextManager::registerDefaultPlanners()
+{
+  registerPlannerAllocatorHelper<og::AnytimePathShortening>("geometric::AnytimePathShortening");
+  registerPlannerAllocatorHelper<og::BFMT>("geometric::BFMT");
+  registerPlannerAllocatorHelper<og::BiEST>("geometric::BiEST");
+  registerPlannerAllocatorHelper<og::BiTRRT>("geometric::BiTRRT");
+  registerPlannerAllocatorHelper<og::BKPIECE1>("geometric::BKPIECE");
+  registerPlannerAllocatorHelper<og::EST>("geometric::EST");
+  registerPlannerAllocatorHelper<og::FMT>("geometric::FMT");
+  registerPlannerAllocatorHelper<og::KPIECE1>("geometric::KPIECE");
+  registerPlannerAllocatorHelper<og::LazyPRM>("geometric::LazyPRM");
+  registerPlannerAllocatorHelper<og::LazyPRMstar>("geometric::LazyPRMstar");
+  registerPlannerAllocatorHelper<og::LazyRRT>("geometric::LazyRRT");
+  registerPlannerAllocatorHelper<og::LBKPIECE1>("geometric::LBKPIECE");
+  registerPlannerAllocatorHelper<og::LBTRRT>("geometric::LBTRRT");
+  registerPlannerAllocatorHelper<og::PDST>("geometric::PDST");
+  registerPlannerAllocatorHelper<og::PRM>("geometric::PRM");
+  registerPlannerAllocatorHelper<og::PRMstar>("geometric::PRMstar");
+  registerPlannerAllocatorHelper<og::ProjEST>("geometric::ProjEST");
+  registerPlannerAllocatorHelper<og::RRT>("geometric::RRT");
+  registerPlannerAllocatorHelper<og::RRTConnect>("geometric::RRTConnect");
+  registerPlannerAllocatorHelper<og::RRTstar>("geometric::RRTstar");
+  registerPlannerAllocatorHelper<og::SBL>("geometric::SBL");
+  registerPlannerAllocatorHelper<og::SPARS>("geometric::SPARS");
+  registerPlannerAllocatorHelper<og::SPARStwo>("geometric::SPARStwo");
+  registerPlannerAllocatorHelper<og::STRIDE>("geometric::STRIDE");
+  registerPlannerAllocatorHelper<og::TRRT>("geometric::TRRT");
+}
+
+void PlanningContextManager::registerDefaultStateSpaces()
 {
   registerStateSpaceFactory(ModelBasedStateSpaceFactoryPtr(new JointModelStateSpaceFactory()));
   registerStateSpaceFactory(ModelBasedStateSpaceFactoryPtr(new PoseModelStateSpaceFactory()));
+  registerStateSpaceFactory(ModelBasedStateSpaceFactoryPtr(new ConstrainedPlanningStateSpaceFactory()));
 }
 
-ompl_interface::ConfiguredPlannerSelector ompl_interface::PlanningContextManager::getPlannerSelector() const
+ConfiguredPlannerSelector PlanningContextManager::getPlannerSelector() const
 {
   return std::bind(&PlanningContextManager::plannerSelector, this, std::placeholders::_1);
 }
 
-void ompl_interface::PlanningContextManager::setPlannerConfigurations(
-    const planning_interface::PlannerConfigurationMap& pconfig)
+void PlanningContextManager::setPlannerConfigurations(const planning_interface::PlannerConfigurationMap& pconfig)
 {
   planner_configs_ = pconfig;
 }
 
-ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContext(
-    const planning_interface::PlannerConfigurationSettings& config,
-    const StateSpaceFactoryTypeSelector& factory_selector, const moveit_msgs::msg::MotionPlanRequest& /*req*/) const
+ModelBasedPlanningContextPtr
+PlanningContextManager::getPlanningContext(const planning_interface::PlannerConfigurationSettings& config,
+                                           const StateSpaceFactoryTypeSelector& factory_selector,
+                                           const moveit_msgs::msg::MotionPlanRequest& req) const
 {
-  const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
+  const ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
 
   // Check for a cached planning context
   ModelBasedPlanningContextPtr context;
@@ -213,34 +358,42 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
     context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
     context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
-    // Choose the correct simple setup type to load
-    context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
-
-    bool state_validity_cache = true;
-    if (config.config.find("subspaces") != config.config.end())
+    if (factory->getType() == ConstrainedPlanningStateSpace::PARAMETERIZATION_TYPE)
     {
-      context_spec.config_.erase("subspaces");
-      // if the planner operates at subspace level the cache may be unsafe
-      state_validity_cache = false;
-      boost::char_separator<char> sep(" ");
-      boost::tokenizer<boost::char_separator<char> > tok(config.config.at("subspaces"), sep);
-      for (boost::tokenizer<boost::char_separator<char> >::iterator beg = tok.begin(); beg != tok.end(); ++beg)
-      {
-        const ompl_interface::ModelBasedStateSpaceFactoryPtr& sub_fact = factory_selector(*beg);
-        if (sub_fact)
-        {
-          ModelBasedStateSpaceSpecification sub_space_spec(robot_model_, *beg);
-          context_spec.subspaces_.push_back(sub_fact->getNewStateSpace(sub_space_spec));
-        }
-      }
+      RCLCPP_DEBUG_STREAM(LOGGER, "planning_context_manager: Using OMPL's constrained state space for planning.");
+
+      // Select the correct type of constraints based on the path constraints in the planning request.
+      ompl::base::ConstraintPtr ompl_constraint =
+          createOMPLConstraint(robot_model_, config.group, req.path_constraints);
+
+      // Create a constrained state space of type "projected state space".
+      // Other types are available, so we probably should add another setting to ompl_planning.yaml
+      // to choose between them.
+      context_spec.constrained_state_space_ =
+          std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_, ompl_constraint);
+
+      // Pass the constrained state space to ompl simple setup through the creation of a
+      // ConstrainedSpaceInformation object. This makes sure the state space is properly initialized.
+      context_spec.ompl_simple_setup_ = std::make_shared<ompl::geometric::SimpleSetup>(
+          std::make_shared<ob::ConstrainedSpaceInformation>(context_spec.constrained_state_space_));
+    }
+    else
+    {
+      // Choose the correct simple setup type to load
+      context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
     }
 
     RCLCPP_DEBUG(LOGGER, "Creating new planning context");
     context.reset(new ModelBasedPlanningContext(config.name, context_spec));
-    context->useStateValidityCache(state_validity_cache);
+
+    // Do not cache a constrained planning context, as the constraints could be changed
+    // and need to be parsed again.
+    if (factory->getType() != ConstrainedPlanningStateSpace::PARAMETERIZATION_TYPE)
     {
-      std::unique_lock<std::mutex> slock(cached_contexts_->lock_);
-      cached_contexts_->contexts_[std::make_pair(config.name, factory->getType())].push_back(context);
+      {
+        std::lock_guard<std::mutex> slock(cached_contexts_->lock_);
+        cached_contexts_->contexts_[std::make_pair(config.name, factory->getType())].push_back(context);
+      }
     }
   }
 
@@ -248,21 +401,27 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
   context->setMaximumGoalSamples(max_goal_samples_);
   context->setMaximumStateSamplingAttempts(max_state_sampling_attempts_);
   context->setMaximumGoalSamplingAttempts(max_goal_sampling_attempts_);
-  if (max_solution_segment_length_ > std::numeric_limits<double>::epsilon())
-    context->setMaximumSolutionSegmentLength(max_solution_segment_length_);
-  context->setMinimumWaypointCount(minimum_waypoint_count_);
 
+  if (max_solution_segment_length_ > std::numeric_limits<double>::epsilon())
+  {
+    context->setMaximumSolutionSegmentLength(max_solution_segment_length_);
+  }
+
+  context->setMinimumWaypointCount(minimum_waypoint_count_);
   context->setSpecificationConfig(config.config);
 
   return context;
 }
 
-const ompl_interface::ModelBasedStateSpaceFactoryPtr& ompl_interface::PlanningContextManager::getStateSpaceFactory1(
-    const std::string& /* dummy */, const std::string& factory_type) const
+const ModelBasedStateSpaceFactoryPtr&
+PlanningContextManager::getStateSpaceFactory1(const std::string& /* dummy */, const std::string& factory_type) const
 {
   auto f = factory_type.empty() ? state_space_factories_.begin() : state_space_factories_.find(factory_type);
   if (f != state_space_factories_.end())
+  {
+    RCLCPP_DEBUG(LOGGER, "Using '%s' parameterization for solving problem", factory_type.c_str());
     return f->second;
+  }
   else
   {
     RCLCPP_ERROR(LOGGER, "Factory of type '%s' was not found", factory_type.c_str());
@@ -271,21 +430,21 @@ const ompl_interface::ModelBasedStateSpaceFactoryPtr& ompl_interface::PlanningCo
   }
 }
 
-const ompl_interface::ModelBasedStateSpaceFactoryPtr& ompl_interface::PlanningContextManager::getStateSpaceFactory2(
-    const std::string& group, const moveit_msgs::msg::MotionPlanRequest& req) const
+const ModelBasedStateSpaceFactoryPtr&
+PlanningContextManager::getStateSpaceFactory2(const std::string& group,
+                                              const moveit_msgs::msg::MotionPlanRequest& req) const
 {
   // find the problem representation to use
   auto best = state_space_factories_.end();
-  int prev_priority = -1;
+  int prev_priority = 0;
   for (auto it = state_space_factories_.begin(); it != state_space_factories_.end(); ++it)
   {
     int priority = it->second->canRepresentProblem(group, req, robot_model_);
-    if (priority > 0)
-      if (best == state_space_factories_.end() || priority > prev_priority)
-      {
-        best = it;
-        prev_priority = priority;
-      }
+    if (priority > prev_priority)
+    {
+      best = it;
+      prev_priority = priority;
+    }
   }
 
   if (best == state_space_factories_.end())
@@ -302,7 +461,7 @@ const ompl_interface::ModelBasedStateSpaceFactoryPtr& ompl_interface::PlanningCo
   }
 }
 
-ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContext(
+ModelBasedPlanningContextPtr PlanningContextManager::getPlanningContext(
     const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::msg::MotionPlanRequest& req,
     moveit_msgs::msg::MoveItErrorCodes& error_code, const rclcpp::Node::SharedPtr& node,
     bool use_constraints_approximation) const
@@ -330,9 +489,11 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
                                    req.group_name + "[" + req.planner_id + "]" :
                                    req.planner_id);
     if (pc == planner_configs_.end())
+    {
       RCLCPP_WARN(LOGGER,
                   "Cannot find planning configuration for group '%s' using planner '%s'. Will use defaults instead.",
                   req.group_name.c_str(), req.planner_id.c_str());
+    }
   }
 
   if (pc == planner_configs_.end())
@@ -345,6 +506,28 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
     }
   }
 
+  // State space selection process
+  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  // There are 3 options for the factory_selector
+  // 1) enforce_constrained_state_space = true AND there are path constraints in the planning request
+  //         Overrides all other settings and selects a ConstrainedPlanningStateSpace factory
+  // 2) enforce_joint_model_state_space = true
+  //         If 1) is false, then this one overrides the remaining settings and returns a JointModelStateSpace factory
+  // 3) Not 1) or 2), then the factory is selected based on the priority that each one returns.
+  //         See PoseModelStateSpaceFactory::canRepresentProblem for details on the selection process.
+  //         In short, it returns a PoseModelStateSpace if there is an IK solver and a path constraint.
+  //
+  // enforce_constrained_state_space
+  // ****************************************
+  // Check if the user wants to use an OMPL ConstrainedStateSpace for planning.
+  // This is done by setting 'enforce_constrained_state_space' to 'true' for the desired group in ompl_planing.yaml.
+  // If there are no path constraints in the planning request, this option is ignored, as the constrained state space is
+  // only usefull for paths constraints. (And at the moment only a single position constraint is supported, hence:
+  //     req.path_constraints.position_constraints.size() == 1
+  // is used in the selection process below.)
+  //
+  // enforce_joint_model_state_space
+  // *******************************
   // Check if sampling in JointModelStateSpace is enforced for this group by user.
   // This is done by setting 'enforce_joint_model_state_space' to 'true' for the desired group in ompl_planning.yaml.
   //
@@ -353,13 +536,26 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
   // leading to invalid trajectories. This workaround lets the user prevent this problem by forcing rejection sampling
   // in JointModelStateSpace.
   StateSpaceFactoryTypeSelector factory_selector;
-  auto it = pc->second.config.find("enforce_joint_model_state_space");
+  auto constrained_planning_iterator = pc->second.config.find("enforce_constrained_state_space");
+  auto joint_space_planning_iterator = pc->second.config.find("enforce_joint_model_state_space");
 
-  if (it != pc->second.config.end() && boost::lexical_cast<bool>(it->second))
+  if (constrained_planning_iterator != pc->second.config.end() &&
+      boost::lexical_cast<bool>(constrained_planning_iterator->second) &&
+      req.path_constraints.position_constraints.size() == 1)
+  {
+    factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory1, this, std::placeholders::_1,
+                                 ConstrainedPlanningStateSpace::PARAMETERIZATION_TYPE);
+  }
+  else if (joint_space_planning_iterator != pc->second.config.end() &&
+           boost::lexical_cast<bool>(joint_space_planning_iterator->second))
+  {
     factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory1, this, std::placeholders::_1,
                                  JointModelStateSpace::PARAMETERIZATION_TYPE);
+  }
   else
+  {
     factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
+  }
 
   ModelBasedPlanningContextPtr context = getPlanningContext(pc->second, factory_selector, req);
 
@@ -367,7 +563,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
   {
     context->clear();
 
-    robot_state::RobotStatePtr start_state = planning_scene->getCurrentStateUpdated(req.start_state);
+    moveit::core::RobotStatePtr start_state = planning_scene->getCurrentStateUpdated(req.start_state);
 
     // Setup the context
     context->setPlanningScene(planning_scene);
@@ -376,10 +572,14 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
     context->setPlanningVolume(req.workspace_parameters);
     if (!context->setPathConstraints(req.path_constraints, &error_code))
+    {
       return ModelBasedPlanningContextPtr();
+    }
 
     if (!context->setGoalConstraints(req.goal_constraints, req.path_constraints, &error_code))
+    {
       return ModelBasedPlanningContextPtr();
+    }
 
     try
     {
@@ -396,3 +596,4 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
   return context;
 }
+}  // namespace ompl_interface

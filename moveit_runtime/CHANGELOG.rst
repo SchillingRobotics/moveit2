@@ -2,6 +2,43 @@
 Changelog for package moveit_runtime
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+
+2.2.0 (2021-06-30)
+------------------
+
+2.1.4 (2021-05-31)
+------------------
+
+2.1.3 (2021-05-22)
+------------------
+
+2.1.2 (2021-04-20)
+------------------
+
+2.1.1 (2021-04-12)
+------------------
+* Enable ament_lint tests (`#340 <https://github.com/ros-planning/moveit2/issues/340>`_)
+* Compile metapackages
+* Contributors: Henning Kayser, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+
+2.0.0 (2020-02-17)
+------------------
+
+1.1.1 (2020-10-13)
+------------------
+
+1.1.0 (2020-09-04)
+------------------
+* [feature] Use standard cmake text for metapackages (`#1620 <https://github.com/ros-planning/moveit/issues/1620>`_)
+* [feature] Use CMAKE_CXX_STANDARD to enforce c++14 for portability (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* [maint] Remove ! from MoveIt name (`#1590 <https://github.com/ros-planning/moveit/issues/1590>`_)
+* Contributors: Dave Coleman, Jonathan Binney, Robert Haschke, Sean Yen, Tyler Weaver
+
 1.0.1 (2019-03-08)
 ------------------
 

@@ -36,20 +36,22 @@
 
 #pragma once
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose.hpp>
 #include <moveit_msgs/msg/move_it_error_codes.hpp>
 #include <moveit/macros/class_forward.h>
 #include "rclcpp/rclcpp.hpp"
 #include <boost/function.hpp>
 #include <string>
 
+#include "moveit_kinematics_base_export.h"
+
 namespace moveit
 {
 namespace core
 {
-MOVEIT_CLASS_FORWARD(JointModelGroup)
-MOVEIT_CLASS_FORWARD(RobotState)
-MOVEIT_CLASS_FORWARD(RobotModel)
+MOVEIT_CLASS_FORWARD(JointModelGroup);
+MOVEIT_CLASS_FORWARD(RobotState);
+MOVEIT_CLASS_FORWARD(RobotModel);
 }  // namespace core
 }  // namespace moveit
 
@@ -74,8 +76,8 @@ enum DiscretizationMethod
   SOME_RANDOM_SAMPLED /**< the discretization for some redundant joint will be randomly generated.
                            The unused redundant joints will be fixed at their current value. */
 };
-}
-typedef DiscretizationMethods::DiscretizationMethod DiscretizationMethod;
+}  // namespace DiscretizationMethods
+using DiscretizationMethod = DiscretizationMethods::DiscretizationMethod;
 
 /*
  * @enum KinematicErrors
@@ -96,8 +98,8 @@ enum KinematicError
   NO_SOLUTION                          /**< A valid joint solution that can reach this pose(s) could not be found */
 
 };
-}
-typedef KinematicErrors::KinematicError KinematicError;
+}  // namespace KinematicErrors
+using KinematicError = KinematicErrors::KinematicError;
 
 /**
  * @struct KinematicsQueryOptions
@@ -134,13 +136,13 @@ struct KinematicsResult
                                        of solutions explored. */
 };
 
-MOVEIT_CLASS_FORWARD(KinematicsBase)
+MOVEIT_CLASS_FORWARD(KinematicsBase);  // Defines KinematicsBasePtr, ConstPtr, WeakPtr... etc
 
 /**
  * @class KinematicsBase
  * @brief Provides an interface for kinematics solvers.
  */
-class KinematicsBase
+class MOVEIT_KINEMATICS_BASE_EXPORT KinematicsBase
 {
 public:
   static const rclcpp::Logger LOGGER;
@@ -148,10 +150,8 @@ public:
   static const double DEFAULT_TIMEOUT;               /* = 1.0 */
 
   /** @brief Signature for a callback to validate an IK solution. Typically used for collision checking. */
-  /** @brief The signature for a callback that can compute IK */
-  typedef boost::function<void(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_solution,
-                               moveit_msgs::msg::MoveItErrorCodes& error_code)>
-      IKCallbackFn;
+  using IKCallbackFn = boost::function<void(const geometry_msgs::msg::Pose&, const std::vector<double>&,
+                                            moveit_msgs::msg::MoveItErrorCodes&)>;
 
   /**
    * @brief Given a desired pose of the end-effector, compute the joint angles to reach it
@@ -346,24 +346,6 @@ public:
                          double search_discretization);
 
   /**
-   * @brief  Initialization function for the kinematics, for use with non-chain IK solvers
-   * @param robot_description This parameter can be used as an identifier for the robot kinematics is computed for;
-   * For example, rhe name of the ROS parameter that contains the robot description;
-   * @param group_name The group for which this solver is being configured
-   * @param base_frame The base frame in which all input poses are expected.
-   * This may (or may not) be the root frame of the chain that the solver operates on
-   * @param tip_frames A vector of tips of the kinematic tree
-   * @param search_discretization The discretization of the search when the solver steps through the redundancy
-   * @return True if initialization was successful, false otherwise
-   *
-   * Instead of this method, use the method passing in a RobotModel!
-   * Default implementation calls initialize() for tip_frames[0] and reports an error if tip_frames.size() != 1.
-   */
-  virtual bool initialize(const std::string& robot_description, const std::string& group_name,
-                          const std::string& base_frame, const std::vector<std::string>& tip_frames,
-                          double search_discretization);
-
-  /**
    * @brief  Initialization function for the kinematics, for use with kinematic chain IK solvers
    * @param robot_model - allow the URDF to be loaded much quicker by passing in a pre-parsed model of the robot
    * @param group_name The group for which this solver is being configured
@@ -373,7 +355,6 @@ public:
    * @param search_discretization The discretization of the search when the solver steps through the redundancy
    * @return true if initialization was successful, false otherwise
    *
-   * When returning false, the KinematicsPlugingLoader will use the old method, passing a robot_description.
    * Default implementation returns false and issues a warning to implement this new API.
    * TODO: Make this method purely virtual after some soaking time, replacing the fallback.
    */
@@ -476,7 +457,7 @@ public:
    *          supported.
    * \return True if the group is supported, false if not.
    */
-  virtual bool supportsGroup(const moveit::core::JointModelGroup* jmg, std::string* error_text_out = NULL) const;
+  virtual bool supportsGroup(const moveit::core::JointModelGroup* jmg, std::string* error_text_out = nullptr) const;
 
   /**
    * @brief  Set the search discretization value for all the redundant joints
@@ -499,10 +480,10 @@ public:
   {
     redundant_joint_discretization_.clear();
     redundant_joint_indices_.clear();
-    for (std::map<int, double>::const_iterator i = discretization.begin(); i != discretization.end(); i++)
+    for (const auto& pair : discretization)
     {
-      redundant_joint_discretization_.insert(*i);
-      redundant_joint_indices_.push_back(i->first);
+      redundant_joint_discretization_.insert(pair);
+      redundant_joint_indices_.push_back(pair.first);
     }
   }
 

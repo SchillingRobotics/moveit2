@@ -12,7 +12,7 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 rosbuild_init()
 
 find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
+include_directories(SYSTEM ${EIGEN_INCLUDE_DIRS})
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -24,9 +24,9 @@ set(LIBRARY_NAME sbpl_planner_plugin)
 include(CMakeDetermineSystem)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   rosbuild_add_library_module(${LIBRARY_NAME} ${SOURCE_FILES})
-else(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+else()
   rosbuild_add_library(${LIBRARY_NAME} ${SOURCE_FILES})
-endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+endif()
 
 
 #uncomment if you have defined messages

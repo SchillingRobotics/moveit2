@@ -38,7 +38,7 @@
 
 // Qt
 class QPushButton;
-class QStackedLayout;
+class QStackedWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
 
@@ -61,11 +61,11 @@ class GroupEditWidget;
 // Custom Type
 enum GroupType
 {
-  JOINT,
-  LINK,
-  CHAIN,
-  SUBGROUP,
-  GROUP
+  JOINT = 1,
+  LINK = 2,
+  CHAIN = 3,
+  SUBGROUP = 4,
+  GROUP = 5
 };
 
 // ******************************************************************************************
@@ -128,14 +128,14 @@ private Q_SLOTS:
   void alterTree(const QString& link);
 
   /// Called from Double List widget to highlight a link
-  void previewSelectedLink(std::vector<std::string> links);
+  void previewSelectedLink(const std::vector<std::string>& links);
 
   /// Called from Double List widget to highlight a joint
   // void previewClickedJoint( std::string name );
-  void previewSelectedJoints(std::vector<std::string> joints);
+  void previewSelectedJoints(const std::vector<std::string>& joints);
 
   /// Called from Double List widget to highlight a subgroup
-  void previewSelectedSubgroup(std::vector<std::string> groups);
+  void previewSelectedSubgroup(const std::vector<std::string>& groups);
 
 private:
   // ******************************************************************************************
@@ -146,7 +146,7 @@ private:
   QTreeWidget* groups_tree_;
 
   /// For changing between table and different add/edit views
-  QStackedLayout* stacked_layout_;
+  QStackedWidget* stacked_widget_;
 
   /// Show and hide edit button
   QPushButton* btn_edit_;
@@ -172,8 +172,8 @@ private:
   /// Remember what group we are editing when an edit screen is being shown
   std::string current_edit_group_;
 
-  /// Remember what group element we are editing when an edit screen is being shown
-  GroupType current_edit_element_;
+  /// Remember to which editing screen we should return on Cancel
+  int return_screen_;
 
   /// Remember whethere we're editing a group or adding a new one
   bool adding_new_group_;
@@ -204,7 +204,7 @@ private:
   /// Switch to current groups view
   void showMainScreen();
 };
-}
+}  // namespace moveit_setup_assistant
 
 // ******************************************************************************************
 // ******************************************************************************************

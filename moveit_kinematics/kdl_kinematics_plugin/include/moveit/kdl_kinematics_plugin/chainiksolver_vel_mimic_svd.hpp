@@ -62,14 +62,7 @@ public:
                                     const std::vector<kdl_kinematics_plugin::JointMimic>& mimic_joints,
                                     bool position_ik = false, double threshold = 0.001);
 
-// TODO: simplify after kinetic support is dropped
-#define KDL_VERSION_LESS(a, b, c) ((KDL_VERSION) < ((a << 16) | (b << 8) | c))
-#if KDL_VERSION_LESS(1, 4, 0)
-  void updateInternalDataStructures();
-#else
-  void updateInternalDataStructures();
-#endif
-#undef KDL_VERSION_LESS
+  void updateInternalDataStructures() override;
 
   ~ChainIkSolverVelMimicSVD() override;
 
@@ -83,6 +76,7 @@ public:
    *
    * where W_q and W_x are joint- and Cartesian weights respectively.
    * A smaller joint weight (< 1.0) will reduce the contribution of this joint to the solution. */
+  // NOLINTNEXTLINE(readability-identifier-naming)
   int CartToJnt(const JntArray& q_in, const Twist& v_in, JntArray& qdot_out, const Eigen::VectorXd& joint_weights,
                 const Eigen::Matrix<double, 6, 1>& cartesian_weights);
 
@@ -114,4 +108,4 @@ private:
   Jacobian jac_;          // full Jacobian
   Jacobian jac_reduced_;  // reduced Jacobian with contributions of mimic joints mapped onto active DoFs
 };
-}
+}  // namespace KDL

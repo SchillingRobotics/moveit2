@@ -2,6 +2,60 @@
 Changelog for package moveit_plugins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+
+2.2.0 (2021-06-30)
+------------------
+
+2.1.4 (2021-05-31)
+------------------
+* Delete MoveIt fake_controller_manager (`#471 <https://github.com/ros-planning/moveit2/issues/471>`_)
+* Contributors: AndyZe
+
+2.1.3 (2021-05-22)
+------------------
+
+2.1.2 (2021-04-20)
+------------------
+
+2.1.1 (2021-04-12)
+------------------
+* Enable ament_lint tests (`#340 <https://github.com/ros-planning/moveit2/issues/340>`_)
+* Compile metapackages
+* Contributors: Henning Kayser, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+
+2.0.0 (2020-02-17)
+------------------
+
+1.1.1 (2020-10-13)
+------------------
+
+1.1.0 (2020-09-04)
+------------------
+* [feature] Use standard cmake text for metapackages (`#1620 <https://github.com/ros-planning/moveit/issues/1620>`_)
+* [feature] Use CMAKE_CXX_STANDARD to enforce c++14 for portability (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* [maint] Remove ! from MoveIt name (`#1590 <https://github.com/ros-planning/moveit/issues/1590>`_)
+* Contributors: Dave Coleman, Jonathan Binney, Robert Haschke, Sean Yen, Tyler Weaver
+
+1.0.6 (2020-08-19)
+------------------
+
+1.0.5 (2020-07-08)
+------------------
+
+1.0.4 (2020-05-30)
+------------------
+
+1.0.3 (2020-04-26)
+------------------
+
+1.0.2 (2019-06-28)
+------------------
+
 1.0.1 (2019-03-08)
 ------------------
 

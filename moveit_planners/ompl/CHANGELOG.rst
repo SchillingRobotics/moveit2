@@ -2,6 +2,57 @@
 Changelog for package moveit_planners_ompl
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+* Fix test dependencies (`#539 <https://github.com/ros-planning/moveit2/issues/539>`_)
+* Add persistent planner support back (`#537 <https://github.com/ros-planning/moveit2/issues/537>`_)
+* Contributors: Jochen Sprickerhof, Michael Görner
+
+2.2.0 (2021-06-30)
+------------------
+* Enable Rolling and Galactic CI (`#494 <https://github.com/ros-planning/moveit2/issues/494>`_)
+* Temporarily disable flaky OMPL test (`#495 <https://github.com/ros-planning/moveit2/issues/495>`_)
+* [sync] MoveIt's master branch up-to https://github.com/ros-planning/moveit/commit/0d0a6a171b3fbea97a0c4f284e13433ba66a4ea4
+  * CI: Use compiler flag --pedantic (`#2691 <https://github.com/ros-planning/moveit/issues/2691>`_)
+  * Replaced eigen+kdl conversions with tf2_eigen + tf2_kdl (`#2472 <https://github.com/ros-planning/moveit/issues/2472>`_)
+* Contributors: JafarAbdi, Michael Görner, Robert Haschke, Tyler Weaver, Vatan Aksoy Tezer, petkovich
+
+2.1.4 (2021-05-31)
+------------------
+
+2.1.3 (2021-05-22)
+------------------
+* Fix incomplete start states in OMPL ThreadSafeStateStorage (`#455 <https://github.com/ros-planning/moveit2/issues/455>`_)
+* ompl_interface: Fix loading group's specific parameters (`#461 <https://github.com/ros-planning/moveit2/issues/461>`_)
+* Contributors: Jafar Abdi, Pradeep Rajendran
+
+2.1.2 (2021-04-20)
+------------------
+
+2.1.1 (2021-04-12)
+------------------
+* Add differential drive joint model (`#390 <https://github.com/ros-planning/moveit2/issues/390>`_)
+* Fix EXPORT install in CMake (`#372 <https://github.com/ros-planning/moveit2/issues/372>`_)
+* OMPL constrained planning (`#347 <https://github.com/ros-planning/moveit2/issues/347>`_)
+  Co-authored-by: JeroenDM <jeroendemaeyer@live.be>
+* [fix] export cmake library install (`#339 <https://github.com/ros-planning/moveit2/issues/339>`_)
+* Fix repo URLs in package.xml files
+* Contributors: Boston Cleek, David V. Lu!!, Henning Kayser, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+* [fix] Rosdep dependencies for ros_testing, OpenMP (`#309 <https://github.com/ros-planning/moveit2/issues/309>`_)
+* [fix] OMPL parameter loading (`#178 <https://github.com/ros-planning/moveit2/issues/178>`_)
+* [maint] Wrap common cmake code in 'moveit_package()' macro (`#285 <https://github.com/ros-planning/moveit2/issues/285>`_)
+  * New moveit_package() macro for compile flags, Windows support etc
+  * Add package 'moveit_common' as build dependency for moveit_package()
+  * Added -Wno-overloaded-virtual compiler flag for moveit_ros_planners_ompl
+* [maint] Update to new moveit_resources layout (`#247 <https://github.com/ros-planning/moveit2/issues/247>`_)
+* [maint] Enable clang-tidy-fix and ament_lint_cmake (`#210 <https://github.com/ros-planning/moveit2/issues/210>`_)
+* [ros2-migration] Port move_group to ROS2 (`#217 <https://github.com/ros-planning/moveit2/issues/217>`_)
+  * switch OMPL to use pluginlib
+* Contributors: Edwin Fan, Henning Kayser, Jonathan Chapple, Lior Lustgarten
+
 2.0.0 (2020-02-17)
 ------------------
 * [fix] Fix OMPL logging macros
@@ -11,6 +62,43 @@ Changelog for package moveit_planners_ompl
 * [improve] Load OMPL planner config parameters
 * [sys] replace rosunit -> ament_cmake_gtest
 * Contributors: Henning Kayser
+
+1.1.1 (2020-10-13)
+------------------
+* [maint] Add comment to MOVEIT_CLASS_FORWARD (`#2315 <https://github.com/ros-planning/moveit/issues/2315>`_)
+* Contributors: Felix von Drigalski
+
+1.1.0 (2020-09-04)
+------------------
+
+1.0.6 (2020-08-19)
+------------------
+* [maint] Adapt repository for splitted moveit_resources layout (`#2199 <https://github.com/ros-planning/moveit/issues/2199>`_)
+* [maint] Migrate to clang-format-10
+* [maint] Optimize includes (`#2229 <https://github.com/ros-planning/moveit/issues/2229>`_)
+* [fix]   Fix memcpy bug in copyJointToOMPLState in ompl interface (`#2239 <https://github.com/ros-planning/moveit/issues/2239>`_)
+* Contributors: Jeroen, Markus Vieth, Robert Haschke, Michael Görner
+
+1.0.5 (2020-07-08)
+------------------
+* [feature] Added support for hybridize/interpolate flags in ModelBasedPlanningContext via ompl_planning.yaml (`#2171 <https://github.com/ros-planning/moveit/issues/2171>`_, `#2172 <https://github.com/ros-planning/moveit/issues/2172>`_)
+* Contributors: Constantinos, Mark Moll
+
+1.0.4 (2020-05-30)
+------------------
+
+1.0.3 (2020-04-26)
+------------------
+* [maint] Cleanup OMPL dynamic reconfigure config (`#1649 <https://github.com/ros-planning/moveit/issues/1649>`_)
+  * Reduce minimum number of waypoints in solution to 2
+* [maint] Apply clang-tidy fix to entire code base (`#1394 <https://github.com/ros-planning/moveit/issues/1394>`_)
+* [maint] Fix errors: catkin_lint 1.6.7 (`#1987 <https://github.com/ros-planning/moveit/issues/1987>`_)
+* [maint] Windows build: Fix binary artifact install locations. (`#1575 <https://github.com/ros-planning/moveit/issues/1575>`_)
+* [maint] Use CMAKE_CXX_STANDARD to enforce c++14 (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* Contributors: Michael Görner, Robert Haschke, Sean Yen, Yu, Yan
+
+1.0.2 (2019-06-28)
+------------------
 
 1.0.1 (2019-03-08)
 ------------------
@@ -89,7 +177,7 @@ Changelog for package moveit_planners_ompl
 
 0.9.5 (2017-03-08)
 ------------------
-* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_ 
+* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_
 * Contributors: Dave Coleman
 
 0.9.4 (2017-02-06)

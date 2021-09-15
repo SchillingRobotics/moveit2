@@ -58,7 +58,7 @@ planning_scene_monitor::TrajectoryMonitor::~TrajectoryMonitor()
 
 void planning_scene_monitor::TrajectoryMonitor::setSamplingFrequency(double sampling_frequency)
 {
-  if (sampling_frequency != sampling_frequency_)
+  if (sampling_frequency == sampling_frequency_)
     return;  // silently return if nothing changes
 
   if (sampling_frequency <= std::numeric_limits<double>::epsilon())
@@ -113,7 +113,7 @@ void planning_scene_monitor::TrajectoryMonitor::recordStates()
   while (record_states_thread_)
   {
     rate.sleep();
-    std::pair<robot_state::RobotStatePtr, rclcpp::Time> state = current_state_monitor_->getCurrentStateAndTime();
+    std::pair<moveit::core::RobotStatePtr, rclcpp::Time> state = current_state_monitor_->getCurrentStateAndTime();
     if (trajectory_.empty())
     {
       trajectory_.addSuffixWayPoint(state.first, 0.0);

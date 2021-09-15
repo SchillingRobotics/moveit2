@@ -40,11 +40,13 @@
 #include <boost/thread.hpp>
 #include <boost/function.hpp>
 
+#include "moveit_robot_interaction_export.h"
+
 namespace robot_interaction
 {
 // Maintains a set of KinematicOptions with a key/value mapping and a default
 // value.
-class KinematicOptionsMap
+class MOVEIT_ROBOT_INTERACTION_EXPORT KinematicOptionsMap
 {
 public:
   /// Constructor - set all options to reasonable default values.
@@ -63,8 +65,8 @@ public:
   /// @param tip link that will be posed
   /// @param pose desired pose of tip link
   /// @param result true if IK succeeded.
-  bool setStateFromIK(robot_state::RobotState& state, const std::string& key, const std::string& group,
-                      const std::string& tip, const geometry_msgs::Pose& pose) const;
+  bool setStateFromIK(moveit::core::RobotState& state, const std::string& key, const std::string& group,
+                      const std::string& tip, const geometry_msgs::msg::Pose& pose) const;
 
   /// Get the options to use for a particular key.
   /// To get the default values pass key = KinematicOptionsMap::DEFAULT
@@ -102,4 +104,4 @@ private:
   // PROTECTED BY lock_
   M_options options_;
 };
-}
+}  // namespace robot_interaction

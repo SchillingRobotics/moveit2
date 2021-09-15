@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2019, PickNik, Inc.
+ *  Copyright (c) 2019, PickNik Inc.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of PickNik nor the names of its
+ *   * Neither the name of PickNik Inc. nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -83,13 +83,13 @@ bool TrajOptInterface::solve(const planning_scene::PlanningSceneConstPtr& planni
 
   ROS_INFO(" ======================================= Extract current state information");
   ros::WallTime start_time = ros::WallTime::now();
-  robot_model::RobotModelConstPtr robot_model = planning_scene->getRobotModel();
+  moveit::core::RobotModelConstPtr robot_model = planning_scene->getRobotModel();
   bool robot_model_ok = static_cast<bool>(robot_model);
   if (!robot_model_ok)
     ROS_ERROR_STREAM_NAMED(name_, "robot model is not loaded properly");
-  robot_state::RobotStatePtr current_state(new robot_state::RobotState(robot_model));
+  moveit::core::RobotStatePtr current_state(new moveit::core::RobotState(robot_model));
   *current_state = planning_scene->getCurrentState();
-  const robot_state::JointModelGroup* joint_model_group = current_state->getJointModelGroup(req.group_name);
+  const moveit::core::JointModelGroup* joint_model_group = current_state->getJointModelGroup(req.group_name);
   if (joint_model_group == nullptr)
     ROS_ERROR_STREAM_NAMED(name_, "joint model group is empty");
   std::vector<std::string> group_joint_names = joint_model_group->getActiveJointModelNames();
@@ -303,7 +303,7 @@ bool TrajOptInterface::solve(const planning_scene::PlanningSceneConstPtr& planni
 
   ROS_INFO(" ======================================= check if final state is within goal tolerances");
   kinematic_constraints::JointConstraint joint_cnt(planning_scene->getRobotModel());
-  robot_state::RobotState last_state(*current_state);
+  moveit::core::RobotState last_state(*current_state);
   last_state.setJointGroupPositions(req.group_name, res.trajectory[0].joint_trajectory.points.back().positions);
 
   for (int jn = 0; jn < res.trajectory[0].joint_trajectory.points.back().positions.size(); ++jn)

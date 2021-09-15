@@ -34,6 +34,7 @@
 
 /* Author: Dave Coleman, Masaki Murooka */
 
+#include <moveit_msgs/srv/get_position_ik.hpp>
 #include <moveit/srv_kinematics_plugin/srv_kinematics_plugin.h>
 #include <class_loader/class_loader.hpp>
 #include <moveit/robot_state/conversions.h>
@@ -113,7 +114,7 @@ bool SrvKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const 
   lookupParam(node_, "kinematics_solver_service_name", ik_service_name, std::string("solve_ik"));
 
   // Setup the joint state groups that we need
-  robot_state_.reset(new robot_state::RobotState(robot_model_));
+  robot_state_.reset(new moveit::core::RobotState(robot_model_));
   robot_state_->setToDefaultValues();
 
   // Create the ROS2 service client
@@ -248,8 +249,8 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
   // Check if seed state correct
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR_STREAM(LOGGER, "Seed state must have size " << dimension_ << " instead of size "
-                                                             << ik_seed_state.size());
+    RCLCPP_ERROR_STREAM(LOGGER,
+                        "Seed state must have size " << dimension_ << " instead of size " << ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }
@@ -297,8 +298,8 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
 
   RCLCPP_DEBUG(LOGGER, "Calling service: %s", ik_service_client_->get_service_name());
   auto result_future = ik_service_client_->async_send_request(ik_srv);
-  auto response = result_future.get();
-  if (rclcpp::spin_until_future_complete(node_, result_future) == rclcpp::executor::FutureReturnCode::SUCCESS)
+  const auto& response = result_future.get();
+  if (rclcpp::spin_until_future_complete(node_, result_future) == rclcpp::FutureReturnCode::SUCCESS)
   {
     // Check error code
     error_code.val = response->error_code.val;
@@ -325,8 +326,7 @@ bool SrvKinematicsPlugin::searchPositionIK(const std::vector<geometry_msgs::msg:
   }
   else
   {
-    RCLCPP_DEBUG_STREAM(LOGGER,
-                        "Service call failed to connect to service: " << ik_service_client_->get_service_name());
+    RCLCPP_DEBUG_STREAM(LOGGER, "Service call failed to connect to service: " << ik_service_client_->get_service_name());
     error_code.val = error_code.FAILURE;
     return false;
   }

@@ -37,8 +37,10 @@
 #pragma once
 
 #include <QWidget>
-#include <QLabel>
-#include <QTableWidget>
+class QLabel;
+class QTableWidget;
+class QTableWidgetItem;
+class QItemSelection;
 
 #ifndef Q_MOC_RUN
 #include <moveit/setup_assistant/tools/moveit_config_data.h>
@@ -68,7 +70,7 @@ public:
   /// Set the right box
   void setSelected(const std::vector<std::string>& items);
 
-  void clearContents(void);
+  void clearContents();
 
   /// Convenience function for reusing set table code
   void setTable(const std::vector<std::string>& items, QTableWidget* table);

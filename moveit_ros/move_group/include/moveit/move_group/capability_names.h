@@ -49,7 +49,7 @@ static const std::string GET_PLANNER_PARAMS_SERVICE_NAME =
     "get_planner_params";  // service name to retrieve planner parameters
 static const std::string SET_PLANNER_PARAMS_SERVICE_NAME =
     "set_planner_params";                                 // service name to set planner parameters
-static const std::string MOVE_ACTION = "move_group";      // name of 'move' action
+static const std::string MOVE_ACTION = "move_action";     // name of 'move' action
 static const std::string IK_SERVICE_NAME = "compute_ik";  // name of ik service
 static const std::string FK_SERVICE_NAME = "compute_fk";  // name of fk service
 static const std::string STATE_VALIDITY_SERVICE_NAME =
@@ -62,4 +62,4 @@ static const std::string APPLY_PLANNING_SCENE_SERVICE_NAME =
     "apply_planning_scene";  // name of the service that applies a given planning scene
 static const std::string CLEAR_OCTOMAP_SERVICE_NAME =
     "clear_octomap";  // name of the service that can be used to clear the octomap
-}
+}  // namespace move_group

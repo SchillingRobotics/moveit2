@@ -74,7 +74,7 @@ bool PickPlan::plan(const planning_scene::PlanningSceneConstPtr& planning_scene,
   std::string end_effector = goal.end_effector;
   if (end_effector.empty() && !planning_group.empty())
   {
-    const robot_model::JointModelGroup* jmg = planning_scene->getRobotModel()->getJointModelGroup(planning_group);
+    const moveit::core::JointModelGroup* jmg = planning_scene->getRobotModel()->getJointModelGroup(planning_group);
     if (!jmg)
     {
       error_code_.val = moveit_msgs::msg::MoveItErrorCodes::INVALID_GROUP_NAME;
@@ -92,7 +92,7 @@ bool PickPlan::plan(const planning_scene::PlanningSceneConstPtr& planning_scene,
   }
   else if (!end_effector.empty() && planning_group.empty())
   {
-    const robot_model::JointModelGroup* jmg = planning_scene->getRobotModel()->getEndEffector(end_effector);
+    const moveit::core::JointModelGroup* jmg = planning_scene->getRobotModel()->getEndEffector(end_effector);
     if (!jmg)
     {
       error_code_.val = moveit_msgs::msg::MoveItErrorCodes::INVALID_GROUP_NAME;
@@ -110,7 +110,7 @@ bool PickPlan::plan(const planning_scene::PlanningSceneConstPtr& planning_scene,
       ROS_INFO_STREAM_NAMED("manipulation", "Assuming the planning group for end effector '" << end_effector << "' is '"
                                                                                              << planning_group << "'");
   }
-  const robot_model::JointModelGroup* eef =
+  const moveit::core::JointModelGroup* eef =
       end_effector.empty() ? nullptr : planning_scene->getRobotModel()->getEndEffector(end_effector);
   if (!eef)
   {
@@ -174,7 +174,8 @@ bool PickPlan::plan(const planning_scene::PlanningSceneConstPtr& planning_scene,
   for (std::size_t i = 0; i < goal.possible_grasps.size(); ++i)
     grasp_order[i] = i;
   OrderGraspQuality oq(goal.possible_grasps);
-  std::sort(grasp_order.begin(), grasp_order.end(), oq);
+  // using stable_sort to preserve order of grasps with equal quality
+  std::stable_sort(grasp_order.begin(), grasp_order.end(), oq);
 
   // feed the available grasps to the stages we set up
   for (std::size_t i = 0; i < goal.possible_grasps.size(); ++i)

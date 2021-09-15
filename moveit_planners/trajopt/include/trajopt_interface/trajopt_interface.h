@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2019, PickNik, LLC.
+ *  Copyright (c) 2019, PickNik Inc.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of PickNik nor the names of its
+ *   * Neither the name of PickNik Inc. nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -42,7 +42,7 @@
 
 namespace trajopt_interface
 {
-MOVEIT_CLASS_FORWARD(TrajOptInterface);
+MOVEIT_CLASS_FORWARD(TrajOptInterface);  // Defines TrajOptInterfacePtr, ConstPtr, WeakPtr... etc
 
 class TrajOptInterface
 {
@@ -74,4 +74,4 @@ protected:
 };
 
 void callBackFunc(sco::OptProb* opt_prob, sco::OptResults& opt_res);
-}
+}  // namespace trajopt_interface

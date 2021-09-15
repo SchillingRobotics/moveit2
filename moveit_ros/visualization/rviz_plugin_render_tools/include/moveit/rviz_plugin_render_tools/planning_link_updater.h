@@ -36,20 +36,16 @@
 
 #pragma once
 
-#include <moveit/macros/diagnostics.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 #include <rviz_default_plugins/robot/link_updater.hpp>
-DIAGNOSTIC_POP
 #include <moveit/robot_state/robot_state.h>
 
 namespace moveit_rviz_plugin
 {
-/** \brief Update the links of an rviz::Robot using a robot_state::RobotState */
+/** \brief Update the links of an rviz::Robot using a moveit::core::RobotState */
 class PlanningLinkUpdater : public rviz_default_plugins::robot::LinkUpdater
 {
 public:
-  PlanningLinkUpdater(const robot_state::RobotStateConstPtr& state) : kinematic_state_(state)
+  PlanningLinkUpdater(const moveit::core::RobotStateConstPtr& state) : kinematic_state_(state)
   {
   }
 
@@ -58,6 +54,6 @@ public:
                          Ogre::Quaternion& collision_orientation) const override;
 
 private:
-  robot_state::RobotStateConstPtr kinematic_state_;
+  moveit::core::RobotStateConstPtr kinematic_state_;
 };
-}
+}  // namespace moveit_rviz_plugin

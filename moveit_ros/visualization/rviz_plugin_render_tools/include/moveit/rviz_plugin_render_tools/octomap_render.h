@@ -38,20 +38,24 @@
 
 #include <memory>
 #include <vector>
-#include <moveit/macros/diagnostics.h>
 #include <octomap/octomap.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 #include <rviz_default_plugins/displays/pointcloud/point_cloud_helpers.hpp>
 #include <rviz_common/properties/color_property.hpp>
-DIAGNOSTIC_POP
+#include <moveit/rviz_plugin_render_tools/octomap_render.h>
+#include <OGRE/OgrePrerequisites.h>
+
+namespace octomap
+{
+class OcTree;
+}
 
 namespace moveit_rviz_plugin
 {
 enum OctreeVoxelRenderMode
 {
   OCTOMAP_FREE_VOXELS = 1,
-  OCTOMAP_OCCUPIED_VOXELS = 2
+  OCTOMAP_OCCUPIED_VOXELS = 2,
+  OCTOMAP_DISABLED = 3
 };
 
 enum OctreeVoxelColorMode
@@ -64,16 +68,14 @@ class OcTreeRender
 {
 public:
   OcTreeRender(const std::shared_ptr<const octomap::OcTree>& octree, OctreeVoxelRenderMode octree_voxel_rendering,
-               OctreeVoxelColorMode octree_color_mode, std::size_t max_octree_depth, Ogre::SceneManager* scene_manager,
-               Ogre::SceneNode* parent_node);
+               OctreeVoxelColorMode octree_color_mode, std::size_t max_octree_depth, Ogre::SceneNode* parent_node);
   virtual ~OcTreeRender();
 
   void setPosition(const Ogre::Vector3& position);
   void setOrientation(const Ogre::Quaternion& orientation);
 
 private:
-  void setColor(double z_pos, double min_z, double max_z, double color_factor,
-                rviz_rendering::PointCloud::Point* point);
+  void setColor(double z_pos, double min_z, double max_z, double color_factor, rviz_rendering::PointCloud::Point* point);
   void setProbColor(double prob, rviz_rendering::PointCloud::Point* point);
 
   void octreeDecoding(const std::shared_ptr<const octomap::OcTree>& octree,
@@ -84,9 +86,8 @@ private:
   std::shared_ptr<const octomap::OcTree> octree_;
 
   Ogre::SceneNode* scene_node_;
-  Ogre::SceneManager* scene_manager_;
 
   double colorFactor_;
   std::size_t octree_depth_;
 };
-}
+}  // namespace moveit_rviz_plugin

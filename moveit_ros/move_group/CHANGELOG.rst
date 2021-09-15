@@ -2,6 +2,99 @@
 Changelog for package moveit_ros_move_group
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+
+2.2.0 (2021-06-30)
+------------------
+* Fix deprecated planner namespace in MoveGroup (`#524 <https://github.com/ros-planning/moveit2/issues/524>`_)
+* [sync] MoveIt's master branch up-to https://github.com/ros-planning/moveit/commit/0d0a6a171b3fbea97a0c4f284e13433ba66a4ea4
+  * Support multiple planning pipelines with MoveGroup via MoveItCpp (`#2127 <https://github.com/ros-planning/moveit/issues/2127>`_)
+  * Fix missing isEmpty check in compute_ik service (`#2544 <https://github.com/ros-planning/moveit/issues/2544>`_)
+* Contributors: Henning Kayser, Jafar Abdi, JafarAbdi, Michael Görner, Robert Haschke, Tyler Weaver
+
+2.1.4 (2021-05-31)
+------------------
+
+2.1.3 (2021-05-22)
+------------------
+
+2.1.2 (2021-04-20)
+------------------
+
+2.1.1 (2021-04-12)
+------------------
+* Fix EXPORT install in CMake (`#372 <https://github.com/ros-planning/moveit2/issues/372>`_)
+* TfPublisher: tf frame name can't start with '/'
+* [fix] Export libs for MoveGroup capabilities and MoveItSimpleControllerManager (`#344 <https://github.com/ros-planning/moveit2/issues/344>`_)
+* Fix repo URLs in package.xml files
+* Contributors: Boston Cleek, Henning Kayser, Jafar Abdi, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+* [fix] Interactive markers not visible in motion planning plugin (`#299 <https://github.com/ros-planning/moveit2/issues/299>`_)
+* [fix] Rosdep dependencies ros_testing, OpenMP (`#309 <https://github.com/ros-planning/moveit2/issues/309>`_)
+* [maint] Remove deprecated namespaces robot_model, robot_state  (`#276 <https://github.com/ros-planning/moveit2/issues/276>`_)
+* [maint] Wrap common cmake code in 'moveit_package()' macro (`#285 <https://github.com/ros-planning/moveit2/issues/285>`_)
+  * New moveit_package() macro for compile flags, Windows support etc
+  * Add package 'moveit_common' as build dependency for moveit_package()
+  * Added -Wno-overloaded-virtual compiler flag for moveit_ros_planners_ompl
+* [maint] Compilation fixes for macOS (`#271 <https://github.com/ros-planning/moveit2/issues/271>`_)
+* [ros2-migration] Enable warehouse in moveit_ros_benchmarks (`#301 <https://github.com/ros-planning/moveit2/issues/301>`_)
+* [ros2-migration] Port moveit_ros_warehouse to ROS 2 (`#273 <https://github.com/ros-planning/moveit2/issues/273>`_)
+* [ros2-migration] Port moveit_ros_benchmarks to ROS 2 (`#225 <https://github.com/ros-planning/moveit2/issues/225>`_)
+* [ros2-migration] Port moveit_group to ROS 2 (`#217 <https://github.com/ros-planning/moveit2/issues/217>`_)
+* Contributors: Abdullah Alzaidy, Edwin Fan, Henning Kayser, Jafar Abdi, Lior Lustgarten, Yu Yan
+
+1.1.1 (2020-10-13)
+------------------
+* [fix] Let the max number of contacts be the amount of world objects + link models with geometry (`#2355 <https://github.com/ros-planning/moveit/issues/2355>`_)
+* [maint] Add comment to MOVEIT_CLASS_FORWARD (`#2315 <https://github.com/ros-planning/moveit/issues/2315>`_)
+* Contributors: Felix von Drigalski, Loy van Beek, Michael Görner, v4hn
+
+1.1.0 (2020-09-04)
+------------------
+* [feature] Start new joint_state_publisher_gui on param use_gui (`#2257 <https://github.com/ros-planning/moveit/issues/2257>`_)
+* [feature] TfPublisher: fixup and add attached collsion objects (`#1792 <https://github.com/ros-planning/moveit/issues/1792>`_)
+* [feature] move_group capability for publishing planning scene frames to the tf system (`#1761 <https://github.com/ros-planning/moveit/issues/1761>`_)
+* [feature] get_planning_scene_service: return full scene when nothing was requested (`#1424 <https://github.com/ros-planning/moveit/issues/1424>`_)
+* [feature] Separate source file for CartesianInterpolator (`#1149 <https://github.com/ros-planning/moveit/issues/1149>`_)
+* [fix]   Various fixes for upcoming Noetic release (`#2180 <https://github.com/ros-planning/moveit/issues/2180>`_)
+* [fix]   Fix TfPublisher subframe publishing (`#2002 <https://github.com/ros-planning/moveit/issues/2002>`_)
+* [maint] Fix compiler warnings (`#1773 <https://github.com/ros-planning/moveit/issues/1773>`_)
+* [maint] clang-tidy fixes (`#2050 <https://github.com/ros-planning/moveit/issues/2050>`_) (`#2004 <https://github.com/ros-planning/moveit/issues/2004>`_, `#1419 <https://github.com/ros-planning/moveit/issues/1419>`_)
+* [maint] Optional cpp version setting (`#2166 <https://github.com/ros-planning/moveit/issues/2166>`_)
+* [maint] Replace namespaces robot_state and robot_model with moveit::core (`#1924 <https://github.com/ros-planning/moveit/issues/1924>`_)
+* [maint] Move isEmpty() test functions to moveit_core/utils (`#1627 <https://github.com/ros-planning/moveit/issues/1627>`_)
+* [maint] Switch from include guards to pragma once (`#1615 <https://github.com/ros-planning/moveit/issues/1615>`_)
+* [maint] Remove ! from MoveIt name (`#1590 <https://github.com/ros-planning/moveit/issues/1590>`_)
+* Contributors: Dave Coleman, Mike Lautman, Robert Haschke, Felix von Drigalski, Jens P, Jonathan Binney, JonasTietz, Michael Görner, Tyler Weaver, Yoan Mollard, Yu, Yan, v4hn
+
+1.0.6 (2020-08-19)
+------------------
+* [maint] Adapt repository for splitted moveit_resources layout (`#2199 <https://github.com/ros-planning/moveit/issues/2199>`_)
+* [maint] Migrate to clang-format-10
+* Contributors: Robert Haschke, Michael Görner
+
+1.0.5 (2020-07-08)
+------------------
+
+1.0.4 (2020-05-30)
+------------------
+
+1.0.3 (2020-04-26)
+------------------
+* [maint] Move `get_planning_scene` service into `PlanningSceneMonitor` for reusability (`#1854 <https://github.com/ros-planning/moveit/issues/1854>`_)
+* [maint] Cleanup move_group capabilities (`#1515 <https://github.com/ros-planning/moveit/issues/1515>`_)
+* [maint] Apply clang-tidy fix to entire code base (`#1394 <https://github.com/ros-planning/moveit/issues/1394>`_)
+* [maint] Fix errors: catkin_lint 1.6.7 (`#1987 <https://github.com/ros-planning/moveit/issues/1987>`_)
+* [maint] Windows build: Fix binary artifact install locations. (`#1575 <https://github.com/ros-planning/moveit/issues/1575>`_)
+* [maint] Use CMAKE_CXX_STANDARD to enforce c++14 (`#1607 <https://github.com/ros-planning/moveit/issues/1607>`_)
+* Contributors: Robert Haschke, Sean Yen, Yu, Yan
+
+1.0.2 (2019-06-28)
+------------------
+
 1.0.1 (2019-03-08)
 ------------------
 * [improve] Apply clang tidy fix to entire code base (Part 1) (`#1366 <https://github.com/ros-planning/moveit/issues/1366>`_)
@@ -66,7 +159,7 @@ Changelog for package moveit_ros_move_group
 
 0.9.5 (2017-03-08)
 ------------------
-* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_ 
+* [fix][moveit_ros_warehouse] gcc6 build error `#423 <https://github.com/ros-planning/moveit/pull/423>`_
 * [enhancement] Remove "catch (...)" instances, catch std::exception instead of std::runtime_error (`#445 <https://github.com/ros-planning/moveit/issues/445>`_)
 * Contributors: Bence Magyar, Dave Coleman
 

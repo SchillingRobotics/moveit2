@@ -38,23 +38,27 @@
 
 #include <moveit/macros/class_forward.h>
 #include <moveit/occupancy_map_monitor/occupancy_map.h>
+
 #include <geometric_shapes/shapes.h>
+#include <rclcpp/rclcpp.hpp>
+
+#include <boost/function.hpp>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <map>
+#include <string>
+
 namespace occupancy_map_monitor
 {
-typedef unsigned int ShapeHandle;
-typedef std::map<ShapeHandle, Eigen::Isometry3d, std::less<ShapeHandle>,
-                 Eigen::aligned_allocator<std::pair<const ShapeHandle, Eigen::Isometry3d> > >
-    ShapeTransformCache;
-typedef boost::function<bool(const std::string& target_frame, const rclcpp::Time& target_time,
-                             ShapeTransformCache& cache)>
-    TransformCacheProvider;
+using ShapeHandle = unsigned int;
+using ShapeTransformCache = std::map<ShapeHandle, Eigen::Isometry3d, std::less<ShapeHandle>,
+                                     Eigen::aligned_allocator<std::pair<const ShapeHandle, Eigen::Isometry3d> > >;
+using TransformCacheProvider = boost::function<bool(const std::string&, const rclcpp::Time&, ShapeTransformCache&)>;
 
 class OccupancyMapMonitor;
 
-MOVEIT_CLASS_FORWARD(OccupancyMapUpdater)
+MOVEIT_CLASS_FORWARD(OccupancyMapUpdater);  // Defines OccupancyMapUpdaterPtr, ConstPtr, WeakPtr... etc
 
 /** \brief Base class for classes which update the occupancy map.
  */
@@ -69,12 +73,11 @@ public:
 
   /** @brief Set updater params using struct that comes from parsing a yaml string. This must be called after
    * setMonitor() */
-  // TODO rework this function
-  // virtual bool setParams(XmlRpc::XmlRpcValue& params) = 0;
+  virtual bool setParams(const std::string& name_space) = 0;
 
   /** @brief Do any necessary setup (subscribe to ros topics, etc.). This call assumes setMonitor() and setParams() have
    * been previously called. */
-  virtual bool initialize() = 0;
+  virtual bool initialize(const rclcpp::Node::SharedPtr& node) = 0;
 
   virtual void start() = 0;
 
@@ -113,4 +116,4 @@ protected:
   // static void readXmlParam(XmlRpc::XmlRpcValue& params, const std::string& param_name, double* value);
   // static void readXmlParam(XmlRpc::XmlRpcValue& params, const std::string& param_name, unsigned int* value);
 };
-}
+}  // namespace occupancy_map_monitor

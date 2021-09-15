@@ -39,7 +39,6 @@
 #include <vector>
 #include <iterator>
 #include <ros/ros.h>
-#include <angles/angles.h>
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 
@@ -202,4 +201,4 @@ public:
 
   std::vector<std::string> motion_primitive_type_names_;
 };
-}
+}  // namespace sbpl_interface

@@ -37,9 +37,6 @@
 
 #pragma once
 
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-#include <moveit_msgs/msg/joint_limits.hpp>
-#include <moveit_msgs/msg/robot_state.hpp>
 #include <moveit/robot_trajectory/robot_trajectory.h>
 #include "rclcpp/rclcpp.hpp"
 
@@ -75,7 +72,7 @@ class IterativeSplineParameterization
 {
 public:
   IterativeSplineParameterization(bool add_points = true);
-  ~IterativeSplineParameterization();
+  ~IterativeSplineParameterization() = default;
 
   bool computeTimeStamps(robot_trajectory::RobotTrajectory& trajectory, const double max_velocity_scaling_factor = 1.0,
                          const double max_acceleration_scaling_factor = 1.0) const;
@@ -84,4 +81,4 @@ private:
   bool add_points_;  /// @brief If true, add two points to trajectory (first and last segments).
                      /// If false, move the 2nd and 2nd-last points.
 };
-}
+}  // namespace trajectory_processing

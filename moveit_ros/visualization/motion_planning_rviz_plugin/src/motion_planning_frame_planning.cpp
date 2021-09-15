@@ -41,17 +41,24 @@
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/robot_state/conversions.h>
 
-#include <std_srvs/Empty.h>
+#include <std_srvs/srv/empty.hpp>
 #include <moveit_msgs/msg/robot_state.hpp>
+#if __has_include(<tf2_eigen/tf2_eigen.hpp>)
+#include <tf2_eigen/tf2_eigen.hpp>
+#else
 #include <tf2_eigen/tf2_eigen.h>
+#endif
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
 #include "ui_motion_planning_rviz_plugin_frame.h"
 
 namespace moveit_rviz_plugin
 {
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros_visualization.motion_planning_frame_planning");
+
 void MotionPlanningFrame::planButtonClicked()
 {
+  publishSceneIfNeeded();
   planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::computePlanButtonClicked, this),
                                       "compute plan");
 }
@@ -65,6 +72,7 @@ void MotionPlanningFrame::executeButtonClicked()
 
 void MotionPlanningFrame::planAndExecuteButtonClicked()
 {
+  publishSceneIfNeeded();
   ui_->plan_and_execute_button->setEnabled(false);
   ui_->execute_button->setEnabled(false);
   // execution is done in a separate thread, to not block other background jobs by blocking for synchronous execution
@@ -97,7 +105,7 @@ void MotionPlanningFrame::pathConstraintsIndexChanged(int index)
     {
       std::string c = ui_->path_constraints_combo_box->itemText(index).toStdString();
       if (!move_group_->setPathConstraints(c))
-        ROS_WARN_STREAM("Unable to set the path constraints: " << c);
+        RCLCPP_WARN_STREAM(LOGGER, "Unable to set the path constraints: " << c);
     }
     else
       move_group_->clearPathConstraints();
@@ -106,21 +114,27 @@ void MotionPlanningFrame::pathConstraintsIndexChanged(int index)
 
 void MotionPlanningFrame::onClearOctomapClicked()
 {
-  std_srvs::Empty srv;
-  clear_octomap_service_client_.call(srv);
+  auto req = std::make_shared<std_srvs::srv::Empty::Request>();
+  auto result = clear_octomap_service_client_->async_send_request(req);
+
+  if (result.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+  {
+    RCLCPP_ERROR(LOGGER, "Failed to call clear_octomap_service");
+  }
+  ui_->clear_octomap_button->setEnabled(false);
 }
 
 bool MotionPlanningFrame::computeCartesianPlan()
 {
-  ros::WallTime start = ros::WallTime::now();
+  rclcpp::Time start = rclcpp::Clock().now();
   // get goal pose
-  robot_state::RobotState goal = *planning_display_->getQueryGoalState();
-  std::vector<geometry_msgs::Pose> waypoints;
+  moveit::core::RobotState goal = *planning_display_->getQueryGoalState();
+  std::vector<geometry_msgs::msg::Pose> waypoints;
   const std::string& link_name = move_group_->getEndEffectorLink();
-  const robot_model::LinkModel* link = move_group_->getRobotModel()->getLinkModel(link_name);
+  const moveit::core::LinkModel* link = move_group_->getRobotModel()->getLinkModel(link_name);
   if (!link)
   {
-    ROS_ERROR_STREAM("Failed to determine unique end-effector link: " << link_name);
+    RCLCPP_ERROR_STREAM(LOGGER, "Failed to determine unique end-effector link: " << link_name);
     return false;
   }
   waypoints.push_back(tf2::toMsg(goal.getGlobalLinkTransform(link)));
@@ -137,7 +151,7 @@ bool MotionPlanningFrame::computeCartesianPlan()
 
   if (fraction >= 1.0)
   {
-    ROS_INFO("Achieved %f %% of Cartesian path", fraction * 100.);
+    RCLCPP_INFO(LOGGER, "Achieved %f %% of Cartesian path", fraction * 100.);
 
     // Compute time parameterization to also provide velocities
     // https://groups.google.com/forum/#!topic/moveit-users/MOoFxy2exT4
@@ -146,12 +160,12 @@ bool MotionPlanningFrame::computeCartesianPlan()
     trajectory_processing::IterativeParabolicTimeParameterization iptp;
     bool success =
         iptp.computeTimeStamps(rt, ui_->velocity_scaling_factor->value(), ui_->acceleration_scaling_factor->value());
-    ROS_INFO("Computing time stamps %s", success ? "SUCCEDED" : "FAILED");
+    RCLCPP_INFO(LOGGER, "Computing time stamps %s", success ? "SUCCEDED" : "FAILED");
 
     // Store trajectory in current_plan_
     current_plan_.reset(new moveit::planning_interface::MoveGroupInterface::Plan());
     rt.getRobotTrajectoryMsg(current_plan_->trajectory_);
-    current_plan_->planning_time_ = (ros::WallTime::now() - start).toSec();
+    current_plan_->planning_time_ = (rclcpp::Clock().now() - start).seconds();
     return success;
   }
   return false;
@@ -172,9 +186,6 @@ void MotionPlanningFrame::computePlanButtonClicked()
   ui_->result_label->setText("Planning...");
 
   configureForPlanning();
-  // move_group node uses an empty start state to refer to the most recent current state
-  if (ui_->start_state_combo_box->currentText() == "<current>")
-    move_group_->setStartStateToCurrentState();
   planning_display_->rememberPreviousStartState();
   bool success = (ui_->use_cartesian_path->isEnabled() && ui_->use_cartesian_path->checkState()) ?
                      computeCartesianPlan() :
@@ -254,17 +265,29 @@ void MotionPlanningFrame::onFinishedExecution(bool success)
     goalStateTextChanged(ui_->goal_state_combo_box->currentText());
 }
 
+void MotionPlanningFrame::onNewPlanningSceneState()
+{
+  moveit::core::RobotState current(planning_display_->getPlanningSceneRO()->getCurrentState());
+  if (ui_->start_state_combo_box->currentText() == "<current>")
+  {
+    planning_display_->setQueryStartState(current);
+    planning_display_->rememberPreviousStartState();
+  }
+  if (ui_->goal_state_combo_box->currentText() == "<current>")
+    planning_display_->setQueryGoalState(current);
+}
+
 void MotionPlanningFrame::startStateTextChanged(const QString& start_state)
 {
   // use background job: fetching the current state might take up to a second
-  planning_display_->addBackgroundJob(
-      boost::bind(&MotionPlanningFrame::startStateTextChangedExec, this, start_state.toStdString()),
-      "update start state");
+  planning_display_->addBackgroundJob(boost::bind(&MotionPlanningFrame::startStateTextChangedExec, this,
+                                                  start_state.toStdString()),
+                                      "update start state");
 }
 
 void MotionPlanningFrame::startStateTextChangedExec(const std::string& start_state)
 {
-  robot_state::RobotState start = *planning_display_->getQueryStartState();
+  moveit::core::RobotState start = *planning_display_->getQueryStartState();
   updateQueryStateHelper(start, start_state);
   planning_display_->setQueryStartState(start);
 }
@@ -278,7 +301,7 @@ void MotionPlanningFrame::goalStateTextChanged(const QString& goal_state)
 
 void MotionPlanningFrame::goalStateTextChangedExec(const std::string& goal_state)
 {
-  robot_state::RobotState goal = *planning_display_->getQueryGoalState();
+  moveit::core::RobotState goal = *planning_display_->getQueryGoalState();
   updateQueryStateHelper(goal, goal_state);
   planning_display_->setQueryGoalState(goal);
 }
@@ -288,12 +311,12 @@ void MotionPlanningFrame::planningGroupTextChanged(const QString& planning_group
   planning_display_->changePlanningGroup(planning_group.toStdString());
 }
 
-void MotionPlanningFrame::updateQueryStateHelper(robot_state::RobotState& state, const std::string& v)
+void MotionPlanningFrame::updateQueryStateHelper(moveit::core::RobotState& state, const std::string& v)
 {
   if (v == "<random>")
   {
     configureWorkspace();
-    if (const robot_model::JointModelGroup* jmg =
+    if (const moveit::core::JointModelGroup* jmg =
             state.getJointModelGroup(planning_display_->getCurrentPlanningGroup()))
       state.setToRandomPositions(jmg);
     return;
@@ -303,7 +326,7 @@ void MotionPlanningFrame::updateQueryStateHelper(robot_state::RobotState& state,
   {
     configureWorkspace();
 
-    if (const robot_model::JointModelGroup* jmg =
+    if (const moveit::core::JointModelGroup* jmg =
             state.getJointModelGroup(planning_display_->getCurrentPlanningGroup()))
     {
       // Loop until a collision free state is found
@@ -324,18 +347,19 @@ void MotionPlanningFrame::updateQueryStateHelper(robot_state::RobotState& state,
       }
       // Explain if no valid rand state found
       if (attempt_count >= MAX_ATTEMPTS)
-        ROS_WARN("Unable to find a random collision free configuration after %d attempts", MAX_ATTEMPTS);
+        RCLCPP_WARN(LOGGER, "Unable to find a random collision free configuration after %d attempts", MAX_ATTEMPTS);
     }
     else
     {
-      ROS_WARN_STREAM("Unable to get joint model group " << planning_display_->getCurrentPlanningGroup());
+      RCLCPP_WARN_STREAM(LOGGER, "Unable to get joint model group " << planning_display_->getCurrentPlanningGroup());
     }
     return;
   }
 
   if (v == "<current>")
   {
-    planning_display_->waitForCurrentRobotState();
+    rclcpp::Time t = node_->now();
+    planning_display_->waitForCurrentRobotState(t);
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
       state = ps->getCurrentState();
@@ -361,13 +385,41 @@ void MotionPlanningFrame::updateQueryStateHelper(robot_state::RobotState& state,
   }
 
   // maybe it is a named state
-  if (const robot_model::JointModelGroup* jmg = state.getJointModelGroup(planning_display_->getCurrentPlanningGroup()))
+  if (const moveit::core::JointModelGroup* jmg = state.getJointModelGroup(planning_display_->getCurrentPlanningGroup()))
     state.setToDefaultValues(jmg, v);
 }
 
-void MotionPlanningFrame::populatePlannersList(const moveit_msgs::msg::PlannerInterfaceDescription& desc)
+void MotionPlanningFrame::populatePlannersList(const std::vector<moveit_msgs::msg::PlannerInterfaceDescription>& desc)
+{
+  ui_->planning_pipeline_combo_box->clear();
+
+  planner_descriptions_ = desc;
+  size_t default_planner_index = 0;
+  for (auto& d : planner_descriptions_)
+  {
+    QString item_text(d.pipeline_id.c_str());
+    // Check for default planning pipeline
+    if (d.pipeline_id == default_planning_pipeline_)
+    {
+      if (item_text.isEmpty())
+        item_text = QString::fromStdString(d.name);
+      default_planner_index = ui_->planning_pipeline_combo_box->count();
+    }
+    ui_->planning_pipeline_combo_box->addItem(item_text);
+  }
+  QFont font;
+  font.setBold(true);
+  ui_->planning_pipeline_combo_box->setItemData(default_planner_index, font, Qt::FontRole);
+
+  // Select default pipeline - triggers populatePlannerDescription() via callback
+  if (!planner_descriptions_.empty())
+    ui_->planning_pipeline_combo_box->setCurrentIndex(default_planner_index);
+}
+
+void MotionPlanningFrame::populatePlannerDescription(const moveit_msgs::msg::PlannerInterfaceDescription& desc)
 {
   std::string group = planning_display_->getCurrentPlanningGroup();
+  RCLCPP_INFO(LOGGER, "POPULATING PLANNERS %zu grp: %s", desc.planner_ids.size(), group.c_str());
   ui_->planning_algorithm_combo_box->clear();
 
   // set the label for the planning library
@@ -379,6 +431,8 @@ void MotionPlanningFrame::populatePlannersList(const moveit_msgs::msg::PlannerIn
   if (!group.empty())
   {
     for (const std::string& planner_id : desc.planner_ids)
+    {
+      RCLCPP_INFO(LOGGER, "planner id: %s", planner_id.c_str());
       if (planner_id == group)
         found_group = true;
       else if (planner_id.substr(0, group.length()) == group)
@@ -393,10 +447,12 @@ void MotionPlanningFrame::populatePlannersList(const moveit_msgs::msg::PlannerIn
           }
         }
       }
+    }
   }
   if (ui_->planning_algorithm_combo_box->count() == 0 && !found_group)
     for (const std::string& planner_id : desc.planner_ids)
       ui_->planning_algorithm_combo_box->addItem(QString::fromStdString(planner_id));
+
   ui_->planning_algorithm_combo_box->insertItem(0, "<unspecified>");
 
   // retrieve default planner config from parameter server
@@ -405,6 +461,10 @@ void MotionPlanningFrame::populatePlannersList(const moveit_msgs::msg::PlannerIn
   if (default_index < 0)
     default_index = 0;  // 0 is <unspecified> fallback
   ui_->planning_algorithm_combo_box->setCurrentIndex(default_index);
+
+  QFont font;
+  font.setBold(true);
+  ui_->planning_algorithm_combo_box->setItemData(default_index, font, Qt::FontRole);
 }
 
 void MotionPlanningFrame::populateConstraintsList()
@@ -429,15 +489,15 @@ void MotionPlanningFrame::constructPlanningRequest(moveit_msgs::msg::MotionPlanR
   mreq.allowed_planning_time = ui_->planning_time->value();
   mreq.max_velocity_scaling_factor = ui_->velocity_scaling_factor->value();
   mreq.max_acceleration_scaling_factor = ui_->acceleration_scaling_factor->value();
-  robot_state::robotStateToRobotStateMsg(*planning_display_->getQueryStartState(), mreq.start_state);
+  moveit::core::robotStateToRobotStateMsg(*planning_display_->getQueryStartState(), mreq.start_state);
   mreq.workspace_parameters.min_corner.x = ui_->wcenter_x->value() - ui_->wsize_x->value() / 2.0;
   mreq.workspace_parameters.min_corner.y = ui_->wcenter_y->value() - ui_->wsize_y->value() / 2.0;
   mreq.workspace_parameters.min_corner.z = ui_->wcenter_z->value() - ui_->wsize_z->value() / 2.0;
   mreq.workspace_parameters.max_corner.x = ui_->wcenter_x->value() + ui_->wsize_x->value() / 2.0;
   mreq.workspace_parameters.max_corner.y = ui_->wcenter_y->value() + ui_->wsize_y->value() / 2.0;
   mreq.workspace_parameters.max_corner.z = ui_->wcenter_z->value() + ui_->wsize_z->value() / 2.0;
-  robot_state::RobotStateConstPtr s = planning_display_->getQueryGoalState();
-  const robot_state::JointModelGroup* jmg = s->getJointModelGroup(mreq.group_name);
+  moveit::core::RobotStateConstPtr s = planning_display_->getQueryGoalState();
+  const moveit::core::JointModelGroup* jmg = s->getJointModelGroup(mreq.group_name);
   if (jmg)
   {
     mreq.goal_constraints.resize(1);
@@ -447,10 +507,10 @@ void MotionPlanningFrame::constructPlanningRequest(moveit_msgs::msg::MotionPlanR
 
 void MotionPlanningFrame::configureWorkspace()
 {
-  robot_model::VariableBounds bx, by, bz;
+  moveit::core::VariableBounds bx, by, bz;
   bx.position_bounded_ = by.position_bounded_ = bz.position_bounded_ = true;
 
-  robot_model::JointModel::Bounds b(3);
+  moveit::core::JointModel::Bounds b(3);
   bx.min_position_ = ui_->wcenter_x->value() - ui_->wsize_x->value() / 2.0;
   bx.max_position_ = ui_->wcenter_x->value() + ui_->wsize_x->value() / 2.0;
   by.min_position_ = ui_->wcenter_y->value() - ui_->wsize_y->value() / 2.0;
@@ -465,15 +525,15 @@ void MotionPlanningFrame::configureWorkspace()
   // get non-const access to the robot_model and update planar & floating joints as indicated by the workspace settings
   if (psm && psm->getRobotModelLoader() && psm->getRobotModelLoader()->getModel())
   {
-    const robot_model::RobotModelPtr& robot_model = psm->getRobotModelLoader()->getModel();
-    const std::vector<robot_model::JointModel*>& jm = robot_model->getJointModels();
+    const moveit::core::RobotModelPtr& robot_model = psm->getRobotModelLoader()->getModel();
+    const std::vector<moveit::core::JointModel*>& jm = robot_model->getJointModels();
     for (moveit::core::JointModel* joint : jm)
-      if (joint->getType() == robot_model::JointModel::PLANAR)
+      if (joint->getType() == moveit::core::JointModel::PLANAR)
       {
         joint->setVariableBounds(joint->getName() + "/" + joint->getLocalVariableNames()[0], bx);
         joint->setVariableBounds(joint->getName() + "/" + joint->getLocalVariableNames()[1], by);
       }
-      else if (joint->getType() == robot_model::JointModel::FLOATING)
+      else if (joint->getType() == moveit::core::JointModel::FLOATING)
       {
         joint->setVariableBounds(joint->getName() + "/" + joint->getLocalVariableNames()[0], bx);
         joint->setVariableBounds(joint->getName() + "/" + joint->getLocalVariableNames()[1], by);
@@ -495,22 +555,22 @@ void MotionPlanningFrame::configureForPlanning()
     planning_display_->dropVisualizedTrajectory();
 }
 
-void MotionPlanningFrame::remotePlanCallback(const std_msgs::EmptyConstPtr& /*msg*/)
+void MotionPlanningFrame::remotePlanCallback(const std_msgs::msg::Empty::ConstSharedPtr /*msg*/)
 {
   planButtonClicked();
 }
 
-void MotionPlanningFrame::remoteExecuteCallback(const std_msgs::EmptyConstPtr& /*msg*/)
+void MotionPlanningFrame::remoteExecuteCallback(const std_msgs::msg::Empty::ConstSharedPtr /*msg*/)
 {
   executeButtonClicked();
 }
 
-void MotionPlanningFrame::remoteStopCallback(const std_msgs::EmptyConstPtr& /*msg*/)
+void MotionPlanningFrame::remoteStopCallback(const std_msgs::msg::Empty::ConstSharedPtr /*msg*/)
 {
   stopButtonClicked();
 }
 
-void MotionPlanningFrame::remoteUpdateStartStateCallback(const std_msgs::EmptyConstPtr& /*msg*/)
+void MotionPlanningFrame::remoteUpdateStartStateCallback(const std_msgs::msg::Empty::ConstSharedPtr /*msg*/)
 {
   if (move_group_ && planning_display_)
   {
@@ -518,13 +578,13 @@ void MotionPlanningFrame::remoteUpdateStartStateCallback(const std_msgs::EmptyCo
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
     {
-      robot_state::RobotState state = ps->getCurrentState();
+      moveit::core::RobotState state = ps->getCurrentState();
       planning_display_->setQueryStartState(state);
     }
   }
 }
 
-void MotionPlanningFrame::remoteUpdateGoalStateCallback(const std_msgs::EmptyConstPtr& /*msg*/)
+void MotionPlanningFrame::remoteUpdateGoalStateCallback(const std_msgs::msg::Empty::ConstSharedPtr /*msg*/)
 {
   if (move_group_ && planning_display_)
   {
@@ -532,13 +592,13 @@ void MotionPlanningFrame::remoteUpdateGoalStateCallback(const std_msgs::EmptyCon
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
     {
-      robot_state::RobotState state = ps->getCurrentState();
+      moveit::core::RobotState state = ps->getCurrentState();
       planning_display_->setQueryGoalState(state);
     }
   }
 }
 
-void MotionPlanningFrame::remoteUpdateCustomStartStateCallback(const moveit_msgs::msg::RobotStateConstPtr& msg)
+void MotionPlanningFrame::remoteUpdateCustomStartStateCallback(const moveit_msgs::msg::RobotState::ConstSharedPtr msg)
 {
   moveit_msgs::msg::RobotState msg_no_attached(*msg);
   msg_no_attached.attached_collision_objects.clear();
@@ -549,14 +609,14 @@ void MotionPlanningFrame::remoteUpdateCustomStartStateCallback(const moveit_msgs
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
     {
-      robot_state::RobotStatePtr state(new robot_state::RobotState(ps->getCurrentState()));
-      robot_state::robotStateMsgToRobotState(ps->getTransforms(), msg_no_attached, *state);
+      moveit::core::RobotStatePtr state(new moveit::core::RobotState(ps->getCurrentState()));
+      moveit::core::robotStateMsgToRobotState(ps->getTransforms(), msg_no_attached, *state);
       planning_display_->setQueryStartState(*state);
     }
   }
 }
 
-void MotionPlanningFrame::remoteUpdateCustomGoalStateCallback(const moveit_msgs::msg::RobotStateConstPtr& msg)
+void MotionPlanningFrame::remoteUpdateCustomGoalStateCallback(const moveit_msgs::msg::RobotState::ConstSharedPtr msg)
 {
   moveit_msgs::msg::RobotState msg_no_attached(*msg);
   msg_no_attached.attached_collision_objects.clear();
@@ -567,8 +627,8 @@ void MotionPlanningFrame::remoteUpdateCustomGoalStateCallback(const moveit_msgs:
     const planning_scene_monitor::LockedPlanningSceneRO& ps = planning_display_->getPlanningSceneRO();
     if (ps)
     {
-      robot_state::RobotStatePtr state(new robot_state::RobotState(ps->getCurrentState()));
-      robot_state::robotStateMsgToRobotState(ps->getTransforms(), msg_no_attached, *state);
+      moveit::core::RobotStatePtr state(new moveit::core::RobotState(ps->getCurrentState()));
+      moveit::core::robotStateMsgToRobotState(ps->getTransforms(), msg_no_attached, *state);
       planning_display_->setQueryGoalState(*state);
     }
   }

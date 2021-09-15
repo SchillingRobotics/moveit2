@@ -39,13 +39,15 @@
 #include <moveit/mesh_filter/sensor_model.h>
 #include <string>
 
+#include "moveit_mesh_filter_export.h"
+
 namespace mesh_filter
 {
 /**
  * \brief Model for Disparity based devices. E.g stereo camera systems or OpenNI compatible devices
  * \author Suat Gedikli <gedikli@willowgarage.com>
  */
-class StereoCameraModel : public SensorModel
+class MOVEIT_MESH_FILTER_EXPORT StereoCameraModel : public SensorModel
 {
 public:
   /**
@@ -148,7 +150,7 @@ public:
   };
 
   /** \brief predefined sensor model for OpenNI compatible devices (e.g., PrimeSense, Kinect, Asus Xtion) */
-  static const StereoCameraModel::Parameters& REGISTERED_PSDK_PARAMS;
+  static const StereoCameraModel::Parameters& REGISTERED_PSDK_PARAMS;  // NOLINT(readability-identifier-naming)
 
   /** \brief source code of the vertex shader used to render the meshes*/
   static const std::string RENDER_VERTEX_SHADER_SOURCE;

@@ -48,7 +48,7 @@
 
 namespace plan_execution
 {
-MOVEIT_CLASS_FORWARD(PlanWithSensing)
+MOVEIT_CLASS_FORWARD(PlanWithSensing);  // Defines PlanWithSensingPtr, ConstPtr, WeakPtr... etc
 
 class PlanWithSensing
 {
@@ -131,7 +131,7 @@ private:
 
   boost::function<void()> before_look_callback_;
 
-  class DynamicReconfigureImpl;
-  DynamicReconfigureImpl* reconfigure_impl_;
+  // class DynamicReconfigureImpl;
+  // DynamicReconfigureImpl* reconfigure_impl_;
 };
-}
+}  // namespace plan_execution

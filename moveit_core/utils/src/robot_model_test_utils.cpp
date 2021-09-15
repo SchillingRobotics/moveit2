@@ -36,10 +36,12 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include <boost/algorithm/string_regex.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 
-#include "moveit/utils/robot_model_test_utils.h"
+#include <urdf_parser/urdf_parser.h>
+#include <moveit/utils/robot_model_test_utils.h>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
 namespace moveit
@@ -58,20 +60,21 @@ moveit::core::RobotModelPtr loadTestingRobotModel(const std::string& robot_name)
 
 urdf::ModelInterfaceSharedPtr loadModelInterface(const std::string& robot_name)
 {
-  boost::filesystem::path res_path(ament_index_cpp::get_package_share_directory("moveit_resources"));
+  const std::string package_name = "moveit_resources_" + robot_name + "_description";
+  boost::filesystem::path res_path(ament_index_cpp::get_package_share_directory(package_name));
   std::string urdf_path;
   if (robot_name == "pr2")
   {
-    urdf_path = (res_path / "pr2_description/urdf/robot.xml").string();
+    urdf_path = (res_path / "urdf/robot.xml").string();
   }
   else
   {
-    urdf_path = (res_path / (robot_name + "_description") / "urdf" / (robot_name + ".urdf")).string();
+    urdf_path = (res_path / "urdf" / (robot_name + ".urdf")).string();
   }
   urdf::ModelInterfaceSharedPtr urdf_model = urdf::parseURDFFile(urdf_path);
   if (urdf_model == nullptr)
   {
-    RCLCPP_ERROR(LOGGER, "Cannot find URDF for %s. Make sure moveit_resources/your robot description is installed",
+    RCLCPP_ERROR(LOGGER, "Cannot find URDF for %s. Make sure moveit_resources_<your_robot_description> is installed",
                  robot_name.c_str());
   }
   return urdf_model;
@@ -79,17 +82,20 @@ urdf::ModelInterfaceSharedPtr loadModelInterface(const std::string& robot_name)
 
 srdf::ModelSharedPtr loadSRDFModel(const std::string& robot_name)
 {
-  boost::filesystem::path res_path(ament_index_cpp::get_package_share_directory("moveit_resources"));
   urdf::ModelInterfaceSharedPtr urdf_model = loadModelInterface(robot_name);
   srdf::ModelSharedPtr srdf_model(new srdf::Model());
   std::string srdf_path;
   if (robot_name == "pr2")
   {
-    srdf_path = (res_path / "pr2_description/srdf/robot.xml").string();
+    const std::string package_name = "moveit_resources_" + robot_name + "_description";
+    boost::filesystem::path res_path(ament_index_cpp::get_package_share_directory(package_name));
+    srdf_path = (res_path / "srdf/robot.xml").string();
   }
   else
   {
-    srdf_path = (res_path / (robot_name + "_moveit_config") / "config" / (robot_name + ".srdf")).string();
+    const std::string package_name = "moveit_resources_" + robot_name + "_moveit_config";
+    boost::filesystem::path res_path(ament_index_cpp::get_package_share_directory(package_name));
+    srdf_path = (res_path / "config" / (robot_name + ".srdf")).string();
   }
   srdf_model->initFile(*urdf_model, srdf_path);
   return srdf_model;
@@ -109,7 +115,7 @@ RobotModelBuilder::RobotModelBuilder(const std::string& name, const std::string&
 }
 
 void RobotModelBuilder::addChain(const std::string& section, const std::string& type,
-                                 const std::vector<geometry_msgs::msg::Pose>& joint_origins)
+                                 const std::vector<geometry_msgs::msg::Pose>& joint_origins, urdf::Vector3 joint_axis)
 {
   std::vector<std::string> link_names;
   boost::split_regex(link_names, section, boost::regex("->"));
@@ -181,7 +187,7 @@ void RobotModelBuilder::addChain(const std::string& section, const std::string& 
       return;
     }
 
-    joint->axis = urdf::Vector3(1.0, 0.0, 0.0);
+    joint->axis = joint_axis;
     if (joint->type == urdf::Joint::REVOLUTE || joint->type == urdf::Joint::PRISMATIC)
     {
       urdf::JointLimitsSharedPtr limits(new urdf::JointLimits);
@@ -236,7 +242,7 @@ void RobotModelBuilder::addCollisionBox(const std::string& link_name, const std:
 {
   if (dims.size() != 3)
   {
-    RCLCPP_ERROR(LOGGER, "There can only be 3 dimensions of a box (given %zu!)");
+    RCLCPP_ERROR(LOGGER, "There can only be 3 dimensions of a box (given %zu!)", dims.size());
     is_valid_ = false;
     return;
   }
@@ -320,8 +326,7 @@ void RobotModelBuilder::addVirtualJoint(const std::string& parent_frame, const s
   srdf_writer_->virtual_joints_.push_back(new_virtual_joint);
 }
 
-void RobotModelBuilder::addGroupChain(const std::string& base_link, const std::string& tip_link,
-                                      const std::string& name)
+void RobotModelBuilder::addGroupChain(const std::string& base_link, const std::string& tip_link, const std::string& name)
 {
   srdf::Model::Group new_group;
   if (name.empty())
@@ -340,6 +345,23 @@ void RobotModelBuilder::addGroup(const std::vector<std::string>& links, const st
   new_group.links_ = links;
   new_group.joints_ = joints;
   srdf_writer_->groups_.push_back(new_group);
+}
+
+void RobotModelBuilder::addEndEffector(const std::string& name, const std::string& parent_link,
+                                       const std::string& parent_group, const std::string& component_group)
+{
+  srdf::Model::EndEffector eef;
+  eef.name_ = name;
+  eef.parent_link_ = parent_link;
+  eef.parent_group_ = parent_group;
+  eef.component_group_ = component_group;
+  srdf_writer_->end_effectors_.push_back(eef);
+}
+
+void RobotModelBuilder::addJointProperty(const std::string& joint_name, const std::string& property_name,
+                                         const std::string& value)
+{
+  srdf_writer_->joint_properties_[joint_name].push_back({ joint_name, property_name, value });
 }
 
 bool RobotModelBuilder::isValid()

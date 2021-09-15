@@ -40,7 +40,7 @@
 
 namespace collision_detection
 {
-MOVEIT_CLASS_FORWARD(CollisionPlugin)
+MOVEIT_CLASS_FORWARD(CollisionPlugin);  // Defines CollisionPluginPtr, ConstPtr, WeakPtr... etc
 
 /**
  * @brief Plugin API for loading a custom collision detection robot/world.
@@ -66,9 +66,9 @@ MOVEIT_CLASS_FORWARD(CollisionPlugin)
  *   class MyCollisionDetectionLoader : public CollisionPlugin
  *   {
  *   public:
- *     virtual bool initialize(const planning_scene::PlanningScenePtr& scene, bool exclusive) const
+ *     virtual bool initialize(const planning_scene::PlanningScenePtr& scene) const
  *     {
- *       scene->setActiveCollisionDetector(my_collision_checker::MyCollisionDetectorAllocator::create(), exclusive);
+ *       scene->allocateCollisionDetector(my_collision_checker::MyCollisionDetectorAllocator::create());
          return true;
  *     }
  *   };
@@ -87,7 +87,7 @@ public:
   /**
    * @brief This should be used to load your collision plugin.
    */
-  virtual bool initialize(const planning_scene::PlanningScenePtr& scene, bool exclusive) const = 0;
+  virtual bool initialize(const planning_scene::PlanningScenePtr& scene) const = 0;
 };
 
 }  // namespace collision_detection

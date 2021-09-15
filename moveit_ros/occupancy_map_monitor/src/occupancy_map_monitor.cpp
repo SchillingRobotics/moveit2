@@ -34,139 +34,99 @@
 
 /* Author: Ioan Sucan, Jon Binney */
 
-#include <rclcpp/rclcpp.hpp>
-#include <moveit_msgs/srv/save_map.hpp>
-#include <moveit_msgs/srv/load_map.hpp>
 #include <moveit/occupancy_map_monitor/occupancy_map.h>
 #include <moveit/occupancy_map_monitor/occupancy_map_monitor.h>
-// #include <XmlRpcException.h>
+#include <moveit/occupancy_map_monitor/occupancy_map_monitor_middleware_handle.hpp>
+#include <moveit_msgs/srv/load_map.hpp>
+#include <moveit_msgs/srv/save_map.hpp>
+
 #include <boost/bind.hpp>
+#include <rclcpp/rclcpp.hpp>
+
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace occupancy_map_monitor
 {
-static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_ros.occupancy_map_monitor");
+namespace
+{
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit.ros.occupancy_map_monitor");
+}
 
 OccupancyMapMonitor::OccupancyMapMonitor(const rclcpp::Node::SharedPtr& node, double map_resolution)
-  : map_resolution_(map_resolution), debug_info_(false), mesh_handle_count_(0), node_(node), active_(false)
+  : OccupancyMapMonitor{ std::make_unique<OccupancyMapMonitorMiddlewareHandle>(node, map_resolution, ""), nullptr }
 {
-  initialize();
 }
 
 OccupancyMapMonitor::OccupancyMapMonitor(const rclcpp::Node::SharedPtr& node,
                                          const std::shared_ptr<tf2_ros::Buffer>& tf_buffer,
                                          const std::string& map_frame, double map_resolution)
-  : tf_buffer_(tf_buffer)
-  , map_frame_(map_frame)
-  , map_resolution_(map_resolution)
-  , debug_info_(false)
-  , mesh_handle_count_(0)
-  , node_(node)
+  : OccupancyMapMonitor{ std::make_unique<OccupancyMapMonitorMiddlewareHandle>(node, map_resolution, map_frame),
+                         tf_buffer }
 {
-  initialize();
 }
 
-void OccupancyMapMonitor::initialize()
+OccupancyMapMonitor::OccupancyMapMonitor(std::unique_ptr<MiddlewareHandle> middleware_handle,
+                                         const std::shared_ptr<tf2_ros::Buffer>& tf_buffer)
+  : middleware_handle_{ std::move(middleware_handle) }
+  , tf_buffer_{ tf_buffer }
+  , parameters_{ 0.0, "", {} }
+  , debug_info_{ false }
+  , mesh_handle_count_{ 0 }
+  , active_{ false }
 {
-  /* load params from param server */
-  if (map_resolution_ <= std::numeric_limits<double>::epsilon())
-    if (!node_->get_parameter("octomap_resolution", map_resolution_))
-    {
-      map_resolution_ = 0.1;
-      RCLCPP_WARN(LOGGER, "Resolution not specified for Octomap. Assuming resolution = %g instead", map_resolution_);
-    }
-  RCLCPP_DEBUG(LOGGER, "Using resolution = %lf m for building octomap", map_resolution_);
+  if (middleware_handle_ == nullptr)
+  {
+    throw std::invalid_argument("OccupancyMapMonitor cannot be constructed with nullptr MiddlewareHandle");
+  }
 
-  if (map_frame_.empty())
-    if (!node_->get_parameter("octomap_frame", map_frame_))
-      if (tf_buffer_)
-        RCLCPP_WARN(LOGGER, "No target frame specified for Octomap. No transforms will be applied to received data.");
+  // Get the parameters
+  parameters_ = middleware_handle_->getParameters();
 
-  if (!tf_buffer_ && !map_frame_.empty())
-    RCLCPP_WARN(LOGGER,
-                "Target frame specified but no TF instance specified. No transforms will be applied to received data.");
+  RCLCPP_DEBUG(LOGGER, "Using resolution = %lf m for building octomap", parameters_.map_resolution);
 
-  tree_.reset(new OccMapTree(map_resolution_));
+  if (tf_buffer_ != nullptr && parameters_.map_frame.empty())
+  {
+    RCLCPP_WARN(LOGGER, "No target frame specified for Octomap. No transforms will be applied to received data.");
+  }
+  if (tf_buffer_ == nullptr && !parameters_.map_frame.empty())
+  {
+    RCLCPP_WARN(LOGGER, "Target frame specified but no TF instance (buffer) specified."
+                        "No transforms will be applied to received data.");
+  }
+
+  tree_ = std::make_shared<OccMapTree>(parameters_.map_resolution);
   tree_const_ = tree_;
 
-  // TODO rework this in ROS2
-  // XmlRpc::XmlRpcValue sensor_list;
-  // if (nh_.getParam("sensors", sensor_list))
-  // {
-  //   try
-  //   {
-  //     if (sensor_list.getType() == XmlRpc::XmlRpcValue::TypeArray)
-  //       for (int32_t i = 0; i < sensor_list.size(); ++i)
-  //       {
-  //         if (sensor_list[i].getType() != XmlRpc::XmlRpcValue::TypeStruct)
-  //         {
-  //           ROS_ERROR("Params for octomap updater %d not a struct; ignoring.", i);
-  //           continue;
-  //         }
+  for (const auto& [sensor_name, sensor_type] : parameters_.sensor_plugins)
+  {
+    auto occupancy_map_updater = middleware_handle_->loadOccupancyMapUpdater(sensor_type);
 
-  //         if (!sensor_list[i].hasMember("sensor_plugin"))
-  //         {
-  //           ROS_ERROR("No sensor plugin specified for octomap updater %d; ignoring.", i);
-  //           continue;
-  //         }
+    // Verify the updater was loaded
+    if (occupancy_map_updater == nullptr)
+    {
+      RCLCPP_ERROR_STREAM(LOGGER, "Failed to load sensor: `" << sensor_name << "` of type: `" << sensor_type << "`");
+      continue;
+    }
 
-  //         std::string sensor_plugin = std::string(sensor_list[i]["sensor_plugin"]);
-  //         if (sensor_plugin.empty() || sensor_plugin[0] == '~')
-  //         {
-  //           ROS_INFO("Skipping octomap updater plugin '%s'", sensor_plugin.c_str());
-  //           continue;
-  //         }
+    // Pass a pointer to the monitor to the updater
+    occupancy_map_updater->setMonitor(this);
 
-  //         if (!updater_plugin_loader_)
-  //         {
-  //           try
-  //           {
-  //             updater_plugin_loader_.reset(new pluginlib::ClassLoader<OccupancyMapUpdater>(
-  //                 "moveit_ros_perception", "occupancy_map_monitor::OccupancyMapUpdater"));
-  //           }
-  //           catch (pluginlib::PluginlibException& ex)
-  //           {
-  //             ROS_FATAL_STREAM("Exception while creating octomap updater plugin loader " << ex.what());
-  //           }
-  //         }
+    // This part is done in the middleware handle because it needs the node
+    middleware_handle_->initializeOccupancyMapUpdater(occupancy_map_updater);
 
-  //         OccupancyMapUpdaterPtr up;
-  //         try
-  //         {
-  //           up = updater_plugin_loader_->createUniqueInstance(sensor_plugin);
-  //           up->setMonitor(this);
-  //         }
-  //         catch (pluginlib::PluginlibException& ex)
-  //         {
-  //           ROS_ERROR_STREAM("Exception while loading octomap updater '" << sensor_plugin << "': " << ex.what()
-  //                                                                        << std::endl);
-  //         }
-  //         if (up)
-  //         {
-  //           /* pass the params struct directly in to the updater */
-  //           if (!up->setParams(sensor_list[i]))
-  //           {
-  //             ROS_ERROR("Failed to configure updater of type %s", up->getType().c_str());
-  //             continue;
-  //           }
+    // Load the params in the updater
+    if (!occupancy_map_updater->setParams(sensor_name))
+    {
+      RCLCPP_ERROR_STREAM(LOGGER, "Failed to configure updater of type " << occupancy_map_updater->getType());
+      continue;
+    }
 
-  //           if (!up->initialize())
-  //           {
-  //             ROS_ERROR("Unable to initialize map updater of type %s (plugin %s)", up->getType().c_str(),
-  //                       sensor_plugin.c_str());
-  //             continue;
-  //           }
-
-  //           addUpdater(up);
-  //         }
-  //       }
-  //     else
-  //       ROS_ERROR("List of sensors must be an array!");
-  //   }
-  //   catch (XmlRpc::XmlRpcException& ex)
-  //   {
-  //     ROS_ERROR("XmlRpc Exception: %s", ex.getMessage().c_str());
-  //   }
-  // }
+    // Add the succesfully initialized updater
+    addUpdater(occupancy_map_updater);
+  }
 
   /* advertise a service for loading octomaps from disk */
   auto save_map_service_callback = [this](const std::shared_ptr<rmw_request_id_t> request_header,
@@ -181,8 +141,8 @@ void OccupancyMapMonitor::initialize()
     return loadMapCallback(request_header, request, response);
   };
 
-  save_map_srv_ = node_->create_service<moveit_msgs::srv::SaveMap>("save_map", save_map_service_callback);
-  load_map_srv_ = node_->create_service<moveit_msgs::srv::LoadMap>("load_map", load_map_service_callback);
+  middleware_handle_->createSaveMapService(save_map_service_callback);
+  middleware_handle_->createLoadMapService(load_map_service_callback);
 }
 
 void OccupancyMapMonitor::addUpdater(const OccupancyMapUpdaterPtr& updater)
@@ -194,8 +154,8 @@ void OccupancyMapMonitor::addUpdater(const OccupancyMapUpdaterPtr& updater)
     if (map_updaters_.size() > 1)
     {
       mesh_handles_.resize(map_updaters_.size());
-      if (map_updaters_.size() ==
-          2)  // when we had one updater only, we passed direcly the transform cache callback to that updater
+      // when we had one updater only, we passed direcly the transform cache callback to that updater
+      if (map_updaters_.size() == 2)
       {
         map_updaters_[0]->setTransformCacheCallback(
             boost::bind(&OccupancyMapMonitor::getShapeTransformCache, this, 0, _1, _2, _3));
@@ -222,8 +182,8 @@ void OccupancyMapMonitor::publishDebugInformation(bool flag)
 
 void OccupancyMapMonitor::setMapFrame(const std::string& frame)
 {
-  boost::mutex::scoped_lock _(parameters_lock_);  // we lock since an updater could specify a new frame for us
-  map_frame_ = frame;
+  std::lock_guard<std::mutex> _(parameters_lock_);  // we lock since an updater could specify a new frame for us
+  parameters_.map_frame = frame;
 }
 
 ShapeHandle OccupancyMapMonitor::excludeShape(const shapes::ShapeConstPtr& shape)

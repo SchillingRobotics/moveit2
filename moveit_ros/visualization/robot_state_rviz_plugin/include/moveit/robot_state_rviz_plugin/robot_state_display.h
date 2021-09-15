@@ -37,8 +37,6 @@
 #pragma once
 
 #include <rviz_common/display.hpp>
-#include <rviz_common/properties/string_property.hpp>
-#include <rviz_common/properties/ros_topic_property.hpp>
 
 #ifndef Q_MOC_RUN
 #include <moveit/rdf_loader/rdf_loader.h>
@@ -46,6 +44,19 @@
 #include <moveit_msgs/msg/display_robot_state.hpp>
 #include <rclcpp/rclcpp.hpp>
 #endif
+
+namespace rviz_common
+{
+namespace properties
+{
+class Robot;
+class StringProperty;
+class BoolProperty;
+class FloatProperty;
+class RosTopicProperty;
+class ColorProperty;
+}  // namespace properties
+}  // namespace rviz_common
 
 namespace moveit_rviz_plugin
 {
@@ -59,10 +70,11 @@ public:
   RobotStateDisplay();
   ~RobotStateDisplay() override;
 
+  void load(const rviz_common::Config& config) override;
   void update(float wall_dt, float ros_dt) override;
   void reset() override;
 
-  const robot_model::RobotModelConstPtr& getRobotModel() const
+  const moveit::core::RobotModelConstPtr& getRobotModel() const
   {
     return robot_model_;
   }
@@ -117,11 +129,10 @@ protected:
 
   RobotStateVisualizationPtr robot_;
   rdf_loader::RDFLoaderPtr rdf_loader_;
-  robot_model::RobotModelConstPtr robot_model_;
-  robot_state::RobotStatePtr robot_state_;
+  moveit::core::RobotModelConstPtr robot_model_;
+  moveit::core::RobotStatePtr robot_state_;
   std::map<std::string, std_msgs::msg::ColorRGBA> highlights_;
   bool update_state_;
-  bool load_robot_model_;  // for delayed robot initialization
 
   rviz_common::properties::StringProperty* robot_description_property_;
   rviz_common::properties::StringProperty* root_link_name_property_;

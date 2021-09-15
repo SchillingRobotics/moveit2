@@ -43,7 +43,7 @@
 
 namespace rdf_loader
 {
-MOVEIT_CLASS_FORWARD(RDFLoader)
+MOVEIT_CLASS_FORWARD(RDFLoader);  // Defines RDFLoaderPtr, ConstPtr, WeakPtr... etc
 
 /** @class RDFLoader
  *  @brief Default constructor
@@ -101,4 +101,4 @@ private:
   srdf::ModelSharedPtr srdf_;
   urdf::ModelInterfaceSharedPtr urdf_;
 };
-}
+}  // namespace rdf_loader

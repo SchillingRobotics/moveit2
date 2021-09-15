@@ -45,24 +45,11 @@ MoveGroupGetPlanningSceneService::MoveGroupGetPlanningSceneService() : MoveGroup
 
 void MoveGroupGetPlanningSceneService::initialize()
 {
-  get_scene_service_ = root_node_handle_.advertiseService(
-      GET_PLANNING_SCENE_SERVICE_NAME, &MoveGroupGetPlanningSceneService::getPlanningSceneService, this);
+  context_->planning_scene_monitor_->providePlanningSceneService(GET_PLANNING_SCENE_SERVICE_NAME);
 }
 
-bool MoveGroupGetPlanningSceneService::getPlanningSceneService(moveit_msgs::srv::GetPlanningScene::Request& req,
-                                                               moveit_msgs::srv::GetPlanningScene::Response& res)
-{
-  if (req.components.components & moveit_msgs::msg::PlanningSceneComponents::TRANSFORMS)
-    context_->planning_scene_monitor_->updateFrameTransforms();
-  planning_scene_monitor::LockedPlanningSceneRO ps(context_->planning_scene_monitor_);
-
-  moveit_msgs::msg::PlanningSceneComponents all_components;
-  all_components.components = UINT_MAX;  // Return all scene components if nothing is specified.
-  ps->getPlanningSceneMsg(res.scene, req.components.components ? req.components : all_components);
-
-  return true;
-}
 }  // namespace move_group
 
-#include <class_loader/class_loader.hpp>
-CLASS_LOADER_REGISTER_CLASS(move_group::MoveGroupGetPlanningSceneService, move_group::MoveGroupCapability)
+#include <pluginlib/class_list_macros.hpp>
+
+PLUGINLIB_EXPORT_CLASS(move_group::MoveGroupGetPlanningSceneService, move_group::MoveGroupCapability)

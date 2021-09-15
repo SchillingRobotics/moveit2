@@ -44,7 +44,7 @@
 
 namespace constraint_samplers
 {
-MOVEIT_CLASS_FORWARD(ConstraintSamplerManager)
+MOVEIT_CLASS_FORWARD(ConstraintSamplerManager);  // Defines ConstraintSamplerManagerPtr, ConstPtr, WeakPtr... etc
 
 /**
  * \brief This class assists in the generation of a ConstraintSampler for a
@@ -145,4 +145,4 @@ private:
   std::vector<ConstraintSamplerAllocatorPtr>
       sampler_alloc_; /**< \brief Holds the constraint sampler allocators, which will be tested in order  */
 };
-}
+}  // namespace constraint_samplers

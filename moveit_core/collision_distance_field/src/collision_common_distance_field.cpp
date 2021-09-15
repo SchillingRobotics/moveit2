@@ -37,7 +37,11 @@
 #include "rclcpp/rclcpp.hpp"
 #include <moveit/collision_distance_field/collision_common_distance_field.h>
 #include <boost/thread/mutex.hpp>
+#if __has_include(<tf2_eigen/tf2_eigen.hpp>)
+#include <tf2_eigen/tf2_eigen.hpp>
+#else
 #include <tf2_eigen/tf2_eigen.h>
+#endif
 #include <memory>
 
 namespace collision_detection
@@ -102,7 +106,7 @@ PosedBodyPointDecompositionVectorPtr getCollisionObjectPointDecomposition(const 
   return ret;
 }
 
-PosedBodySphereDecompositionVectorPtr getAttachedBodySphereDecomposition(const robot_state::AttachedBody* att,
+PosedBodySphereDecompositionVectorPtr getAttachedBodySphereDecomposition(const moveit::core::AttachedBody* att,
                                                                          double resolution)
 {
   PosedBodySphereDecompositionVectorPtr ret(new PosedBodySphereDecompositionVector());
@@ -116,7 +120,7 @@ PosedBodySphereDecompositionVectorPtr getAttachedBodySphereDecomposition(const r
   return ret;
 }
 
-PosedBodyPointDecompositionVectorPtr getAttachedBodyPointDecomposition(const robot_state::AttachedBody* att,
+PosedBodyPointDecompositionVectorPtr getAttachedBodyPointDecomposition(const moveit::core::AttachedBody* att,
                                                                        double resolution)
 {
   PosedBodyPointDecompositionVectorPtr ret(new PosedBodyPointDecompositionVector());
@@ -196,8 +200,9 @@ void getBodySphereVisualizationMarkers(const GroupStateRepresentationConstPtr& g
     const moveit::core::AttachedBody* att = state.getAttachedBody(gsr->dfce_->attached_body_names_[i]);
     if (!att)
     {
-      RCLCPP_WARN(LOGGER, "Attached body '%s' was not found, skipping sphere "
-                          "decomposition visualization",
+      RCLCPP_WARN(LOGGER,
+                  "Attached body '%s' was not found, skipping sphere "
+                  "decomposition visualization",
                   gsr->dfce_->attached_body_names_[i].c_str());
       continue;
     }

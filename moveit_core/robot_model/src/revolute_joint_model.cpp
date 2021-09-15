@@ -36,9 +36,9 @@
 /* Author: Ioan Sucan */
 
 #include <moveit/robot_model/revolute_joint_model.h>
+#include <geometric_shapes/check_isometry.h>
 #include <boost/math/constants/constants.hpp>
 #include <algorithm>
-#include <limits>
 #include <cmath>
 
 namespace moveit
@@ -46,15 +46,7 @@ namespace moveit
 namespace core
 {
 RevoluteJointModel::RevoluteJointModel(const std::string& name)
-  : JointModel(name)
-  , axis_(0.0, 0.0, 0.0)
-  , continuous_(false)
-  , x2_(0.0)
-  , y2_(0.0)
-  , z2_(0.0)
-  , xy_(0.0)
-  , xz_(0.0)
-  , yz_(0.0)
+  : JointModel(name), axis_(0.0, 0.0, 0.0), continuous_(false), x2_(0.0), y2_(0.0), z2_(0.0), xy_(0.0), xz_(0.0), yz_(0.0)
 {
   type_ = REVOLUTE;
   variable_names_.push_back(name_);
@@ -171,7 +163,9 @@ bool RevoluteJointModel::satisfiesPositionBounds(const double* values, const Bou
   if (continuous_)
     return true;
   else
+  {
     return !(values[0] < bounds[0].min_position_ - margin || values[0] > bounds[0].max_position_ + margin);
+  }
 }
 
 bool RevoluteJointModel::harmonizePosition(double* values, const JointModel::Bounds& other_bounds) const
@@ -268,7 +262,8 @@ void RevoluteJointModel::computeTransform(const double* joint_values, Eigen::Iso
 
 void RevoluteJointModel::computeVariablePositions(const Eigen::Isometry3d& transf, double* joint_values) const
 {
-  Eigen::Quaterniond q(transf.rotation());
+  ASSERT_ISOMETRY(transf)  // unsanitized input, could contain a non-isometry
+  Eigen::Quaterniond q(transf.linear());
   q.normalize();
   size_t max_idx;
   axis_.array().abs().maxCoeff(&max_idx);

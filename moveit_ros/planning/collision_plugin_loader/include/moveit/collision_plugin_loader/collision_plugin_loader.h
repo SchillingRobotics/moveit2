@@ -41,8 +41,8 @@
 namespace collision_detection
 {
 /**
-* @brief This is used to load the collision plugin
-*/
+ * @brief This is used to load the collision plugin
+ */
 class CollisionPluginLoader
 {
 public:
@@ -56,13 +56,12 @@ public:
    * @brief Load a collision detection robot/world into a planning scene instance.
    * @param name The plugin name.
    * @param scene The planning scene instance.
-   * @param exclusive If true, sets the new detection robot/world to be the only one.
    * @return True if collision robot/world were added to scene.
    */
-  bool activate(const std::string& name, const planning_scene::PlanningScenePtr& scene, bool exclusive);
+  bool activate(const std::string& name, const planning_scene::PlanningScenePtr& scene);
 
 private:
-  MOVEIT_CLASS_FORWARD(CollisionPluginLoaderImpl)
+  MOVEIT_CLASS_FORWARD(CollisionPluginLoaderImpl);  // Defines CollisionPluginLoaderImplPtr, ConstPtr, WeakPtr... etc
   CollisionPluginLoaderImplPtr loader_;
 };
 

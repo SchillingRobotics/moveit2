@@ -2,6 +2,37 @@
 Changelog for package run_moveit_cpp
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+2.2.1 (2021-07-12)
+------------------
+
+2.2.0 (2021-06-30)
+------------------
+* [sync] MoveIt's master branch up-to https://github.com/ros-planning/moveit/commit/0d0a6a171b3fbea97a0c4f284e13433ba66a4ea4
+* Contributors: JafarAbdi
+
+2.1.4 (2021-05-31)
+------------------
+* Delete MoveIt fake_controller_manager (`#471 <https://github.com/ros-planning/moveit2/issues/471>`_)
+* Contributors: AndyZe
+
+2.1.3 (2021-05-22)
+------------------
+
+2.1.2 (2021-04-20)
+------------------
+* Unify PickNik name in copyrights (`#419 <https://github.com/ros-planning/moveit2/issues/419>`_)
+* Contributors: Tyler Weaver
+
+2.1.1 (2021-04-12)
+------------------
+* Update launch files to use ros2 control spawner (`#405 <https://github.com/ros-planning/moveit2/issues/405>`_)
+* Use fake_components::GenericSystem from ros2_control (`#361 <https://github.com/ros-planning/moveit2/issues/361>`_)
+* Fix EXPORT install in CMake (`#372 <https://github.com/ros-planning/moveit2/issues/372>`_)
+* Contributors: Jafar Abdi, Tyler Weaver
+
+2.1.0 (2020-11-23)
+------------------
+
 2.0.0 (2020-02-17)
 ------------------
 * [fix] Fix run_moveit_cpp version

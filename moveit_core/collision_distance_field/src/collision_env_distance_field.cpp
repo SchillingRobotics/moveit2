@@ -35,7 +35,11 @@
 /* Author: E. Gil Jones */
 
 #include <moveit/robot_model/robot_model.h>
+#if __has_include(<tf2_eigen/tf2_eigen.hpp>)
+#include <tf2_eigen/tf2_eigen.hpp>
+#else
 #include <tf2_eigen/tf2_eigen.h>
+#endif
 #include <moveit/collision_distance_field/collision_env_distance_field.h>
 #include <moveit/collision_distance_field/collision_common_distance_field.h>
 #include <moveit/distance_field/propagation_distance_field.h>
@@ -53,7 +57,7 @@ const double EPSILON = 0.001f;
 const std::string collision_detection::CollisionDetectorAllocatorDistanceField::NAME("DISTANCE_FIELD");
 
 CollisionEnvDistanceField::CollisionEnvDistanceField(
-    const robot_model::RobotModelConstPtr& robot_model,
+    const moveit::core::RobotModelConstPtr& robot_model,
     const std::map<std::string, std::vector<CollisionSphere>>& link_body_decompositions, double size_x, double size_y,
     double size_z, const Eigen::Vector3d& origin, bool use_signed_distance_field, double resolution,
     double collision_tolerance, double max_propogation_distance, double padding, double scale)
@@ -71,7 +75,7 @@ CollisionEnvDistanceField::CollisionEnvDistanceField(
 }
 
 CollisionEnvDistanceField::CollisionEnvDistanceField(
-    const robot_model::RobotModelConstPtr& robot_model, const WorldPtr& world,
+    const moveit::core::RobotModelConstPtr& robot_model, const WorldPtr& world,
     const std::map<std::string, std::vector<CollisionSphere>>& link_body_decompositions, double size_x, double size_y,
     double size_z, const Eigen::Vector3d& origin, bool use_signed_distance_field, double resolution,
     double collision_tolerance, double max_propogation_distance, double padding, double scale)
@@ -290,9 +294,10 @@ bool CollisionEnvDistanceField::getSelfCollisions(const collision_detection::Col
     if (req.contacts)
     {
       std::vector<unsigned int> colls;
-      bool coll = getCollisionSphereCollision(
-          gsr->dfce_->distance_field_.get(), *collision_spheres_1, *sphere_centers_1, max_propogation_distance_,
-          collision_tolerance_, std::min(req.max_contacts_per_pair, req.max_contacts - res.contact_count), colls);
+      bool coll =
+          getCollisionSphereCollision(gsr->dfce_->distance_field_.get(), *collision_spheres_1, *sphere_centers_1,
+                                      max_propogation_distance_, collision_tolerance_,
+                                      std::min(req.max_contacts_per_pair, req.max_contacts - res.contact_count), colls);
       if (coll)
       {
         res.collision = true;
@@ -802,8 +807,7 @@ DistanceFieldCacheEntryPtr CollisionEnvDistanceField::generateDistanceFieldCache
           //           << " num " << attached_bodies[j]->getTouchLinks().size()
           //           << std::endl;
           // touch links take priority
-          if (link_attached_bodies[j]->getTouchLinks().find(link_name) !=
-              link_attached_bodies[j]->getTouchLinks().end())
+          if (link_attached_bodies[j]->getTouchLinks().find(link_name) != link_attached_bodies[j]->getTouchLinks().end())
           {
             dfce->intra_group_collision_enabled_[i][att_count + dfce->link_names_.size()] = false;
             // std::cerr << "Setting intra group for " << link_name << " and
@@ -941,7 +945,7 @@ DistanceFieldCacheEntryPtr CollisionEnvDistanceField::generateDistanceFieldCache
       }
 
       dfce->distance_field_->addPointsToField(all_points);
-      RCLCPP_DEBUG(LOGGER, "CollisionRobot distance field has been initialized with %d points.", all_points.size());
+      RCLCPP_DEBUG(LOGGER, "CollisionRobot distance field has been initialized with %zu points.", all_points.size());
     }
   }
   return dfce;
@@ -997,7 +1001,7 @@ void CollisionEnvDistanceField::createCollisionModelMarker(const moveit::core::R
   sphere_marker.pose.orientation.z = 0;
   sphere_marker.pose.orientation.w = 1;
   sphere_marker.color = robot_color;
-  sphere_marker.lifetime = rclcpp::Duration(0);
+  sphere_marker.lifetime = rclcpp::Duration::from_seconds(0);
 
   unsigned int id = 0;
   const moveit::core::JointModelGroup* joint_group = state.getJointModelGroup(distance_field_cache_entry_->group_name_);
@@ -1066,8 +1070,8 @@ void CollisionEnvDistanceField::addLinkBodyDecompositions(
   RCLCPP_DEBUG(LOGGER, " Finished ");
 }
 
-PosedBodySphereDecompositionPtr CollisionEnvDistanceField::getPosedLinkBodySphereDecomposition(
-    const moveit::core::LinkModel* ls, unsigned int ind) const
+PosedBodySphereDecompositionPtr
+CollisionEnvDistanceField::getPosedLinkBodySphereDecomposition(const moveit::core::LinkModel* ls, unsigned int ind) const
 {
   PosedBodySphereDecompositionPtr ret;
   ret.reset(new PosedBodySphereDecomposition(link_body_decomposition_vector_[ind]));
@@ -1171,14 +1175,14 @@ void CollisionEnvDistanceField::getGroupStateRepresentation(const DistanceFieldC
         link_size = Eigen::Vector3d(diameter, diameter, diameter);
         link_origin = link_bd->getBoundingSphereCenter() - 0.5 * link_size;
 
-        RCLCPP_DEBUG(LOGGER, "Creating PosedDistanceField for link %s with size [%i, %i , %i] and origin %i %i %i ",
+        RCLCPP_DEBUG(LOGGER, "Creating PosedDistanceField for link %s with size [%f, %f , %f] and origin %f %f %f ",
                      dfce->link_names_[i].c_str(), link_size.x(), link_size.y(), link_size.z(), link_origin.x(),
                      link_origin.y(), link_origin.z());
 
         gsr->link_distance_fields_.push_back(PosedDistanceFieldPtr(new PosedDistanceField(
             link_size, link_origin, resolution_, max_propogation_distance_, use_signed_distance_field_)));
         gsr->link_distance_fields_.back()->addPointsToField(link_bd->getCollisionPoints());
-        RCLCPP_DEBUG(LOGGER, "Created PosedDistanceField for link %s with %d points", dfce->link_names_[i].c_str(),
+        RCLCPP_DEBUG(LOGGER, "Created PosedDistanceField for link %s with %zu points", dfce->link_names_[i].c_str(),
                      link_bd->getCollisionPoints().size());
 
         gsr->link_body_decompositions_.back()->updatePose(state.getFrameTransform(ls->getName()));
@@ -1260,7 +1264,7 @@ bool CollisionEnvDistanceField::compareCacheEntryToState(const DistanceFieldCach
         fabs(dfce->state_values_[dfce->state_check_indices_[i]] - new_state_values[dfce->state_check_indices_[i]]);
     if (diff > EPSILON)
     {
-      RCLCPP_WARN(LOGGER, "State for Variable %s has changed by %s radians",
+      RCLCPP_WARN(LOGGER, "State for Variable %s has changed by %f radians",
                   state.getVariableNames()[dfce->state_check_indices_[i]].c_str(), diff);
       return false;
     }
@@ -1368,14 +1372,14 @@ bool CollisionEnvDistanceField::compareCacheEntryToAllowedCollisionMatrix(
 // }
 
 void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, CollisionResult& res,
-                                               const robot_state::RobotState& state) const
+                                               const moveit::core::RobotState& state) const
 {
   GroupStateRepresentationPtr gsr;
   checkCollision(req, res, state, gsr);
 }
 
 void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, CollisionResult& res,
-                                               const robot_state::RobotState& state,
+                                               const moveit::core::RobotState& state,
                                                GroupStateRepresentationPtr& gsr) const
 {
   if (!gsr)
@@ -1400,7 +1404,7 @@ void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, Coll
 }
 
 void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, CollisionResult& res,
-                                               const robot_state::RobotState& state,
+                                               const moveit::core::RobotState& state,
                                                const AllowedCollisionMatrix& acm) const
 {
   GroupStateRepresentationPtr gsr;
@@ -1408,7 +1412,7 @@ void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, Coll
 }
 
 void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, CollisionResult& res,
-                                               const robot_state::RobotState& state, const AllowedCollisionMatrix& acm,
+                                               const moveit::core::RobotState& state, const AllowedCollisionMatrix& acm,
                                                GroupStateRepresentationPtr& gsr) const
 {
   if (!gsr)
@@ -1433,14 +1437,14 @@ void CollisionEnvDistanceField::checkCollision(const CollisionRequest& req, Coll
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state) const
+                                                    const moveit::core::RobotState& state) const
 {
   GroupStateRepresentationPtr gsr;
   checkRobotCollision(req, res, state, gsr);
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state,
+                                                    const moveit::core::RobotState& state,
                                                     GroupStateRepresentationPtr& gsr) const
 {
   distance_field::DistanceFieldConstPtr env_distance_field = distance_field_cache_entry_world_->distance_field_;
@@ -1459,7 +1463,7 @@ void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req,
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state,
+                                                    const moveit::core::RobotState& state,
                                                     const AllowedCollisionMatrix& acm) const
 {
   GroupStateRepresentationPtr gsr;
@@ -1467,7 +1471,7 @@ void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req,
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state,
+                                                    const moveit::core::RobotState& state,
                                                     const AllowedCollisionMatrix& acm,
                                                     GroupStateRepresentationPtr& gsr) const
 {
@@ -1488,22 +1492,22 @@ void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req,
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state1,
-                                                    const robot_state::RobotState& state2,
+                                                    const moveit::core::RobotState& state1,
+                                                    const moveit::core::RobotState& state2,
                                                     const AllowedCollisionMatrix& acm) const
 {
   RCLCPP_ERROR(LOGGER, "Continuous collision checking not implemented");
 }
 
 void CollisionEnvDistanceField::checkRobotCollision(const CollisionRequest& req, CollisionResult& res,
-                                                    const robot_state::RobotState& state1,
-                                                    const robot_state::RobotState& state2) const
+                                                    const moveit::core::RobotState& state1,
+                                                    const moveit::core::RobotState& state2) const
 {
   RCLCPP_ERROR(LOGGER, "Continuous collision checking not implemented");
 }
 
 void CollisionEnvDistanceField::getCollisionGradients(const CollisionRequest& req, CollisionResult& res,
-                                                      const robot_state::RobotState& state,
+                                                      const moveit::core::RobotState& state,
                                                       const AllowedCollisionMatrix* acm,
                                                       GroupStateRepresentationPtr& gsr) const
 {
@@ -1526,7 +1530,7 @@ void CollisionEnvDistanceField::getCollisionGradients(const CollisionRequest& re
 }
 
 void CollisionEnvDistanceField::getAllCollisions(const CollisionRequest& req, CollisionResult& res,
-                                                 const robot_state::RobotState& state,
+                                                 const moveit::core::RobotState& state,
                                                  const AllowedCollisionMatrix* acm,
                                                  GroupStateRepresentationPtr& gsr) const
 {
@@ -1546,9 +1550,9 @@ void CollisionEnvDistanceField::getAllCollisions(const CollisionRequest& req, Co
   (const_cast<CollisionEnvDistanceField*>(this))->last_gsr_ = gsr;
 }
 
-bool CollisionEnvDistanceField::getEnvironmentCollisions(
-    const CollisionRequest& req, CollisionResult& res, const distance_field::DistanceFieldConstPtr& env_distance_field,
-    GroupStateRepresentationPtr& gsr) const
+bool CollisionEnvDistanceField::getEnvironmentCollisions(const CollisionRequest& req, CollisionResult& res,
+                                                         const distance_field::DistanceFieldConstPtr& env_distance_field,
+                                                         GroupStateRepresentationPtr& gsr) const
 {
   for (unsigned int i = 0; i < gsr->dfce_->link_names_.size() + gsr->dfce_->attached_body_names_.size(); i++)
   {
@@ -1577,9 +1581,10 @@ bool CollisionEnvDistanceField::getEnvironmentCollisions(
     if (req.contacts)
     {
       std::vector<unsigned int> colls;
-      bool coll = getCollisionSphereCollision(
-          env_distance_field.get(), *collision_spheres_1, *sphere_centers_1, max_propogation_distance_,
-          collision_tolerance_, std::min(req.max_contacts_per_pair, req.max_contacts - res.contact_count), colls);
+      bool coll =
+          getCollisionSphereCollision(env_distance_field.get(), *collision_spheres_1, *sphere_centers_1,
+                                      max_propogation_distance_, collision_tolerance_,
+                                      std::min(req.max_contacts_per_pair, req.max_contacts - res.contact_count), colls);
       if (coll)
       {
         res.collision = true;

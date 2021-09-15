@@ -37,10 +37,10 @@
 #pragma once
 
 #include <QWidget>
-#include <QLabel>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QPushButton>
+class QComboBox;
+class QLabel;
+class QLineEdit;
+class QPushButton;
 
 #ifndef Q_MOC_RUN
 #include <moveit/setup_assistant/tools/moveit_config_data.h>
@@ -75,6 +75,7 @@ public:
   QComboBox* kinematics_solver_field_;
   QLineEdit* kinematics_resolution_field_;
   QLineEdit* kinematics_timeout_field_;
+  QLineEdit* kinematics_parameters_file_field_;
   QComboBox* default_planner_field_;
   QPushButton* btn_delete_;      // this button is hidden for new groups
   QPushButton* btn_save_;        // this button is hidden for new groups
@@ -85,6 +86,9 @@ private Q_SLOTS:
   // ******************************************************************************************
   // Slot Event Functions
   // ******************************************************************************************
+
+  /// Shows a file dialog to select an additional parameter file for kinematics
+  void selectKinematicsFile();
 
 Q_SIGNALS:
 
@@ -125,4 +129,4 @@ private:
   // Private Functions
   // ******************************************************************************************
 };
-}
+}  // namespace moveit_setup_assistant

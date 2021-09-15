@@ -36,7 +36,6 @@
 
 #include <moveit/common_planning_interface_objects/common_objects.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
-#include <tf2_ros/transform_listener.h>
 
 using namespace planning_scene_monitor;
 using namespace robot_model_loader;
@@ -58,7 +57,7 @@ struct SharedStorage
 
   boost::mutex lock_;
   std::weak_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::map<std::string, robot_model::RobotModelWeakPtr> models_;
+  std::map<std::string, moveit::core::RobotModelWeakPtr> models_;
   std::map<std::string, CurrentStateMonitorWeakPtr> state_monitors_;
 };
 
@@ -101,39 +100,36 @@ std::shared_ptr<tf2_ros::Buffer> getSharedTF()
   SharedStorage& s = getSharedStorage();
   boost::mutex::scoped_lock slock(s.lock_);
 
-  typedef CoupledDeleter<tf2_ros::Buffer, tf2_ros::TransformListener> Deleter;
   std::shared_ptr<tf2_ros::Buffer> buffer = s.tf_buffer_.lock();
   if (!buffer)
   {
-    tf2_ros::Buffer* raw = new tf2_ros::Buffer(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME));
-    // assign custom deleter to also delete associated TransformListener
-    buffer.reset(raw, Deleter(new tf2_ros::TransformListener(*raw)));
+    buffer = std::make_shared<tf2_ros::Buffer>(std::make_shared<rclcpp::Clock>(RCL_ROS_TIME));
     s.tf_buffer_ = buffer;
   }
   return buffer;
 }
 
-robot_model::RobotModelConstPtr getSharedRobotModel(const rclcpp::Node::SharedPtr& node,
-                                                    const std::string& robot_description)
+moveit::core::RobotModelConstPtr getSharedRobotModel(const rclcpp::Node::SharedPtr& node,
+                                                     const std::string& robot_description)
 {
   SharedStorage& s = getSharedStorage();
   boost::mutex::scoped_lock slock(s.lock_);
-  auto it = s.models_.insert(std::make_pair(robot_description, robot_model::RobotModelWeakPtr())).first;
-  robot_model::RobotModelPtr model = it->second.lock();
+  auto it = s.models_.insert(std::make_pair(robot_description, moveit::core::RobotModelWeakPtr())).first;
+  moveit::core::RobotModelPtr model = it->second.lock();
   if (!model)
   {
     RobotModelLoader::Options opt(robot_description);
     opt.load_kinematics_solvers_ = true;
     RobotModelLoaderPtr loader(new RobotModelLoader(node, opt));
     // create an aliasing shared_ptr
-    model = robot_model::RobotModelPtr(loader, loader->getModel().get());
+    model = moveit::core::RobotModelPtr(loader, loader->getModel().get());
     it->second = model;
   }
   return model;
 }
 
 CurrentStateMonitorPtr getSharedStateMonitor(const rclcpp::Node::SharedPtr& node,
-                                             const robot_model::RobotModelConstPtr& robot_model,
+                                             const moveit::core::RobotModelConstPtr& robot_model,
                                              const std::shared_ptr<tf2_ros::Buffer>& tf_buffer)
 {
   SharedStorage& s = getSharedStorage();

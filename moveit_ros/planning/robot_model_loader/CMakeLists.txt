@@ -17,9 +17,4 @@ target_link_libraries(${MOVEIT_LIB_NAME}
   moveit_kinematics_plugin_loader
 )
 
-install(TARGETS ${MOVEIT_LIB_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
-
 install(DIRECTORY include/ DESTINATION include)

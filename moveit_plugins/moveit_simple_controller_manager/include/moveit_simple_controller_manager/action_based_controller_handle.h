@@ -67,7 +67,8 @@ protected:
   const rclcpp::Logger LOGGER;
 };
 
-MOVEIT_CLASS_FORWARD(ActionBasedControllerHandleBase)
+MOVEIT_CLASS_FORWARD(
+    ActionBasedControllerHandleBase);  // Defines ActionBasedControllerHandleBasePtr, ConstPtr, WeakPtr... etc
 
 /*
  * This is a simple base class, which handles all of the action creation/etc
@@ -81,6 +82,7 @@ public:
     : ActionBasedControllerHandleBase(name, logger_name), node_(node), done_(true), namespace_(ns)
   {
     controller_action_client_ = rclcpp_action::create_client<T>(node_, getActionName());
+
     unsigned int attempts = 0;
     double timeout;
     node_->get_parameter_or("trajectory_execution.controller_connection_timeout", timeout, 15.0);
@@ -123,23 +125,43 @@ public:
     {
       RCLCPP_INFO_STREAM(LOGGER, "Cancelling execution for " << name_);
       auto cancel_result_future = controller_action_client_->async_cancel_goal(current_goal_);
-      if (rclcpp::spin_until_future_complete(node_, cancel_result_future) !=
-          rclcpp::executor::FutureReturnCode::SUCCESS)
-      {
+
+      const auto& result = cancel_result_future.get();
+      if (!result)
         RCLCPP_ERROR(LOGGER, "Failed to cancel goal");
-      }
+
       last_exec_ = moveit_controller_manager::ExecutionStatus::PREEMPTED;
       done_ = true;
     }
     return true;
   }
 
-  bool waitForExecution(const rclcpp::Duration& timeout = rclcpp::Duration(0)) override
+  virtual void
+  controllerDoneCallback(const typename rclcpp_action::ClientGoalHandle<T>::WrappedResult& wrapped_result) = 0;
+
+  bool waitForExecution(const rclcpp::Duration& timeout = rclcpp::Duration(-1)) override
   {
-    auto result_future = controller_action_client_->async_get_result(current_goal_);
-    if (controller_action_client_ && !done_)
-      return (rclcpp::spin_until_future_complete(node_, result_future, timeout.to_chrono<std::chrono::seconds>()) ==
-              rclcpp::executor::FutureReturnCode::SUCCESS);
+    auto result_callback_done = std::make_shared<std::promise<bool>>();
+    auto result_future = controller_action_client_->async_get_result(
+        current_goal_, [this, result_callback_done](const auto& wrapped_result) {
+          controllerDoneCallback(wrapped_result);
+          result_callback_done->set_value(true);
+        });
+    if (timeout < std::chrono::nanoseconds(0))
+    {
+      result_future.wait();
+    }
+    else
+    {
+      std::future_status status = result_future.wait_for(timeout.to_chrono<std::chrono::duration<double>>());
+      if (status == std::future_status::timeout)
+      {
+        RCLCPP_WARN(LOGGER, "waitForExecution timed out");
+        return false;
+      }
+    }
+    // To accommodate for the delay after the future for the result is ready and the time controllerDoneCallback takes to finish
+    result_callback_done->get_future().wait();
     return true;
   }
 
@@ -160,7 +182,7 @@ public:
 
 protected:
   const rclcpp::Node::SharedPtr node_;
-  std::string getActionName(void) const
+  std::string getActionName() const
   {
     if (namespace_.empty())
       return name_;
@@ -170,7 +192,7 @@ protected:
 
   void finishControllerExecution(const rclcpp_action::ResultCode& state)
   {
-    RCLCPP_DEBUG_STREAM(LOGGER, "Controller " << name_ << " is done with state " << static_cast<int8_t>(state));
+    RCLCPP_DEBUG_STREAM(LOGGER, "Controller " << name_ << " is done with state " << static_cast<int>(state));
     if (state == rclcpp_action::ResultCode::SUCCEEDED)
       last_exec_ = moveit_controller_manager::ExecutionStatus::SUCCEEDED;
     else if (state == rclcpp_action::ResultCode::ABORTED)

@@ -48,20 +48,29 @@ const std::string planning_pipeline::PlanningPipeline::DISPLAY_PATH_TOPIC = "dis
 const std::string planning_pipeline::PlanningPipeline::MOTION_PLAN_REQUEST_TOPIC = "motion_plan_request";
 const std::string planning_pipeline::PlanningPipeline::MOTION_CONTACTS_TOPIC = "display_contacts";
 
-planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model,
-                                                      const std::shared_ptr<rclcpp::Node> node,
+planning_pipeline::PlanningPipeline::PlanningPipeline(const moveit::core::RobotModelConstPtr& model,
+                                                      const std::shared_ptr<rclcpp::Node>& node,
                                                       const std::string& parameter_namespace,
                                                       const std::string& planner_plugin_param_name,
                                                       const std::string& adapter_plugins_param_name)
   : node_(node), parameter_namespace_(parameter_namespace), robot_model_(model)
 {
-  if (node_->has_parameter(parameter_namespace_ + "." + planner_plugin_param_name))
-    node_->get_parameter(parameter_namespace_ + "." + planner_plugin_param_name, planner_plugin_name_);
+  std::string planner_plugin_fullname = parameter_namespace_ + "." + planner_plugin_param_name;
+  if (parameter_namespace_.empty())
+    planner_plugin_fullname = planner_plugin_param_name;
+  if (node_->has_parameter(planner_plugin_fullname))
+  {
+    node_->get_parameter(planner_plugin_fullname, planner_plugin_name_);
+  }
+
+  std::string adapter_plugins_fullname = parameter_namespace_ + "." + adapter_plugins_param_name;
+  if (parameter_namespace_.empty())
+    adapter_plugins_fullname = adapter_plugins_param_name;
 
   std::string adapters;
-  if (node_->has_parameter(parameter_namespace_ + "." + adapter_plugins_param_name))
+  if (node_->has_parameter(adapter_plugins_fullname))
   {
-    node_->get_parameter(parameter_namespace_ + "." + adapter_plugins_param_name, adapters);
+    node_->get_parameter(adapter_plugins_fullname, adapters);
     boost::char_separator<char> sep(" ");
     boost::tokenizer<boost::char_separator<char> > tok(adapters, sep);
     for (boost::tokenizer<boost::char_separator<char> >::iterator beg = tok.begin(); beg != tok.end(); ++beg)
@@ -71,8 +80,8 @@ planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotMo
   configure();
 }
 
-planning_pipeline::PlanningPipeline::PlanningPipeline(const robot_model::RobotModelConstPtr& model,
-                                                      const std::shared_ptr<rclcpp::Node> node,
+planning_pipeline::PlanningPipeline::PlanningPipeline(const moveit::core::RobotModelConstPtr& model,
+                                                      const std::shared_ptr<rclcpp::Node>& node,
                                                       const std::string& parameter_namespace,
                                                       const std::string& planner_plugin_name,
                                                       const std::vector<std::string>& adapter_plugin_names)
@@ -132,8 +141,9 @@ void planning_pipeline::PlanningPipeline::configure()
   catch (pluginlib::PluginlibException& ex)
   {
     std::string classes_str = boost::algorithm::join(classes, ", ");
-    RCLCPP_ERROR(LOGGER, "Exception while loading planner '%s': %s"
-                         "Available plugins: %s",
+    RCLCPP_ERROR(LOGGER,
+                 "Exception while loading planner '%s': %s"
+                 "Available plugins: %s",
                  planner_plugin_name_.c_str(), ex.what(), classes_str.c_str());
   }
 
@@ -309,16 +319,18 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
             std::stringstream ss;
             for (std::size_t it : index)
               ss << it << " ";
-            RCLCPP_ERROR(LOGGER, "Computed path is not valid. Invalid states at index locations: [%s] out of "
-                                 "%ld. Explanations follow in command line. Contacts are published on %s",
-                         ss.str(), state_count, contacts_publisher_->get_topic_name());
+
+            RCLCPP_ERROR_STREAM(LOGGER, "Computed path is not valid. Invalid states at index locations: [ "
+                                            << ss.str() << "] out of " << state_count
+                                            << ". Explanations follow in command line. Contacts are published on "
+                                            << contacts_publisher_->get_topic_name());
 
             // call validity checks in verbose mode for the problematic states
             visualization_msgs::msg::MarkerArray arr;
             for (std::size_t it : index)
             {
               // check validity with verbose on
-              const robot_state::RobotState& robot_state = res.trajectory_->getWayPoint(it);
+              const moveit::core::RobotState& robot_state = res.trajectory_->getWayPoint(it);
               planning_scene->isStateValid(robot_state, req.path_constraints, req.group_name, true);
 
               // compute the contacts if any
@@ -363,7 +375,7 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
     disp.model_id = robot_model_->getName();
     disp.trajectory.resize(1);
     res.trajectory_->getRobotTrajectoryMsg(disp.trajectory[0]);
-    robot_state::robotStateToRobotStateMsg(res.trajectory_->getFirstWayPoint(), disp.trajectory_start);
+    moveit::core::robotStateToRobotStateMsg(res.trajectory_->getFirstWayPoint(), disp.trajectory_start);
     display_path_publisher_->publish(disp);
   }
 
@@ -374,17 +386,16 @@ bool planning_pipeline::PlanningPipeline::generatePlan(const planning_scene::Pla
     bool stacked_constraints = false;
     if (req.path_constraints.position_constraints.size() > 1 || req.path_constraints.orientation_constraints.size() > 1)
       stacked_constraints = true;
-    for (auto constraint : req.goal_constraints)
+    for (const auto& constraint : req.goal_constraints)
     {
       if (constraint.position_constraints.size() > 1 || constraint.orientation_constraints.size() > 1)
         stacked_constraints = true;
     }
     if (stacked_constraints)
-      RCLCPP_WARN(
-          LOGGER,
-          "More than one constraint is set. If your move_group does not have multiple end effectors/arms, this is "
-          "unusual. Are you using a move_group_interface and forgetting to call clearPoseTargets() or "
-          "equivalent?");
+      RCLCPP_WARN(LOGGER, "More than one constraint is set. If your move_group does not have multiple end "
+                          "effectors/arms, this is "
+                          "unusual. Are you using a move_group_interface and forgetting to call clearPoseTargets() or "
+                          "equivalent?");
   }
 
   return solved && valid;

@@ -35,10 +35,15 @@
 /* Author: Ioan Sucan */
 
 #include "cartesian_path_service_capability.h"
+#include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/utils/message_checks.h>
 #include <moveit/collision_detection/collision_tools.h>
+#if __has_include(<tf2_eigen/tf2_eigen.hpp>)
+#include <tf2_eigen/tf2_eigen.hpp>
+#else
 #include <tf2_eigen/tf2_eigen.h>
+#endif
 #include <moveit/move_group/capability_names.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/robot_state/robot_state.h>
@@ -49,8 +54,8 @@
 namespace
 {
 bool isStateValid(const planning_scene::PlanningScene* planning_scene,
-                  const kinematic_constraints::KinematicConstraintSet* constraint_set, robot_state::RobotState* state,
-                  const robot_state::JointModelGroup* group, const double* ik_solution)
+                  const kinematic_constraints::KinematicConstraintSet* constraint_set, moveit::core::RobotState* state,
+                  const moveit::core::JointModelGroup* group, const double* ik_solution)
 {
   state->setJointGroupPositions(group, ik_solution);
   state->update();
@@ -61,6 +66,9 @@ bool isStateValid(const planning_scene::PlanningScene* planning_scene,
 
 namespace move_group
 {
+static const rclcpp::Logger LOGGER =
+    rclcpp::get_logger("moveit_move_group_default_capabilities.cartersian_path_service_capability");
+
 MoveGroupCartesianPathService::MoveGroupCartesianPathService()
   : MoveGroupCapability("CartesianPathService"), display_computed_paths_(true)
 {
@@ -68,48 +76,54 @@ MoveGroupCartesianPathService::MoveGroupCartesianPathService()
 
 void MoveGroupCartesianPathService::initialize()
 {
-  display_path_ = node_handle_.advertise<moveit_msgs::msg::DisplayTrajectory>(
-      planning_pipeline::PlanningPipeline::DISPLAY_PATH_TOPIC, 10, true);
-  cartesian_path_service_ = root_node_handle_.advertiseService(CARTESIAN_PATH_SERVICE_NAME,
-                                                               &MoveGroupCartesianPathService::computeService, this);
+  using std::placeholders::_1;
+  using std::placeholders::_2;
+  using std::placeholders::_3;
+
+  display_path_ = context_->moveit_cpp_->getNode()->create_publisher<moveit_msgs::msg::DisplayTrajectory>(
+      planning_pipeline::PlanningPipeline::DISPLAY_PATH_TOPIC, 10);
+
+  cartesian_path_service_ = context_->moveit_cpp_->getNode()->create_service<moveit_msgs::srv::GetCartesianPath>(
+      CARTESIAN_PATH_SERVICE_NAME, std::bind(&MoveGroupCartesianPathService::computeService, this, _1, _2, _3));
 }
 
-bool MoveGroupCartesianPathService::computeService(moveit_msgs::srv::GetCartesianPath::Request& req,
-                                                   moveit_msgs::srv::GetCartesianPath::Response& res)
+bool MoveGroupCartesianPathService::computeService(const std::shared_ptr<rmw_request_id_t> request_header,
+                                                   const std::shared_ptr<moveit_msgs::srv::GetCartesianPath::Request> req,
+                                                   std::shared_ptr<moveit_msgs::srv::GetCartesianPath::Response> res)
 {
-  ROS_INFO_NAMED(getName(), "Received request to compute Cartesian path");
+  RCLCPP_INFO(LOGGER, "Received request to compute Cartesian path");
   context_->planning_scene_monitor_->updateFrameTransforms();
 
-  robot_state::RobotState start_state =
+  moveit::core::RobotState start_state =
       planning_scene_monitor::LockedPlanningSceneRO(context_->planning_scene_monitor_)->getCurrentState();
-  robot_state::robotStateMsgToRobotState(req.start_state, start_state);
-  if (const robot_model::JointModelGroup* jmg = start_state.getJointModelGroup(req.group_name))
+  moveit::core::robotStateMsgToRobotState(req->start_state, start_state);
+  if (const moveit::core::JointModelGroup* jmg = start_state.getJointModelGroup(req->group_name))
   {
-    std::string link_name = req.link_name;
+    std::string link_name = req->link_name;
     if (link_name.empty() && !jmg->getLinkModelNames().empty())
       link_name = jmg->getLinkModelNames().back();
 
     bool ok = true;
-    EigenSTL::vector_Isometry3d waypoints(req.waypoints.size());
+    EigenSTL::vector_Isometry3d waypoints(req->waypoints.size());
     const std::string& default_frame = context_->planning_scene_monitor_->getRobotModel()->getModelFrame();
-    bool no_transform = req.header.frame_id.empty() ||
-                        robot_state::Transforms::sameFrame(req.header.frame_id, default_frame) ||
-                        robot_state::Transforms::sameFrame(req.header.frame_id, link_name);
+    bool no_transform = req->header.frame_id.empty() ||
+                        moveit::core::Transforms::sameFrame(req->header.frame_id, default_frame) ||
+                        moveit::core::Transforms::sameFrame(req->header.frame_id, link_name);
 
-    for (std::size_t i = 0; i < req.waypoints.size(); ++i)
+    for (std::size_t i = 0; i < req->waypoints.size(); ++i)
     {
       if (no_transform)
-        tf2::fromMsg(req.waypoints[i], waypoints[i]);
+        tf2::fromMsg(req->waypoints[i], waypoints[i]);
       else
       {
         geometry_msgs::msg::PoseStamped p;
-        p.header = req.header;
-        p.pose = req.waypoints[i];
+        p.header = req->header;
+        p.pose = req->waypoints[i];
         if (performTransform(p, default_frame))
           tf2::fromMsg(p.pose, waypoints[i]);
         else
         {
-          ROS_ERROR_NAMED(getName(), "Error encountered transforming waypoints to frame '%s'", default_frame.c_str());
+          RCLCPP_ERROR(LOGGER, "Error encountered transforming waypoints to frame '%s'", default_frame.c_str());
           ok = false;
           break;
         }
@@ -118,41 +132,43 @@ bool MoveGroupCartesianPathService::computeService(moveit_msgs::srv::GetCartesia
 
     if (ok)
     {
-      if (req.max_step < std::numeric_limits<double>::epsilon())
+      if (req->max_step < std::numeric_limits<double>::epsilon())
       {
-        ROS_ERROR_NAMED(getName(), "Maximum step to take between consecutive configrations along Cartesian path"
-                                   "was not specified (this value needs to be > 0)");
-        res.error_code.val = moveit_msgs::msg::MoveItErrorCodes::FAILURE;
+        RCLCPP_ERROR(LOGGER, "Maximum step to take between consecutive configrations along Cartesian path"
+                             "was not specified (this value needs to be > 0)");
+        res->error_code.val = moveit_msgs::msg::MoveItErrorCodes::FAILURE;
       }
       else
       {
         if (!waypoints.empty())
         {
-          robot_state::GroupStateValidityCallbackFn constraint_fn;
+          moveit::core::GroupStateValidityCallbackFn constraint_fn;
           std::unique_ptr<planning_scene_monitor::LockedPlanningSceneRO> ls;
           std::unique_ptr<kinematic_constraints::KinematicConstraintSet> kset;
-          if (req.avoid_collisions || !moveit::core::isEmpty(req.path_constraints))
+          if (req->avoid_collisions || !moveit::core::isEmpty(req->path_constraints))
           {
             ls.reset(new planning_scene_monitor::LockedPlanningSceneRO(context_->planning_scene_monitor_));
             kset.reset(new kinematic_constraints::KinematicConstraintSet((*ls)->getRobotModel()));
-            kset->add(req.path_constraints, (*ls)->getTransforms());
+            kset->add(req->path_constraints, (*ls)->getTransforms());
             constraint_fn = boost::bind(
                 &isStateValid,
-                req.avoid_collisions ? static_cast<const planning_scene::PlanningSceneConstPtr&>(*ls).get() : nullptr,
-                kset->empty() ? nullptr : kset.get(), _1, _2, _3);
+                req->avoid_collisions ? static_cast<const planning_scene::PlanningSceneConstPtr&>(*ls).get() : nullptr,
+                kset->empty() ? nullptr : kset.get(), boost::placeholders::_1, boost::placeholders::_2,
+                boost::placeholders::_3);
           }
-          bool global_frame = !robot_state::Transforms::sameFrame(link_name, req.header.frame_id);
-          ROS_INFO_NAMED(getName(), "Attempting to follow %u waypoints for link '%s' using a step of %lf m "
-                                    "and jump threshold %lf (in %s reference frame)",
-                         (unsigned int)waypoints.size(), link_name.c_str(), req.max_step, req.jump_threshold,
-                         global_frame ? "global" : "link");
-          std::vector<robot_state::RobotStatePtr> traj;
-          res.fraction = moveit::core::CartesianInterpolator::computeCartesianPath(
+          bool global_frame = !moveit::core::Transforms::sameFrame(link_name, req->header.frame_id);
+          RCLCPP_INFO(LOGGER,
+                      "Attempting to follow %u waypoints for link '%s' using a step of %lf m "
+                      "and jump threshold %lf (in %s reference frame)",
+                      (unsigned int)waypoints.size(), link_name.c_str(), req->max_step, req->jump_threshold,
+                      global_frame ? "global" : "link");
+          std::vector<moveit::core::RobotStatePtr> traj;
+          res->fraction = moveit::core::CartesianInterpolator::computeCartesianPath(
               &start_state, jmg, traj, start_state.getLinkModel(link_name), waypoints, global_frame,
-              moveit::core::MaxEEFStep(req.max_step), moveit::core::JumpThreshold(req.jump_threshold), constraint_fn);
-          robot_state::robotStateToRobotStateMsg(start_state, res.start_state);
+              moveit::core::MaxEEFStep(req->max_step), moveit::core::JumpThreshold(req->jump_threshold), constraint_fn);
+          moveit::core::robotStateToRobotStateMsg(start_state, res->start_state);
 
-          robot_trajectory::RobotTrajectory rt(context_->planning_scene_monitor_->getRobotModel(), req.group_name);
+          robot_trajectory::RobotTrajectory rt(context_->planning_scene_monitor_->getRobotModel(), req->group_name);
           for (const moveit::core::RobotStatePtr& traj_state : traj)
             rt.addSuffixWayPoint(traj_state, 0.0);
 
@@ -161,31 +177,32 @@ bool MoveGroupCartesianPathService::computeService(moveit_msgs::srv::GetCartesia
           trajectory_processing::IterativeParabolicTimeParameterization time_param;
           time_param.computeTimeStamps(rt, 1.0);
 
-          rt.getRobotTrajectoryMsg(res.solution);
-          ROS_INFO_NAMED(getName(), "Computed Cartesian path with %u points (followed %lf%% of requested trajectory)",
-                         (unsigned int)traj.size(), res.fraction * 100.0);
+          rt.getRobotTrajectoryMsg(res->solution);
+          RCLCPP_INFO(LOGGER, "Computed Cartesian path with %u points (followed %lf%% of requested trajectory)",
+                      (unsigned int)traj.size(), res->fraction * 100.0);
           if (display_computed_paths_ && rt.getWayPointCount() > 0)
           {
             moveit_msgs::msg::DisplayTrajectory disp;
             disp.model_id = context_->planning_scene_monitor_->getRobotModel()->getName();
-            disp.trajectory.resize(1, res.solution);
-            robot_state::robotStateToRobotStateMsg(rt.getFirstWayPoint(), disp.trajectory_start);
-            display_path_.publish(disp);
+            disp.trajectory.resize(1, res->solution);
+            moveit::core::robotStateToRobotStateMsg(rt.getFirstWayPoint(), disp.trajectory_start);
+            display_path_->publish(disp);
           }
         }
-        res.error_code.val = moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
+        res->error_code.val = moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
       }
     }
     else
-      res.error_code.val = moveit_msgs::msg::MoveItErrorCodes::FRAME_TRANSFORM_FAILURE;
+      res->error_code.val = moveit_msgs::msg::MoveItErrorCodes::FRAME_TRANSFORM_FAILURE;
   }
   else
-    res.error_code.val = moveit_msgs::msg::MoveItErrorCodes::INVALID_GROUP_NAME;
+    res->error_code.val = moveit_msgs::msg::MoveItErrorCodes::INVALID_GROUP_NAME;
 
   return true;
 }
 
 }  // namespace move_group
 
-#include <class_loader/class_loader.hpp>
-CLASS_LOADER_REGISTER_CLASS(move_group::MoveGroupCartesianPathService, move_group::MoveGroupCapability)
+#include <pluginlib/class_list_macros.hpp>
+
+PLUGINLIB_EXPORT_CLASS(move_group::MoveGroupCartesianPathService, move_group::MoveGroupCapability)

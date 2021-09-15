@@ -1,40 +1,31 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(moveit_core VERSION 2.0.0 LANGUAGES CXX)
+project(moveit_core LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Warnings
-# Remove -Wcast-qual to avoid warnings in tf2/LinearMath/Vector3.h.
-# TODO: Add -Wcast-qual back when PR(https://github.com/ros2/geometry2/pull/193) is merged.
-add_compile_options(-Wall -Wextra
-  -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
-  -Wno-unused-parameter -Wno-unused-function)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  # This too often has false-positives
-  add_compile_options(-Wno-maybe-uninitialized)
-endif()
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-  message("${PROJECT_NAME}: You did not request a specific build type: Choosing 'Release' for maximum performance")
-  set(CMAKE_BUILD_TYPE Release)
-endif()
+# Common cmake code applied to all moveit packages
+find_package(moveit_common REQUIRED)
+moveit_package()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(Boost REQUIRED system filesystem date_time thread iostreams)
-
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PkgConfig REQUIRED)
 
+# Finds Boost Components
+include(ConfigExtras.cmake)
+
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBFCL REQUIRED "fcl>=0.5.0")
-# replace LIBFCL_LIBRARIES with full path to the library
-find_library(LIBFCL_LIBRARIES_FULL ${LIBFCL_LIBRARIES} ${LIBFCL_LIBRARY_DIRS})
+# replace LIBFCL_LIBRARIES with full paths to the libraries
+set(LIBFCL_LIBRARIES_FULL "")
+foreach(LIBFCL_LIBRARY ${LIBFCL_LIBRARIES})
+  find_library(${LIBFCL_LIBRARY}_LIB ${LIBFCL_LIBRARY} ${LIBFCL_LIBRARY_DIRS})
+  list(APPEND LIBFCL_LIBRARIES_FULL ${${LIBFCL_LIBRARY}_LIB})
+endforeach()
 set(LIBFCL_LIBRARIES "${LIBFCL_LIBRARIES_FULL}")
 
-find_package(octomap REQUIRED)
+find_package(Bullet 2.87 REQUIRED)
+find_package(angles REQUIRED)
+find_package(OCTOMAP REQUIRED)
 find_package(urdfdom REQUIRED)
 find_package(urdf REQUIRED)
 find_package(urdfdom_headers REQUIRED)
@@ -57,6 +48,8 @@ find_package(trajectory_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(common_interfaces REQUIRED)
 find_package(pluginlib REQUIRED)
+# TODO: Port python bindings
+# find_package(pybind11 REQUIRED)
 
 # Set target file path for version.h
 set(VERSION_FILE_PATH ${CMAKE_BINARY_DIR}/include)
@@ -67,6 +60,7 @@ set(THIS_PACKAGE_INCLUDE_DIRS
     backtrace/include
     collision_detection/include
     collision_detection_fcl/include
+    collision_detection_bullet/include
     constraint_samplers/include
     controller_manager/include
     distance_field/include
@@ -84,6 +78,8 @@ set(THIS_PACKAGE_INCLUDE_DIRS
     planning_request_adapter/include
     planning_scene/include
     profiler/include
+    # TODO: Port python bindings
+    # python/tools/include
     sensor_manager/include
     trajectory_processing/include
     utils/include
@@ -100,11 +96,14 @@ set(THIS_PACKAGE_LIBRARIES
     moveit_planning_interface
     moveit_collision_detection
     moveit_collision_detection_fcl
+    moveit_collision_detection_bullet
     moveit_kinematic_constraints
     moveit_planning_scene
     moveit_constraint_samplers
     moveit_planning_request_adapter
     moveit_profiler
+    # TODO: Port python bindings
+    # moveit_python_tools
     moveit_trajectory_processing
     moveit_distance_field
     moveit_collision_distance_field
@@ -115,6 +114,7 @@ set(THIS_PACKAGE_LIBRARIES
 )
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
+  angles
   eigen_stl_containers
   geometric_shapes
   geometry_msgs
@@ -132,28 +132,19 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   visualization_msgs
   Eigen3
   eigen3_cmake_module
-  Boost
   OCTOMAP
+  Bullet
 )
+
 pluginlib_export_plugin_description_file(moveit_core collision_detector_fcl_description.xml)
+pluginlib_export_plugin_description_file(moveit_core collision_detector_bullet_description.xml)
 
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS}
   ${LIBFCL_INCLUDE_DIRS}
 )
 
 include_directories(${THIS_PACKAGE_INCLUDE_DIRS}
-  ${VERSION_FILE_PATH}
-  ${rclcpp_INCLUDE_DIRS}
-  ${rmw_implementation_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
-  ${urdfdom_INCLUDE_DIRS}
-  ${urdfdom_headers_INCLUDE_DIRS}
-  ${OCTOMAP_INCLUDE_DIRS}
-  ${moveit_msgs_INCLUDE_DIRS}
-  ${random_numbers_INCLUDE_DIRS}
-  ${srdfdom_INCLUDE_DIRS}
-  ${geometric_shapes_INCLUDE_DIRS}
-)
+                    ${VERSION_FILE_PATH})
 
 # Generate and install version.h
 string(REGEX REPLACE "^([0-9]+)\\..*" "\\1" MOVEIT_VERSION_MAJOR "${${PROJECT_NAME}_VERSION}")
@@ -191,9 +182,63 @@ add_subdirectory(distance_field)
 add_subdirectory(collision_distance_field)
 add_subdirectory(kinematics_metrics)
 add_subdirectory(dynamics_solver)
+add_subdirectory(collision_detection_bullet)
 
-ament_export_include_directories(include)
-ament_export_libraries(${THIS_PACKAGE_LIBRARIES})
+pluginlib_export_plugin_description_file(moveit_core collision_detector_bullet_description.xml)
+
+# TODO: Port python bindings
+# add_subdirectory(python)
+# set(pymoveit_libs
+#   moveit_collision_detection
+#   moveit_kinematic_constraints
+#   moveit_planning_scene
+#   moveit_python_tools
+#   moveit_robot_model
+#   moveit_robot_state
+#   moveit_transforms
+# )
+#
+# pybind_add_module(pymoveit_core
+#     python/pymoveit_core.cpp
+#     collision_detection/src/pycollision_detection.cpp
+#     robot_model/src/pyrobot_model.cpp
+#     robot_state/src/pyrobot_state.cpp
+#     transforms/src/pytransforms.cpp
+#     planning_scene/src/pyplanning_scene.cpp
+#     kinematic_constraints/src/pykinematic_constraint.cpp
+# )
+# target_include_directories(pymoveit_core SYSTEM PRIVATE ${catkin_INCLUDE_DIRS})
+# target_link_libraries(pymoveit_core PRIVATE ${pymoveit_libs} ${catkin_LIBRARIES})
+#
+# #catkin_lint: ignore_once undefined_target (pymoveit_core is defined by pybind_add_module)
+# install(TARGETS pymoveit_core LIBRARY DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION})
+
+
+install(
+  TARGETS ${THIS_PACKAGE_LIBRARIES}
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-ament_package()
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+
+  # These don't pass yet, disable them for now
+  set(ament_cmake_copyright_FOUND TRUE)
+  set(ament_cmake_cppcheck_FOUND TRUE)
+  set(ament_cmake_cpplint_FOUND TRUE)
+  set(ament_cmake_flake8_FOUND TRUE)
+  set(ament_cmake_uncrustify_FOUND TRUE)
+  set(ament_cmake_lint_cmake_FOUND TRUE)
+
+  # Run all lint tests in package.xml except those listed above
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package(CONFIG_EXTRAS ConfigExtras.cmake)

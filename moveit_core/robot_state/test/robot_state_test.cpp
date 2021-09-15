@@ -1,47 +1,56 @@
 /*********************************************************************
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2013, Willow Garage, Inc.
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2013, Willow Garage, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 /* Author: Ioan Sucan */
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/utils/robot_model_test_utils.h>
 #include <urdf_parser/urdf_parser.h>
+#if __has_include(<tf2_geometry_msgs/tf2_geometry_msgs.hpp>)
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#endif
 #include <gtest/gtest.h>
 #include <sstream>
 #include <algorithm>
 #include <ctype.h>
+
+namespace
+{
+constexpr double EPSILON{ 1.e-9 };
+}
 
 static bool sameStringIgnoringWS(const std::string& s1, const std::string& s2)
 {
@@ -457,28 +466,28 @@ TEST_F(OneRobot, FK)
   state.setVariablePositions(joint_values);
 
   EXPECT_NEAR_TRACED(state.getGlobalLinkTransform("base_link").translation(), Eigen::Vector3d(1, 1, 0));
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").rotation()).x(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").rotation()).y(), 1e-5);
-  EXPECT_NEAR(0.247404, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").rotation()).z(), 1e-5);
-  EXPECT_NEAR(0.968912, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").rotation()).w(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").linear()).x(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").linear()).y(), 1e-5);
+  EXPECT_NEAR(0.247404, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").linear()).z(), 1e-5);
+  EXPECT_NEAR(0.968912, Eigen::Quaterniond(state.getGlobalLinkTransform("base_link").linear()).w(), 1e-5);
 
   EXPECT_NEAR_TRACED(state.getGlobalLinkTransform("link_a").translation(), Eigen::Vector3d(1, 1, 0));
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").rotation()).x(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").rotation()).y(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").rotation()).z(), 1e-5);
-  EXPECT_NEAR(1.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").rotation()).w(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").linear()).x(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").linear()).y(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").linear()).z(), 1e-5);
+  EXPECT_NEAR(1.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_a").linear()).w(), 1e-5);
 
   EXPECT_NEAR_TRACED(state.getGlobalLinkTransform("link_b").translation(), Eigen::Vector3d(1, 1.5, 0));
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").rotation()).x(), 1e-5);
-  EXPECT_NEAR(-0.2084598, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").rotation()).y(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").rotation()).z(), 1e-5);
-  EXPECT_NEAR(0.97803091, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").rotation()).w(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").linear()).x(), 1e-5);
+  EXPECT_NEAR(-0.2084598, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").linear()).y(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").linear()).z(), 1e-5);
+  EXPECT_NEAR(0.97803091, Eigen::Quaterniond(state.getGlobalLinkTransform("link_b").linear()).w(), 1e-5);
 
   EXPECT_NEAR_TRACED(state.getGlobalLinkTransform("link_c").translation(), Eigen::Vector3d(1.08, 1.4, 0));
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").rotation()).x(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").rotation()).y(), 1e-5);
-  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").rotation()).z(), 1e-5);
-  EXPECT_NEAR(1.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").rotation()).w(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").linear()).x(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").linear()).y(), 1e-5);
+  EXPECT_NEAR(0.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").linear()).z(), 1e-5);
+  EXPECT_NEAR(1.0, Eigen::Quaterniond(state.getGlobalLinkTransform("link_c").linear()).w(), 1e-5);
 
   EXPECT_TRUE(state.satisfiesBounds());
 
@@ -542,7 +551,7 @@ TEST_F(OneRobot, FK)
 TEST_F(OneRobot, testPrintCurrentPositionWithJointLimits)
 {
   moveit::core::RobotState state(robot_model_);
-  const robot_model::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup("base_from_base_to_e");
+  const moveit::core::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup("base_from_base_to_e");
   ASSERT_TRUE(joint_model_group);
 
   state.setToDefaultValues();
@@ -565,6 +574,112 @@ TEST_F(OneRobot, testPrintCurrentPositionWithJointLimits)
   single_joint[0] = 0.19;
   state.setJointPositions("joint_f", single_joint);
   state.printStatePositionsWithJointLimits(joint_model_group);
+}
+
+TEST_F(OneRobot, testInterpolation)
+{
+  moveit::core::RobotState state_a(robot_model_);
+
+  // Interpolate with itself
+  state_a.setToDefaultValues();
+  moveit::core::RobotState state_b(state_a);
+  moveit::core::RobotState interpolated_state(state_a);
+  for (size_t i = 0; i <= 10; ++i)
+  {
+    state_a.interpolate(state_b, static_cast<double>(i) / 10., interpolated_state,
+                        robot_model_->getJointModelGroup("base_from_base_to_e"));
+    EXPECT_NEAR(state_a.distance(state_b), 0, EPSILON)
+        << "Interpolation between identical states yielded a different state.";
+
+    for (const auto& link_name : robot_model_->getLinkModelNames())
+    {
+      EXPECT_FALSE(interpolated_state.getCollisionBodyTransform(link_name, 0).matrix().hasNaN())
+          << "Interpolation between identical states yielded NaN value.";
+    }
+  }
+
+  // Some simple interpolation
+  std::map<std::string, double> joint_values;
+  joint_values["base_joint/x"] = 1.0;
+  joint_values["base_joint/y"] = 1.0;
+  state_a.setVariablePositions(joint_values);
+  joint_values["base_joint/x"] = 0.0;
+  joint_values["base_joint/y"] = 2.0;
+  state_b.setVariablePositions(joint_values);
+  EXPECT_NEAR(3 * std::sqrt(2), state_a.distance(state_b), EPSILON) << "Simple interpolation of base_joint failed.";
+
+  state_a.interpolate(state_b, 0.5, interpolated_state, robot_model_->getJointModelGroup("base_from_base_to_e"));
+  EXPECT_NEAR(0., state_a.distance(interpolated_state) - state_b.distance(interpolated_state), EPSILON)
+      << "Simple interpolation of base_joint failed.";
+  EXPECT_NEAR(0.5, interpolated_state.getVariablePosition("base_joint/x"), EPSILON)
+      << "Simple interpolation of base_joint failed.";
+  EXPECT_NEAR(1.5, interpolated_state.getVariablePosition("base_joint/y"), EPSILON)
+      << "Simple interpolation of base_joint failed.";
+  state_a.interpolate(state_b, 0.1, interpolated_state, robot_model_->getJointModelGroup("base_from_base_to_e"));
+  EXPECT_NEAR(0.9, interpolated_state.getVariablePosition("base_joint/x"), EPSILON)
+      << "Simple interpolation of base_joint failed.";
+  EXPECT_NEAR(1.1, interpolated_state.getVariablePosition("base_joint/y"), EPSILON)
+      << "Simple interpolation of base_joint failed.";
+
+  // Interpolate all the joints
+  joint_values["base_joint/x"] = 0.0;
+  joint_values["base_joint/y"] = 20.0;
+  joint_values["base_joint/theta"] = 3 * M_PI / 4;
+  joint_values["joint_a"] = -4 * M_PI / 5;
+  joint_values["joint_c"] = 0.0;
+  joint_values["joint_f"] = 1.0;
+  state_a.setVariablePositions(joint_values);
+
+  joint_values["base_joint/x"] = 10.0;
+  joint_values["base_joint/y"] = 0.0;
+  joint_values["base_joint/theta"] = -3 * M_PI / 4;
+  joint_values["joint_a"] = 4 * M_PI / 5;
+  joint_values["joint_c"] = 0.07;
+  joint_values["joint_f"] = 0.0;
+  state_b.setVariablePositions(joint_values);
+
+  for (size_t i = 0; i <= 5; ++i)
+  {
+    double t = static_cast<double>(i) / 5.;
+    state_a.interpolate(state_b, t, interpolated_state, robot_model_->getJointModelGroup("base_from_base_to_e"));
+    EXPECT_NEAR(10.0 * t, interpolated_state.getVariablePosition("base_joint/x"), EPSILON)
+        << "Base joint interpolation failed.";
+    EXPECT_NEAR(20.0 * (1 - t), interpolated_state.getVariablePosition("base_joint/y"), EPSILON)
+        << "Base joint interpolation failed.";
+    if (t < 0.5)
+    {
+      EXPECT_NEAR(3 * M_PI / 4 + (M_PI / 2) * t, interpolated_state.getVariablePosition("base_joint/theta"), EPSILON)
+          << "Base joint theta interpolation failed.";
+      EXPECT_NEAR(-4 * M_PI / 5 - (2 * M_PI / 5) * t, interpolated_state.getVariablePosition("joint_a"), EPSILON)
+          << "Continuous joint interpolation failed.";
+    }
+    else
+    {
+      EXPECT_NEAR(-3 * M_PI / 4 - (M_PI / 2) * (1 - t), interpolated_state.getVariablePosition("base_joint/theta"),
+                  EPSILON)
+          << "Base joint theta interpolation failed.";
+      EXPECT_NEAR(4 * M_PI / 5 + (2 * M_PI / 5) * (1 - t), interpolated_state.getVariablePosition("joint_a"), EPSILON)
+          << "Continuous joint interpolation failed.";
+    }
+    EXPECT_NEAR(0.07 * t, interpolated_state.getVariablePosition("joint_c"), EPSILON)
+        << "Interpolation of joint_c failed.";
+    EXPECT_NEAR(1 - t, interpolated_state.getVariablePosition("joint_f"), EPSILON)
+        << "Interpolation of joint_f failed.";
+    EXPECT_NEAR(1.5 * (1 - t) + 0.1, interpolated_state.getVariablePosition("mim_f"), EPSILON)
+        << "Interpolation of mimic joint mim_f failed.";
+  }
+
+  bool nan_exception = false;
+  try
+  {
+    state_a.interpolate(state_b, 1. / 0., interpolated_state, robot_model_->getJointModelGroup("base_from_base_to_e"));
+  }
+  catch (std::exception& e)
+  {
+    std::cout << "Caught expected exception: " << e.what() << std::endl;
+    nan_exception = true;
+  }
+  EXPECT_TRUE(nan_exception) << "NaN interpolation parameter did not create expected exception.";
 }
 
 int main(int argc, char** argv)

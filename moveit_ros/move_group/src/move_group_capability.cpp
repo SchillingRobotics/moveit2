@@ -34,9 +34,19 @@
 
 /* Author: Ioan Sucan */
 
+#include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/move_group/move_group_capability.h>
 #include <moveit/robot_state/conversions.h>
+#if __has_include(<tf2_geometry_msgs/tf2_geometry_msgs.hpp>)
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#endif
+
+#include <sstream>
+#include <string>
+
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_move_group_capabilities_base.move_group_capability");
 
 void move_group::MoveGroupCapability::setContext(const MoveGroupContextPtr& context)
 {
@@ -57,7 +67,7 @@ void move_group::MoveGroupCapability::convertToMsg(const std::vector<plan_execut
       {
         if (first && !trajectory[i].trajectory_->empty())
         {
-          robot_state::robotStateToRobotStateMsg(trajectory[i].trajectory_->getFirstWayPoint(), first_state_msg);
+          moveit::core::robotStateToRobotStateMsg(trajectory[i].trajectory_->getFirstWayPoint(), first_state_msg);
           first = false;
         }
         trajectory[i].trajectory_->getRobotTrajectoryMsg(trajectory_msg[i]);
@@ -72,7 +82,7 @@ void move_group::MoveGroupCapability::convertToMsg(const robot_trajectory::Robot
 {
   if (trajectory && !trajectory->empty())
   {
-    robot_state::robotStateToRobotStateMsg(trajectory->getFirstWayPoint(), first_state_msg);
+    moveit::core::robotStateToRobotStateMsg(trajectory->getFirstWayPoint(), first_state_msg);
     trajectory->getRobotTrajectoryMsg(trajectory_msg);
   }
 }
@@ -82,7 +92,7 @@ void move_group::MoveGroupCapability::convertToMsg(const std::vector<plan_execut
                                                    moveit_msgs::msg::RobotTrajectory& trajectory_msg) const
 {
   if (trajectory.size() > 1)
-    ROS_ERROR_STREAM("Internal logic error: trajectory component ignored. !!! THIS IS A SERIOUS ERROR !!!");
+    RCLCPP_ERROR_STREAM(LOGGER, "Internal logic error: trajectory component ignored. !!! THIS IS A SERIOUS ERROR !!!");
   if (!trajectory.empty())
     convertToMsg(trajectory[0].trajectory_, first_state_msg, trajectory_msg);
 }
@@ -93,8 +103,9 @@ move_group::MoveGroupCapability::clearRequestStartState(const planning_interface
   planning_interface::MotionPlanRequest r = request;
   r.start_state = moveit_msgs::msg::RobotState();
   r.start_state.is_diff = true;
-  ROS_WARN("Execution of motions should always start at the robot's current state. Ignoring the state supplied as "
-           "start state in the motion planning request");
+  RCLCPP_WARN(LOGGER,
+              "Execution of motions should always start at the robot's current state. Ignoring the state supplied as "
+              "start state in the motion planning request");
   return r;
 }
 
@@ -104,8 +115,9 @@ move_group::MoveGroupCapability::clearSceneRobotState(const moveit_msgs::msg::Pl
   moveit_msgs::msg::PlanningScene r = scene;
   r.robot_state = moveit_msgs::msg::RobotState();
   r.robot_state.is_diff = true;
-  ROS_WARN("Execution of motions should always start at the robot's current state. Ignoring the state supplied as "
-           "difference in the planning scene diff");
+  RCLCPP_WARN(LOGGER,
+              "Execution of motions should always start at the robot's current state. Ignoring the state supplied as "
+              "difference in the planning scene diff");
   return r;
 }
 
@@ -170,7 +182,7 @@ std::string move_group::MoveGroupCapability::stateToStr(MoveGroupState state) co
   }
 }
 
-bool move_group::MoveGroupCapability::performTransform(geometry_msgs::PoseStamped& pose_msg,
+bool move_group::MoveGroupCapability::performTransform(geometry_msgs::msg::PoseStamped& pose_msg,
                                                        const std::string& target_frame) const
 {
   if (!context_ || !context_->planning_scene_monitor_->getTFClient())
@@ -185,16 +197,42 @@ bool move_group::MoveGroupCapability::performTransform(geometry_msgs::PoseStampe
 
   try
   {
-    geometry_msgs::TransformStamped common_tf = context_->planning_scene_monitor_->getTFClient()->lookupTransform(
-        pose_msg.header.frame_id, target_frame, ros::Time(0.0));
-    geometry_msgs::PoseStamped pose_msg_in(pose_msg);
+    geometry_msgs::msg::TransformStamped common_tf = context_->planning_scene_monitor_->getTFClient()->lookupTransform(
+        pose_msg.header.frame_id, target_frame, rclcpp::Time(0.0));
+    geometry_msgs::msg::PoseStamped pose_msg_in(pose_msg);
     pose_msg_in.header.stamp = common_tf.header.stamp;
     context_->planning_scene_monitor_->getTFClient()->transform(pose_msg_in, pose_msg, target_frame);
   }
   catch (tf2::TransformException& ex)
   {
-    ROS_ERROR("TF Problem: %s", ex.what());
+    RCLCPP_ERROR(LOGGER, "TF Problem: %s", ex.what());
     return false;
   }
   return true;
+}
+
+planning_pipeline::PlanningPipelinePtr
+move_group::MoveGroupCapability::resolvePlanningPipeline(const std::string& pipeline_id) const
+{
+  if (pipeline_id.empty())
+  {
+    // Without specified planning pipeline we use the default
+    return context_->planning_pipeline_;
+  }
+  else
+  {
+    // Attempt to get the planning pipeline for the specified identifier
+    try
+    {
+      auto pipeline = context_->moveit_cpp_->getPlanningPipelines().at(pipeline_id);
+      RCLCPP_INFO(LOGGER, "Using planning pipeline '%s'", pipeline_id.c_str());
+      return pipeline;
+    }
+    catch (const std::out_of_range&)
+    {
+      RCLCPP_WARN(LOGGER, "Couldn't find requested planning pipeline '%s'", pipeline_id.c_str());
+    }
+  }
+
+  return planning_pipeline::PlanningPipelinePtr();
 }

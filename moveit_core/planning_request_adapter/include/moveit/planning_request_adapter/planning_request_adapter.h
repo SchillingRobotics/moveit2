@@ -44,15 +44,14 @@
 /** \brief Generic interface to adapting motion planning requests */
 namespace planning_request_adapter
 {
-MOVEIT_CLASS_FORWARD(PlanningRequestAdapter)
+MOVEIT_CLASS_FORWARD(PlanningRequestAdapter);  // Defines PlanningRequestAdapterPtr, ConstPtr, WeakPtr... etc
 
 class PlanningRequestAdapter
 {
 public:
-  typedef boost::function<bool(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                               const planning_interface::MotionPlanRequest& req,
-                               planning_interface::MotionPlanResponse& res)>
-      PlannerFn;
+  using PlannerFn =
+      boost::function<bool(const planning_scene::PlanningSceneConstPtr&, const planning_interface::MotionPlanRequest&,
+                           planning_interface::MotionPlanResponse&)>;
 
   PlanningRequestAdapter()
   {
@@ -91,6 +90,27 @@ public:
                             const planning_interface::MotionPlanRequest& req,
                             planning_interface::MotionPlanResponse& res,
                             std::vector<std::size_t>& added_path_index) const = 0;
+
+protected:
+  /** \brief Helper param for getting a parameter using a namespace **/
+  template <typename T>
+  T getParam(const rclcpp::Node::SharedPtr& node, const rclcpp::Logger& logger, const std::string& parameter_namespace,
+             const std::string& parameter_name, T default_value = {}) const
+  {
+    std::string full_name = parameter_namespace.empty() ? parameter_name : parameter_namespace + "." + parameter_name;
+    T value;
+    if (!node->get_parameter(full_name, value))
+    {
+      RCLCPP_INFO(logger, "Param '%s' was not set. Using default value: %s", full_name.c_str(),
+                  std::to_string(default_value).c_str());
+      return default_value;
+    }
+    else
+    {
+      RCLCPP_INFO(logger, "Param '%s' was set to %s", full_name.c_str(), std::to_string(value).c_str());
+      return value;
+    }
+  }
 };
 
 /// Apply a sequence of adapters to a motion plan
@@ -119,4 +139,4 @@ public:
 private:
   std::vector<PlanningRequestAdapterConstPtr> adapters_;
 };
-}
+}  // namespace planning_request_adapter

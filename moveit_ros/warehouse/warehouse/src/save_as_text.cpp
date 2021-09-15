@@ -43,16 +43,18 @@
 #include <boost/program_options/variables_map.hpp>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/robot_state/conversions.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 static const std::string ROBOT_DESCRIPTION = "robot_description";
 
-typedef std::pair<geometry_msgs::Point, geometry_msgs::Quaternion> LinkConstraintPair;
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit.ros.warehouse.save_to_text");
+
+typedef std::pair<geometry_msgs::msg::Point, geometry_msgs::msg::Quaternion> LinkConstraintPair;
 typedef std::map<std::string, LinkConstraintPair> LinkConstraintMap;
 
 void collectLinkConstraints(const moveit_msgs::msg::Constraints& constraints, LinkConstraintMap& lcmap)
 {
-  for (const moveit_msgs::PositionConstraint& position_constraint : constraints.position_constraints)
+  for (const moveit_msgs::msg::PositionConstraint& position_constraint : constraints.position_constraints)
   {
     LinkConstraintPair lcp;
     const moveit_msgs::msg::PositionConstraint& pc = position_constraint;
@@ -68,20 +70,25 @@ void collectLinkConstraints(const moveit_msgs::msg::Constraints& constraints, Li
     }
     else
     {
-      ROS_WARN("Orientation constraint for %s has no matching position constraint",
-               orientation_constraint.link_name.c_str());
+      RCLCPP_WARN(LOGGER, "Orientation constraint for %s has no matching position constraint",
+                  orientation_constraint.link_name.c_str());
     }
   }
 }
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "save_warehouse_as_text", ros::init_options::AnonymousName);
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions node_options;
+  node_options.allow_undeclared_parameters(true);
+  node_options.automatically_declare_parameters_from_overrides(true);
+  rclcpp::Node::SharedPtr node = rclcpp::Node::make_shared("save_warehouse_as_text", node_options);
 
   boost::program_options::options_description desc;
-  desc.add_options()("help", "Show help message")("host", boost::program_options::value<std::string>(), "Host for the "
-                                                                                                        "DB.")(
-      "port", boost::program_options::value<std::size_t>(), "Port for the DB.");
+  desc.add_options()("help", "Show help message")("host", boost::program_options::value<std::string>(),
+                                                  "Host for the "
+                                                  "DB.")("port", boost::program_options::value<std::size_t>(),
+                                                         "Port for the DB.");
 
   boost::program_options::variables_map vm;
   boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
@@ -93,16 +100,13 @@ int main(int argc, char** argv)
     return 1;
   }
   // Set up db
-  warehouse_ros::DatabaseConnection::Ptr conn = moveit_warehouse::loadDatabase();
+  warehouse_ros::DatabaseConnection::Ptr conn = moveit_warehouse::loadDatabase(node);
   if (vm.count("host") && vm.count("port"))
     conn->setParams(vm["host"].as<std::string>(), vm["port"].as<std::size_t>());
   if (!conn->connect())
     return 1;
 
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
-
-  planning_scene_monitor::PlanningSceneMonitor psm(ROBOT_DESCRIPTION);
+  planning_scene_monitor::PlanningSceneMonitor psm(node, ROBOT_DESCRIPTION);
 
   moveit_warehouse::PlanningSceneStorage pss(conn);
   moveit_warehouse::RobotStateStorage rss(conn);
@@ -116,14 +120,14 @@ int main(int argc, char** argv)
     moveit_warehouse::PlanningSceneWithMetadata pswm;
     if (pss.getPlanningScene(pswm, scene_name))
     {
-      ROS_INFO("Saving scene '%s'", scene_name.c_str());
+      RCLCPP_INFO(LOGGER, "Saving scene '%s'", scene_name.c_str());
       psm.getPlanningScene()->setPlanningSceneMsg(static_cast<const moveit_msgs::msg::PlanningScene&>(*pswm));
       std::ofstream fout((scene_name + ".scene").c_str());
       psm.getPlanningScene()->saveGeometryToStream(fout);
       fout.close();
 
       std::vector<std::string> robot_state_names;
-      robot_model::RobotModelConstPtr km = psm.getRobotModel();
+      moveit::core::RobotModelConstPtr km = psm.getRobotModel();
       // Get start states for scene
       std::stringstream rsregex;
       rsregex << ".*" << scene_name << ".*";
@@ -146,12 +150,12 @@ int main(int argc, char** argv)
           qfout << robot_state_names.size() << std::endl;
           for (const std::string& robot_state_name : robot_state_names)
           {
-            ROS_INFO("Saving start state %s for scene %s", robot_state_name.c_str(), scene_name.c_str());
+            RCLCPP_INFO(LOGGER, "Saving start state %s for scene %s", robot_state_name.c_str(), scene_name.c_str());
             qfout << robot_state_name << std::endl;
             moveit_warehouse::RobotStateWithMetadata robot_state;
             rss.getRobotState(robot_state, robot_state_name);
-            robot_state::RobotState ks(km);
-            robot_state::robotStateMsgToRobotState(*robot_state, ks, false);
+            moveit::core::RobotState ks(km);
+            moveit::core::robotStateMsgToRobotState(*robot_state, ks, false);
             ks.printStateInfo(qfout);
             qfout << "." << std::endl;
           }
@@ -163,7 +167,7 @@ int main(int argc, char** argv)
           qfout << constraint_names.size() << std::endl;
           for (const std::string& constraint_name : constraint_names)
           {
-            ROS_INFO("Saving goal %s for scene %s", constraint_name.c_str(), scene_name.c_str());
+            RCLCPP_INFO(LOGGER, "Saving goal %s for scene %s", constraint_name.c_str(), scene_name.c_str());
             qfout << "link_constraint" << std::endl;
             qfout << constraint_name << std::endl;
             moveit_warehouse::ConstraintsWithMetadata constraints;
@@ -189,7 +193,7 @@ int main(int argc, char** argv)
     }
   }
 
-  ROS_INFO("Done.");
-
+  RCLCPP_INFO(LOGGER, "Done.");
+  rclcpp::spin(node);
   return 0;
 }

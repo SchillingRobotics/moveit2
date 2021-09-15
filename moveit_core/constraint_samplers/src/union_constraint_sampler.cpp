@@ -82,8 +82,9 @@ struct OrderSamplers
         }
     if (b_depends_on_a && a_depends_on_b)
     {
-      RCLCPP_WARN(LOGGER, "Circular frame dependency! "
-                          "Sampling will likely produce invalid results (sampling for groups '%s' and '%s')",
+      RCLCPP_WARN(LOGGER,
+                  "Circular frame dependency! "
+                  "Sampling will likely produce invalid results (sampling for groups '%s' and '%s')",
                   a->getJointModelGroup()->getName().c_str(), b->getJointModelGroup()->getName().c_str());
       return true;
     }
@@ -124,7 +125,7 @@ UnionConstraintSampler::UnionConstraintSampler(const planning_scene::PlanningSce
   }
 }
 
-bool UnionConstraintSampler::sample(robot_state::RobotState& state, const robot_state::RobotState& reference_state,
+bool UnionConstraintSampler::sample(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state,
                                     unsigned int max_attempts)
 {
   state = reference_state;
@@ -148,7 +149,7 @@ bool UnionConstraintSampler::sample(robot_state::RobotState& state, const robot_
   return true;
 }
 
-bool UnionConstraintSampler::project(robot_state::RobotState& state, unsigned int max_attempts)
+bool UnionConstraintSampler::project(moveit::core::RobotState& state, unsigned int max_attempts)
 {
   for (ConstraintSamplerPtr& sampler : samplers_)
   {

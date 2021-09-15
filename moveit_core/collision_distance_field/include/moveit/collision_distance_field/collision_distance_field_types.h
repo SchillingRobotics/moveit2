@@ -39,17 +39,12 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <sstream>
 #include <memory>
 #include <float.h>
 
 #include <geometric_shapes/shapes.h>
 #include <geometric_shapes/bodies.h>
-#include <moveit/macros/diagnostics.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 #include <octomap/OcTree.h>
-DIAGNOSTIC_POP
 
 #include <moveit/macros/class_forward.h>
 #include <moveit/distance_field/distance_field.h>
@@ -112,12 +107,13 @@ struct GradientInfo
   }
 };
 
-MOVEIT_CLASS_FORWARD(PosedDistanceField)
-MOVEIT_CLASS_FORWARD(BodyDecomposition)
-MOVEIT_CLASS_FORWARD(PosedBodySphereDecomposition)
-MOVEIT_CLASS_FORWARD(PosedBodyPointDecomposition)
-MOVEIT_CLASS_FORWARD(PosedBodySphereDecompositionVector)
-MOVEIT_CLASS_FORWARD(PosedBodyPointDecompositionVector)
+// Defines ConstPtr, WeakPtr... etc
+MOVEIT_CLASS_FORWARD(PosedDistanceField);
+MOVEIT_CLASS_FORWARD(BodyDecomposition);
+MOVEIT_CLASS_FORWARD(PosedBodySphereDecomposition);
+MOVEIT_CLASS_FORWARD(PosedBodyPointDecomposition);
+MOVEIT_CLASS_FORWARD(PosedBodySphereDecompositionVector);
+MOVEIT_CLASS_FORWARD(PosedBodyPointDecompositionVector);
 
 class PosedDistanceField : public distance_field::PropagationDistanceField
 {
@@ -454,10 +450,9 @@ public:
   EigenSTL::vector_Vector3d getCollisionPoints() const
   {
     EigenSTL::vector_Vector3d ret_points;
-    for (unsigned int i = 0; i < decomp_vector_.size(); i++)
+    for (const PosedBodyPointDecompositionPtr& decomp : decomp_vector_)
     {
-      ret_points.insert(ret_points.end(), decomp_vector_[i]->getCollisionPoints().begin(),
-                        decomp_vector_[i]->getCollisionPoints().end());
+      ret_points.insert(ret_points.end(), decomp->getCollisionPoints().begin(), decomp->getCollisionPoints().end());
     }
     return ret_points;
   }
@@ -533,4 +528,4 @@ void getCollisionMarkers(const std::string& frame_id, const std::string& ns, con
                          const std::vector<PosedBodySphereDecompositionPtr>& posed_decompositions,
                          const std::vector<PosedBodySphereDecompositionVectorPtr>& posed_vector_decompositions,
                          const std::vector<GradientInfo>& gradients, visualization_msgs::msg::MarkerArray& arr);
-}
+}  // namespace collision_detection

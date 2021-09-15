@@ -1,6 +1,6 @@
 <package format="2">
   <name>moveit_ros_move_group</name>
-  <version>1.0.1</version>
+  <version>2.2.1</version>
   <description>The move_group node for MoveIt</description>
   <author email="isucan@google.com">Ioan Sucan</author>
   <author email="robot.moveit@gmail.com">Sachin Chitta</author>
@@ -12,15 +12,17 @@
   <license>BSD</license>
 
   <url type="website">http://moveit.ros.org</url>
-  <url type="bugtracker">https://github.com/ros-planning/moveit/issues</url>
-  <url type="repository">https://github.com/ros-planning/moveit</url>
+  <url type="bugtracker">https://github.com/ros-planning/moveit2/issues</url>
+  <url type="repository">https://github.com/ros-planning/moveit2</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>moveit_common</build_depend>
 
-  <depend>actionlib</depend>
   <depend>moveit_core</depend>
   <depend>moveit_ros_planning</depend>
-  <depend>roscpp</depend>
+  <depend>moveit_ros_occupancy_map_monitor</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>tf2_ros</depend>
@@ -29,11 +31,14 @@
 
   <exec_depend>moveit_kinematics</exec_depend>
 
-  <test_depend>rostest</test_depend>
-  <test_depend>moveit_resources</test_depend>
+  <test_depend>moveit_resources_fanuc_moveit_config</test_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
 
   <export>
-    <moveit_ros_move_group plugin="${prefix}/default_capabilities_plugin_description.xml"/>
+    <moveit_ros_move_group plugin="${prefix}/default_capabilities_plugin_description.xml" />
+    <build_type>ament_cmake</build_type>
   </export>
 
 </package>

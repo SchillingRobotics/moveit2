@@ -12,6 +12,7 @@ ament_target_dependencies(${MOVEIT_LIB_NAME}
   moveit_msgs
   orocos_kdl
   kdl_parser
+  tf2_kdl
   EIGEN3
 )
 
@@ -21,11 +22,4 @@ target_compile_definitions(${MOVEIT_LIB_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_F
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(${MOVEIT_LIB_NAME} PRIVATE "MOVEIT_KDL_KINEMATICS_PLUGIN_BUILDING_DLL")
 
-install(
-  TARGETS ${MOVEIT_LIB_NAME}
-  EXPORT ${MOVEIT_LIB_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-)
 install(DIRECTORY include/ DESTINATION include)

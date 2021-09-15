@@ -57,17 +57,17 @@ double countSamplesPerSecond(const moveit_msgs::msg::Constraints& constr,
                                scene->getCurrentState());
 }
 
-double countSamplesPerSecond(const ConstraintSamplerPtr& sampler, const robot_state::RobotState& reference_state)
+double countSamplesPerSecond(const ConstraintSamplerPtr& sampler, const moveit::core::RobotState& reference_state)
 {
   if (!sampler)
   {
     RCLCPP_ERROR(LOGGER, "No sampler specified for counting samples per second");
     return 0.0;
   }
-  robot_state::RobotState ks(reference_state);
+  moveit::core::RobotState ks(reference_state);
   unsigned long int valid = 0;
   unsigned long int total = 0;
-  rclcpp::Time end = rclcpp::Clock().now() + rclcpp::Duration(1.0);
+  rclcpp::Time end = rclcpp::Clock().now() + rclcpp::Duration::from_seconds(1);
   do
   {
     static const unsigned int N = 10;
@@ -81,7 +81,7 @@ double countSamplesPerSecond(const ConstraintSamplerPtr& sampler, const robot_st
   return (double)valid / (double)total;
 }
 
-void visualizeDistribution(const ConstraintSamplerPtr& sampler, const robot_state::RobotState& reference_state,
+void visualizeDistribution(const ConstraintSamplerPtr& sampler, const moveit::core::RobotState& reference_state,
                            const std::string& link_name, unsigned int sample_count,
                            visualization_msgs::msg::MarkerArray& markers)
 {
@@ -90,10 +90,10 @@ void visualizeDistribution(const ConstraintSamplerPtr& sampler, const robot_stat
     RCLCPP_ERROR(LOGGER, "No sampler specified for visualizing distribution of samples");
     return;
   }
-  const robot_state::LinkModel* lm = reference_state.getLinkModel(link_name);
+  const moveit::core::LinkModel* lm = reference_state.getLinkModel(link_name);
   if (!lm)
     return;
-  robot_state::RobotState ks(reference_state);
+  moveit::core::RobotState ks(reference_state);
   std_msgs::msg::ColorRGBA color;
   color.r = 1.0f;
   color.g = 0.0f;
@@ -117,7 +117,7 @@ void visualizeDistribution(const ConstraintSamplerPtr& sampler, const robot_stat
     mk.pose.orientation.w = 1.0;
     mk.scale.x = mk.scale.y = mk.scale.z = 0.035;
     mk.color = color;
-    mk.lifetime = rclcpp::Duration(30.0);
+    mk.lifetime = rclcpp::Duration::from_seconds(30);
     markers.markers.push_back(mk);
   }
 }

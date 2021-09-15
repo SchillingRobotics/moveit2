@@ -47,9 +47,28 @@
 #include <rclcpp/rclcpp.hpp>
 #endif
 
+#include "moveit_planning_scene_rviz_plugin_core_export.h"
+
+namespace Ogre
+{
+class SceneNode;
+}
+
+namespace rviz
+{
+class Robot;
+class Property;
+class StringProperty;
+class BoolProperty;
+class FloatProperty;
+class RosTopicProperty;
+class ColorProperty;
+class EnumProperty;
+}  // namespace rviz
+
 namespace moveit_rviz_plugin
 {
-class PlanningSceneDisplay : public rviz_common::Display
+class MOVEIT_PLANNING_SCENE_RVIZ_PLUGIN_CORE_EXPORT PlanningSceneDisplay : public rviz_common::Display
 {
   Q_OBJECT
 
@@ -87,7 +106,7 @@ public:
   void clearJobs();
 
   const std::string getMoveGroupNS() const;
-  const robot_model::RobotModelConstPtr& getRobotModel() const;
+  const moveit::core::RobotModelConstPtr& getRobotModel() const;
 
   /// wait for robot state more recent than t
   bool waitForCurrentRobotState(const rclcpp::Time& t = rclcpp::Clock().now());
@@ -115,6 +134,7 @@ private Q_SLOTS:
   void changedSceneDisplayTime();
   void changedOctreeRenderMode();
   void changedOctreeColorMode();
+  void setSceneName(const QString& name);
 
 protected Q_SLOTS:
   virtual void changedAttachedBodyColor();
@@ -134,6 +154,8 @@ protected:
 
   /// This is an event called by loadRobotModel() in the MainLoop; do not call directly
   virtual void onRobotModelLoaded();
+  /// This is called upon successful retrieval of the (initial) planning scene state
+  virtual void onNewPlanningSceneState();
 
   /**
    * \brief Set the scene node's position, given the target frame and the planning frame
@@ -160,7 +182,6 @@ protected:
   virtual void onSceneMonitorReceivedUpdate(planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType update_type);
 
   planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
-  bool model_is_loading_;
   boost::mutex robot_model_loading_lock_;
 
   moveit::tools::BackgroundProcessing background_process_;
@@ -174,7 +195,10 @@ protected:
   RobotStateVisualizationPtr planning_scene_robot_;
   PlanningSceneRenderPtr planning_scene_render_;
 
+  // full update required
   bool planning_scene_needs_render_;
+  // or only the robot position (excluding attached object changes)
+  bool robot_state_needs_render_;
   float current_scene_time_;
 
   rviz_common::properties::Property* scene_category_;

@@ -35,6 +35,7 @@
 /* Author: Ioan Sucan */
 
 #include "state_validation_service_capability.h"
+#include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/utils/message_checks.h>
 #include <moveit/collision_detection/collision_tools.h>
@@ -48,26 +49,32 @@ MoveGroupStateValidationService::MoveGroupStateValidationService() : MoveGroupCa
 
 void MoveGroupStateValidationService::initialize()
 {
-  validity_service_ = root_node_handle_.advertiseService(STATE_VALIDITY_SERVICE_NAME,
-                                                         &MoveGroupStateValidationService::computeService, this);
+  using std::placeholders::_1;
+  using std::placeholders::_2;
+  using std::placeholders::_3;
+
+  validity_service_ = context_->moveit_cpp_->getNode()->create_service<moveit_msgs::srv::GetStateValidity>(
+      STATE_VALIDITY_SERVICE_NAME, std::bind(&MoveGroupStateValidationService::computeService, this, _1, _2, _3));
 }
 
-bool MoveGroupStateValidationService::computeService(moveit_msgs::srv::GetStateValidity::Request& req,
-                                                     moveit_msgs::srv::GetStateValidity::Response& res)
+bool MoveGroupStateValidationService::computeService(
+    const std::shared_ptr<rmw_request_id_t> request_header,
+    const std::shared_ptr<moveit_msgs::srv::GetStateValidity::Request> req,
+    std::shared_ptr<moveit_msgs::srv::GetStateValidity::Response> res)
 {
   planning_scene_monitor::LockedPlanningSceneRO ls(context_->planning_scene_monitor_);
-  robot_state::RobotState rs = ls->getCurrentState();
-  robot_state::robotStateMsgToRobotState(req.robot_state, rs);
+  moveit::core::RobotState rs = ls->getCurrentState();
+  moveit::core::robotStateMsgToRobotState(req->robot_state, rs);
 
-  res.valid = true;
+  res->valid = true;
 
   // configure collision request
   collision_detection::CollisionRequest creq;
-  creq.group_name = req.group_name;
+  creq.group_name = req->group_name;
   creq.cost = true;
   creq.contacts = true;
-  creq.max_contacts = ls->getWorld()->size();
-  creq.max_cost_sources = creq.max_contacts + ls->getRobotModel()->getLinkModelsWithCollisionGeometry().size();
+  creq.max_contacts = ls->getWorld()->size() + ls->getRobotModel()->getLinkModelsWithCollisionGeometry().size();
+  creq.max_cost_sources = creq.max_contacts;
   creq.max_contacts *= creq.max_contacts;
   collision_detection::CollisionResult cres;
 
@@ -77,44 +84,44 @@ bool MoveGroupStateValidationService::computeService(moveit_msgs::srv::GetStateV
   // copy contacts if any
   if (cres.collision)
   {
-    ros::Time time_now = ros::Time::now();
-    res.contacts.reserve(cres.contact_count);
-    res.valid = false;
+    rclcpp::Time time_now = context_->moveit_cpp_->getNode()->get_clock()->now();
+    res->contacts.reserve(cres.contact_count);
+    res->valid = false;
     for (collision_detection::CollisionResult::ContactMap::const_iterator it = cres.contacts.begin();
          it != cres.contacts.end(); ++it)
       for (const collision_detection::Contact& contact : it->second)
       {
-        res.contacts.resize(res.contacts.size() + 1);
-        collision_detection::contactToMsg(contact, res.contacts.back());
-        res.contacts.back().header.frame_id = ls->getPlanningFrame();
-        res.contacts.back().header.stamp = time_now;
+        res->contacts.resize(res->contacts.size() + 1);
+        collision_detection::contactToMsg(contact, res->contacts.back());
+        res->contacts.back().header.frame_id = ls->getPlanningFrame();
+        res->contacts.back().header.stamp = time_now;
       }
   }
 
   // copy cost sources
-  res.cost_sources.reserve(cres.cost_sources.size());
+  res->cost_sources.reserve(cres.cost_sources.size());
   for (const collision_detection::CostSource& cost_source : cres.cost_sources)
   {
-    res.cost_sources.resize(res.cost_sources.size() + 1);
-    collision_detection::costSourceToMsg(cost_source, res.cost_sources.back());
+    res->cost_sources.resize(res->cost_sources.size() + 1);
+    collision_detection::costSourceToMsg(cost_source, res->cost_sources.back());
   }
 
   // evaluate constraints
-  if (!moveit::core::isEmpty(req.constraints))
+  if (!moveit::core::isEmpty(req->constraints))
   {
     kinematic_constraints::KinematicConstraintSet kset(ls->getRobotModel());
-    kset.add(req.constraints, ls->getTransforms());
+    kset.add(req->constraints, ls->getTransforms());
     std::vector<kinematic_constraints::ConstraintEvaluationResult> kres;
     kinematic_constraints::ConstraintEvaluationResult total_result = kset.decide(rs, kres);
     if (!total_result.satisfied)
-      res.valid = false;
+      res->valid = false;
 
     // copy constraint results
-    res.constraint_result.resize(kres.size());
+    res->constraint_result.resize(kres.size());
     for (std::size_t k = 0; k < kres.size(); ++k)
     {
-      res.constraint_result[k].result = kres[k].satisfied;
-      res.constraint_result[k].distance = kres[k].distance;
+      res->constraint_result[k].result = kres[k].satisfied;
+      res->constraint_result[k].distance = kres[k].distance;
     }
   }
 
@@ -122,5 +129,6 @@ bool MoveGroupStateValidationService::computeService(moveit_msgs::srv::GetStateV
 }
 }  // namespace move_group
 
-#include <class_loader/class_loader.hpp>
-CLASS_LOADER_REGISTER_CLASS(move_group::MoveGroupStateValidationService, move_group::MoveGroupCapability)
+#include <pluginlib/class_list_macros.hpp>
+
+PLUGINLIB_EXPORT_CLASS(move_group::MoveGroupStateValidationService, move_group::MoveGroupCapability)

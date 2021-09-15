@@ -40,14 +40,16 @@
 #include <moveit/macros/class_forward.h>
 #include <moveit_msgs/msg/constraints.hpp>
 
+#include "moveit_warehouse_export.h"
+
 namespace moveit_warehouse
 {
 typedef warehouse_ros::MessageWithMetadata<moveit_msgs::msg::Constraints>::ConstPtr ConstraintsWithMetadata;
 typedef warehouse_ros::MessageCollection<moveit_msgs::msg::Constraints>::Ptr ConstraintsCollection;
 
-MOVEIT_CLASS_FORWARD(ConstraintsStorage)
+MOVEIT_CLASS_FORWARD(ConstraintsStorage);  // Defines ConstraintsStoragePtr, ConstPtr, WeakPtr... etc
 
-class ConstraintsStorage : public MoveItMessageStorage
+class MOVEIT_WAREHOUSE_EXPORT ConstraintsStorage : public MoveItMessageStorage
 {
 public:
   static const std::string DATABASE_NAME;
@@ -82,4 +84,4 @@ private:
 
   ConstraintsCollection constraints_collection_;
 };
-}
+}  // namespace moveit_warehouse

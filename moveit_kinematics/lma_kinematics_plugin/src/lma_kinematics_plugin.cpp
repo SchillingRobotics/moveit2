@@ -38,7 +38,11 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/chainiksolverpos_lma.hpp>
 
+#if __has_include(<tf2_kdl/tf2_kdl.hpp>)
+#include <tf2_kdl/tf2_kdl.hpp>
+#else
 #include <tf2_kdl/tf2_kdl.h>
+#endif
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/frames_io.hpp>
 #include <kdl/kinfam_io.hpp>
@@ -113,7 +117,7 @@ bool LMAKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const 
     return false;
   }
 
-  for (const robot_model::JointModel* jm : joint_model_group_->getJointModels())
+  for (const moveit::core::JointModel* jm : joint_model_group_->getJointModels())
   {
     if (jm->getType() == moveit::core::JointModel::REVOLUTE || jm->getType() == moveit::core::JointModel::PRISMATIC)
     {
@@ -136,7 +140,7 @@ bool LMAKinematicsPlugin::initialize(const rclcpp::Node::SharedPtr& node, const 
     RCLCPP_INFO(LOGGER, "Using position only ik");
 
   // Setup the joint state groups that we need
-  state_.reset(new robot_state::RobotState(robot_model_));
+  state_.reset(new moveit::core::RobotState(robot_model_));
 
   fk_solver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
 
@@ -228,7 +232,7 @@ bool LMAKinematicsPlugin::searchPositionIK(const geometry_msgs::msg::Pose& ik_po
 
   if (ik_seed_state.size() != dimension_)
   {
-    RCLCPP_ERROR(LOGGER, "Seed state must have size %d instead of size %d", dimension_, ik_seed_state.size());
+    RCLCPP_ERROR(LOGGER, "Seed state must have size %d instead of size %zu", dimension_, ik_seed_state.size());
     error_code.val = error_code.NO_IK_SOLUTION;
     return false;
   }

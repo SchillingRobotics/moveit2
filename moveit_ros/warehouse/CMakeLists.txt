@@ -1,34 +1,60 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(moveit_ros_warehouse)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# Common cmake code applied to all moveit packages
+find_package(moveit_common REQUIRED)
+moveit_package()
 
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wpedantic)
 endif()
 
-find_package(Boost REQUIRED thread system filesystem regex date_time program_options)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(moveit_core REQUIRED)
+find_package(warehouse_ros REQUIRED)
+find_package(moveit_ros_planning REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(tf2_ros REQUIRED)
 
-find_package(catkin REQUIRED COMPONENTS
-  moveit_ros_planning
-  roscpp
-  rosconsole
-  warehouse_ros
-  tf2_eigen
-  tf2_ros
-)
-
-catkin_package(
-  LIBRARIES
-    moveit_warehouse
-  INCLUDE_DIRS
-    warehouse/include
-  CATKIN_DEPENDS
-    moveit_ros_planning
-    warehouse_ros)
+# Finds Boost Components
+include(ConfigExtras.cmake)
 
 include_directories(warehouse/include)
-include_directories(${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_subdirectory(warehouse)
+
+install(
+  TARGETS moveit_warehouse
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+
+ament_export_dependencies(rclcpp)
+ament_export_dependencies(moveit_core)
+ament_export_dependencies(warehouse_ros)
+ament_export_dependencies(moveit_ros_planning)
+ament_export_dependencies(tf2_eigen)
+ament_export_dependencies(tf2_ros)
+ament_export_dependencies(Boost)
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+
+  # These don't pass yet, disable them for now
+  set(ament_cmake_copyright_FOUND TRUE)
+  set(ament_cmake_cppcheck_FOUND TRUE)
+  set(ament_cmake_cpplint_FOUND TRUE)
+  set(ament_cmake_flake8_FOUND TRUE)
+  set(ament_cmake_uncrustify_FOUND TRUE)
+
+  # Run all lint tests in package.xml except those listed above
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package(CONFIG_EXTRAS ConfigExtras.cmake)

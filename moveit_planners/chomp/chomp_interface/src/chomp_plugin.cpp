@@ -36,7 +36,6 @@
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/collision_distance_field/collision_detector_allocator_hybrid.h>
-#include <moveit_msgs/GetMotionPlan.h>
 #include <chomp_interface/chomp_planning_context.h>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -50,12 +49,16 @@ public:
   {
   }
 
-  bool initialize(const robot_model::RobotModelConstPtr& model, const std::string& /*ns*/) override
+  bool initialize(const moveit::core::RobotModelConstPtr& model, const std::string& ns) override
   {
+    ros::NodeHandle nh("~");
+    if (!ns.empty())
+      nh = ros::NodeHandle(ns);
+
     for (const std::string& group : model->getJointModelGroupNames())
     {
       planning_contexts_[group] =
-          CHOMPPlanningContextPtr(new CHOMPPlanningContext("chomp_planning_context", group, model));
+          CHOMPPlanningContextPtr(new CHOMPPlanningContext("chomp_planning_context", group, model, nh));
     }
     return true;
   }
@@ -83,7 +86,7 @@ public:
 
     // create PlanningScene using hybrid collision detector
     planning_scene::PlanningScenePtr ps = planning_scene->diff();
-    ps->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorHybrid::create(), true);
+    ps->allocateCollisionDetector(collision_detection::CollisionDetectorAllocatorHybrid::create());
 
     // retrieve and configure existing context
     const CHOMPPlanningContextPtr& context = planning_contexts_.at(req.group_name);

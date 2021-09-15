@@ -42,8 +42,6 @@
 #include <kdl/tree.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 
-#include <angles/angles.h>
-
 #include <moveit/macros/class_forward.h>
 #include <moveit_msgs/srv/get_position_fk.hpp>
 #include <moveit_msgs/srv/get_position_ik.hpp>
@@ -65,7 +63,7 @@ namespace pr2_arm_kinematics
 static const int NO_IK_SOLUTION = -1;
 static const int TIMED_OUT = -2;
 
-MOVEIT_CLASS_FORWARD(PR2ArmIKSolver)
+MOVEIT_CLASS_FORWARD(PR2ArmIKSolver);
 
 // minimal stuff necessary
 class PR2ArmIKSolver : public KDL::ChainIkSolverPos
@@ -85,6 +83,8 @@ public:
                  const std::string& tip_frame_name, const double& search_discretization_angle, const int& free_angle);
 
   ~PR2ArmIKSolver() override{};
+
+  void updateInternalDataStructures() override;
 
   /**
    * @brief The PR2 inverse kinematics solver
@@ -119,7 +119,7 @@ Eigen::Isometry3f KDLToEigenMatrix(const KDL::Frame& p);
 double computeEuclideanDistance(const std::vector<double>& array_1, const KDL::JntArray& array_2);
 void getKDLChainInfo(const KDL::Chain& chain, moveit_msgs::msg::KinematicSolverInfo& chain_info);
 
-MOVEIT_CLASS_FORWARD(PR2ArmKinematicsPlugin)
+MOVEIT_CLASS_FORWARD(PR2ArmKinematicsPlugin);
 
 class PR2ArmKinematicsPlugin : public kinematics::KinematicsBase
 {
@@ -142,10 +142,10 @@ public:
    * @param ik_seed_state an initial guess solution for the inverse kinematics
    * @return True if a valid solution was found, false otherwise
    */
-  bool getPositionIK(
-      const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state, std::vector<double>& solution,
-      moveit_msgs::msg::MoveItErrorCodes& error_code,
-      const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
+  bool
+  getPositionIK(const geometry_msgs::msg::Pose& ik_pose, const std::vector<double>& ik_seed_state,
+                std::vector<double>& solution, moveit_msgs::msg::MoveItErrorCodes& error_code,
+                const kinematics::KinematicsQueryOptions& options = kinematics::KinematicsQueryOptions()) const override;
 
   /**
    * @brief Given a desired pose of the end-effector, search for the joint angles required to reach it.
@@ -251,4 +251,4 @@ protected:
   void jointSolutionCallback(const KDL::JntArray& jnt_array, const KDL::Frame& ik_pose,
                              moveit_msgs::msg::MoveItErrorCodes& error_code) const;
 };
-}
+}  // namespace pr2_arm_kinematics

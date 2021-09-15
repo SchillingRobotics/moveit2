@@ -36,9 +36,13 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <kdl_parser/kdl_parser.hpp>
+#if __has_include(<tf2_kdl/tf2_kdl.hpp>)
+#include <tf2_kdl/tf2_kdl.hpp>
+#else
 #include <tf2_kdl/tf2_kdl.h>
+#endif
 #include <algorithm>
-#include <numeric>
+#include <cmath>
 
 #include <moveit/robot_model/robot_model.h>
 #include "pr2_arm_kinematics_plugin.h"
@@ -94,10 +98,13 @@ PR2ArmIKSolver::PR2ArmIKSolver(const urdf::ModelInterface& robot_model, const st
   search_discretization_angle_ = search_discretization_angle;
   free_angle_ = free_angle;
   root_frame_name_ = root_frame_name;
-  if (!pr2_arm_ik_.init(robot_model, root_frame_name, tip_frame_name))
-    active_ = false;
-  else
-    active_ = true;
+  active_ = pr2_arm_ik_.init(robot_model, root_frame_name, tip_frame_name);
+}
+
+void PR2ArmIKSolver::updateInternalDataStructures()
+{
+  // TODO: move (re)allocation of any internal data structures here
+  // to react to changes in chain
 }
 
 int PR2ArmIKSolver::CartToJnt(const KDL::JntArray& q_init, const KDL::Frame& p_in, KDL::JntArray& q_out)
@@ -238,7 +245,7 @@ double computeEuclideanDistance(const std::vector<double>& array_1, const KDL::J
   {
     distance += (array_1[i] - array_2(i)) * (array_1[i] - array_2(i));
   }
-  return sqrt(distance);
+  return std::sqrt(distance);
 }
 
 void getKDLChainInfo(const KDL::Chain& chain, moveit_msgs::msg::KinematicSolverInfo& chain_info)

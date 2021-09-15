@@ -37,11 +37,8 @@
 #pragma once
 
 #include <QListView>
-#include <QStandardItemModel>
-#include <QScrollBar>
-#include <QString>
 #include <QStyledItemDelegate>
-#include <QPainter>
+class QStandardItemModel;
 
 namespace moveit_setup_assistant
 {
@@ -56,7 +53,7 @@ class NavigationWidget : public QListView
 {
   Q_OBJECT
 public:
-  explicit NavigationWidget(QWidget* parent = 0);
+  explicit NavigationWidget(QWidget* parent = nullptr);
 
   void setNavs(const QList<QString>& navs);
   void setEnabled(const int& index, bool enabled);
@@ -77,9 +74,9 @@ class NavDelegate : public QStyledItemDelegate
 {
   Q_OBJECT
 public:
-  explicit NavDelegate(QObject* parent = 0);
+  explicit NavDelegate(QObject* parent = nullptr);
 
   QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
   void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 };
-}
+}  // namespace moveit_setup_assistant

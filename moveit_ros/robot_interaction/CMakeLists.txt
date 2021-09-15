@@ -1,63 +1,82 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(moveit_ros_robot_interaction)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# Common cmake code applied to all moveit packages
+find_package(moveit_common REQUIRED)
+moveit_package()
 
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-endif()
+find_package(moveit_ros_planning REQUIRED)
+find_package(interactive_markers REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(rclcpp REQUIRED)
 
-find_package(Boost REQUIRED thread)
-find_package(catkin REQUIRED COMPONENTS
-  moveit_ros_planning
-  interactive_markers
-  tf2
-  tf2_eigen
-  tf2_geometry_msgs
-  tf2_ros
-  roscpp
-)
+# Finds Boost Components
+include(ConfigExtras.cmake)
 
 set(MOVEIT_LIB_NAME moveit_robot_interaction)
 
-catkin_package(
-  LIBRARIES
-    ${MOVEIT_LIB_NAME}
-  INCLUDE_DIRS
-    include
-  CATKIN_DEPENDS
-    moveit_ros_planning
-    interactive_markers
-    tf2_geometry_msgs
+set(THIS_PACKAGE_INCLUDE_DEPENDS
+  Boost
+  moveit_ros_planning
+  interactive_markers
+  tf2_geometry_msgs
 )
 
-include_directories(include
-                    ${Boost_INCLUDE_DIRS}
-                    ${catkin_INCLUDE_DIRS})
+include_directories(include)
 
-add_library(${MOVEIT_LIB_NAME}
+add_library(${MOVEIT_LIB_NAME} SHARED
   src/interactive_marker_helpers.cpp
   src/kinematic_options.cpp
   src/kinematic_options_map.cpp
   src/locked_robot_state.cpp
   src/interaction_handler.cpp
-  src/robot_interaction.cpp)
+  src/robot_interaction.cpp
+)
+include(GenerateExportHeader)
+generate_export_header(${MOVEIT_LIB_NAME})
+target_include_directories(${MOVEIT_LIB_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 set_target_properties(${MOVEIT_LIB_NAME} PROPERTIES VERSION "${${PROJECT_NAME}_VERSION}")
-target_link_libraries(${MOVEIT_LIB_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+ament_target_dependencies(${MOVEIT_LIB_NAME} ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-if (CATKIN_ENABLE_TESTING)
-  catkin_add_gtest(locked_robot_state_test test/locked_robot_state_test.cpp)
-  target_link_libraries(locked_robot_state_test
-    ${MOVEIT_LIB_NAME}
-    ${catkin_LIBRARIES}
-    ${Boost_LIBRARIES})
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(locked_robot_state_test test/locked_robot_state_test.cpp)
+  target_link_libraries(locked_robot_state_test ${MOVEIT_LIB_NAME})
+  ament_target_dependencies(locked_robot_state_test
+    Boost)
 endif()
 
-install(TARGETS ${MOVEIT_LIB_NAME}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
-install(DIRECTORY include/ DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION})
+install(
+  TARGETS ${MOVEIT_LIB_NAME}
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
 
-install(DIRECTORY resources DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY include/ DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${MOVEIT_LIB_NAME}_export.h DESTINATION include)
+
+install(DIRECTORY resources DESTINATION share/${PROJECT_NAME})
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+
+  # These don't pass yet, disable them for now
+  set(ament_cmake_copyright_FOUND TRUE)
+  set(ament_cmake_cppcheck_FOUND TRUE)
+  set(ament_cmake_cpplint_FOUND TRUE)
+  set(ament_cmake_uncrustify_FOUND TRUE)
+
+  # Run all lint tests in package.xml except those listed above
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package(CONFIG_EXTRAS ConfigExtras.cmake)

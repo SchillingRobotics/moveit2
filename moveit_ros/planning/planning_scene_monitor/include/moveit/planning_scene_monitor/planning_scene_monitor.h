@@ -37,7 +37,6 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <tf2_ros/message_filter.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <moveit/macros/class_forward.h>
@@ -46,19 +45,24 @@
 #include <moveit/occupancy_map_monitor/occupancy_map_monitor.h>
 #include <moveit/planning_scene_monitor/current_state_monitor.h>
 #include <moveit/collision_plugin_loader/collision_plugin_loader.h>
+#include <moveit_msgs/srv/get_planning_scene.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/thread/recursive_mutex.hpp>
+#include <boost/thread/thread.hpp>
 #include <memory>
+#include <thread>
+
+#include "moveit_planning_scene_monitor_export.h"
 
 namespace planning_scene_monitor
 {
-MOVEIT_CLASS_FORWARD(PlanningSceneMonitor)
+MOVEIT_CLASS_FORWARD(PlanningSceneMonitor);  // Defines PlanningSceneMonitorPtr, ConstPtr, WeakPtr... etc
 
 /**
  * @brief PlanningSceneMonitor
  * Subscribes to the topic \e planning_scene */
-class PlanningSceneMonitor : private boost::noncopyable
+class MOVEIT_PLANNING_SCENE_MONITOR_EXPORT PlanningSceneMonitor : private boost::noncopyable
 {
 public:
   enum SceneUpdateType
@@ -157,7 +161,7 @@ public:
     return rm_loader_;
   }
 
-  const robot_model::RobotModelConstPtr& getRobotModel() const
+  const moveit::core::RobotModelConstPtr& getRobotModel() const
   {
     return robot_model_;
   }
@@ -312,18 +316,28 @@ public:
       return 0.0;
   }
 
-  /** @brief Start the scene monitor
+  /** @brief Start the scene monitor (ROS topic-based)
    *  @param scene_topic The name of the planning scene topic
    */
   void startSceneMonitor(const std::string& scene_topic = DEFAULT_PLANNING_SCENE_TOPIC);
 
-  /** @brief Request planning scene state using a service call
-   *  @param service_name The name of the service to use for requesting the
-   *     planning scene.  This must be a service of type
-   *     moveit_msgs::srv::GetPlanningScene and is usually called
-   *     "/get_planning_scene".
+  /** @brief Request a full planning scene state using a service call
+   *         Be careful not to use this in conjunction with providePlanningSceneService(),
+   *         as it will create a pointless feedback loop.
+   *  @param service_name The name of the service to use for requesting the planning scene.
+   *         This must be a service of type moveit_msgs::srv::GetPlanningScene and is usually called
+   *         "/get_planning_scene".
    */
   bool requestPlanningSceneState(const std::string& service_name = DEFAULT_PLANNING_SCENE_SERVICE);
+
+  /** @brief Create an optional service for getting the complete planning scene
+   *         This is useful for satisfying the Rviz PlanningScene display's need for a service
+   *         without having to use a move_group node.
+   *         Be careful not to use this in conjunction with requestPlanningSceneState(),
+   *         as it will create a pointless feedback loop.
+   *  @param service_name The topic to provide the service
+   */
+  void providePlanningSceneService(const std::string& service_name = DEFAULT_PLANNING_SCENE_SERVICE);
 
   /** @brief Stop the scene monitor*/
   void stopSceneMonitor();
@@ -402,19 +416,19 @@ protected:
   void configureDefaultPadding();
 
   /** @brief Callback for a new collision object msg*/
-  void collisionObjectCallback(const moveit_msgs::msg::CollisionObject::ConstSharedPtr obj);
+  void collisionObjectCallback(moveit_msgs::msg::CollisionObject::SharedPtr obj);
 
   /** @brief Callback for a new planning scene world*/
-  void newPlanningSceneWorldCallback(const moveit_msgs::msg::PlanningSceneWorld::ConstSharedPtr world);
+  void newPlanningSceneWorldCallback(moveit_msgs::msg::PlanningSceneWorld::SharedPtr world);
 
   /** @brief Callback for octomap updates */
   void octomapUpdateCallback();
 
   /** @brief Callback for a new attached object msg*/
-  void attachObjectCallback(const moveit_msgs::msg::AttachedCollisionObject::ConstSharedPtr obj);
+  void attachObjectCallback(moveit_msgs::msg::AttachedCollisionObject::SharedPtr obj);
 
   /** @brief Callback for a change for an attached object of the current state of the planning scene */
-  void currentStateAttachedBodyUpdateCallback(robot_state::AttachedBody* attached_body, bool just_attached);
+  void currentStateAttachedBodyUpdateCallback(moveit::core::AttachedBody* attached_body, bool just_attached);
 
   /** @brief Callback for a change in the world maintained by the planning scene */
   void currentWorldObjectUpdateCallback(const collision_detection::World::ObjectConstPtr& object,
@@ -430,8 +444,8 @@ protected:
 
   void excludeAttachedBodiesFromOctree();
   void includeAttachedBodiesInOctree();
-  void excludeAttachedBodyFromOctree(const robot_state::AttachedBody* attached_body);
-  void includeAttachedBodyInOctree(const robot_state::AttachedBody* attached_body);
+  void excludeAttachedBodyFromOctree(const moveit::core::AttachedBody* attached_body);
+  void includeAttachedBodyInOctree(const moveit::core::AttachedBody* attached_body);
 
   bool getShapeTransformCache(const std::string& target_frame, const rclcpp::Time& target_time,
                               occupancy_map_monitor::ShapeTransformCache& cache) const;
@@ -451,7 +465,9 @@ protected:
   // TODO: (anasarrak) callbacks on ROS2?
   // https://answers.ros.org/question/300874/how-do-you-use-callbackgroups-as-a-replacement-for-callbackqueues-in-ros2/
   // ros::CallbackQueue queue_;
-  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> spinner_;
+  std::shared_ptr<rclcpp::Node> pnode_;
+  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> private_executor_;
+  std::thread private_executor_thread_;
 
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 
@@ -475,7 +491,7 @@ protected:
   std::unique_ptr<boost::thread> publish_planning_scene_;
   double publish_planning_scene_frequency_;
   SceneUpdateType publish_update_types_;
-  SceneUpdateType new_scene_update_;
+  std::atomic<SceneUpdateType> new_scene_update_;
   boost::condition_variable_any new_scene_update_condition_;
 
   // subscribe to various sources of data
@@ -485,20 +501,23 @@ protected:
   rclcpp::Subscription<moveit_msgs::msg::AttachedCollisionObject>::SharedPtr attached_collision_object_subscriber_;
   rclcpp::Subscription<moveit_msgs::msg::CollisionObject>::SharedPtr collision_object_subscriber_;
 
+  // provide an optional service to get the full planning scene state
+  // this is used by MoveGroup and related application nodes
+  rclcpp::Service<moveit_msgs::srv::GetPlanningScene>::SharedPtr get_scene_service_;
+
   // include a octomap monitor
   std::unique_ptr<occupancy_map_monitor::OccupancyMapMonitor> octomap_monitor_;
 
   // include a current state monitor
   CurrentStateMonitorPtr current_state_monitor_;
 
-  typedef std::map<const robot_model::LinkModel*,
+  typedef std::map<const moveit::core::LinkModel*,
                    std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t> > >
       LinkShapeHandles;
-  typedef std::map<const robot_state::AttachedBody*,
-                   std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t> > >
-      AttachedBodyShapeHandles;
-  typedef std::map<std::string, std::vector<std::pair<occupancy_map_monitor::ShapeHandle, const Eigen::Isometry3d*> > >
-      CollisionBodyShapeHandles;
+  using AttachedBodyShapeHandles = std::map<const moveit::core::AttachedBody*,
+                                            std::vector<std::pair<occupancy_map_monitor::ShapeHandle, std::size_t> > >;
+  using CollisionBodyShapeHandles =
+      std::map<std::string, std::vector<std::pair<occupancy_map_monitor::ShapeHandle, const Eigen::Isometry3d*> > >;
 
   LinkShapeHandles link_shape_handles_;
   AttachedBodyShapeHandles attached_body_shape_handles_;
@@ -523,7 +542,14 @@ private:
   void stateUpdateTimerCallback();
 
   // Callback for a new planning scene msg
-  void newPlanningSceneCallback(const moveit_msgs::msg::PlanningScene::ConstSharedPtr scene);
+  void newPlanningSceneCallback(const moveit_msgs::msg::PlanningScene::SharedPtr scene);
+
+  // Callback for requesting the full planning scene via service
+  void getPlanningSceneServiceCallback(moveit_msgs::srv::GetPlanningScene::Request::SharedPtr req,
+                                       moveit_msgs::srv::GetPlanningScene::Response::SharedPtr res);
+
+  void updatePublishSettings(bool publish_geom_updates, bool publish_state_updates, bool publish_transform_updates,
+                             bool publish_planning_scene, double publish_planning_scene_hz);
 
   // Lock for state_update_pending_ and dt_state_update_
   std::mutex state_pending_mutex_;
@@ -552,12 +578,11 @@ private:
   std::chrono::system_clock::time_point last_robot_state_update_wall_time_;
 
   robot_model_loader::RobotModelLoaderPtr rm_loader_;
-  robot_model::RobotModelConstPtr robot_model_;
+  moveit::core::RobotModelConstPtr robot_model_;
 
   collision_detection::CollisionPluginLoader collision_loader_;
 
-  class DynamicReconfigureImpl;
-  DynamicReconfigureImpl* reconfigure_impl_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handler_;
 };
 
 /** \brief This is a convenience class for obtaining access to an
@@ -568,7 +593,7 @@ private:
  * "operator->" functions.  Therefore you will often see code like this:
  * @code
  *   planning_scene_monitor::LockedPlanningSceneRO ls(planning_scene_monitor);
- *   robot_model::RobotModelConstPtr model = ls->getRobotModel();
+ *   moveit::core::RobotModelConstPtr model = ls->getRobotModel();
  * @endcode
 
  * The function "getRobotModel()" is a member of PlanningScene and not
@@ -600,7 +625,7 @@ public:
     return planning_scene_monitor_ && planning_scene_monitor_->getPlanningScene();
   }
 
-  operator const planning_scene::PlanningSceneConstPtr&() const
+  operator const planning_scene::PlanningSceneConstPtr &() const
   {
     return static_cast<const PlanningSceneMonitor*>(planning_scene_monitor_.get())->getPlanningScene();
   }
@@ -623,7 +648,7 @@ protected:
       lock_.reset(new SingleUnlock(planning_scene_monitor_.get(), read_only));
   }
 
-  MOVEIT_CLASS_FORWARD(SingleUnlock)
+  MOVEIT_STRUCT_FORWARD(SingleUnlock);
 
   // we use this struct so that lock/unlock are called only once
   // even if the LockedPlanningScene instance is copied around
@@ -660,7 +685,7 @@ protected:
  * "operator->" functions.  Therefore you will often see code like this:
  * @code
  *   planning_scene_monitor::LockedPlanningSceneRW ls(planning_scene_monitor);
- *   robot_model::RobotModelConstPtr model = ls->getRobotModel();
+ *   moveit::core::RobotModelConstPtr model = ls->getRobotModel();
  * @endcode
 
  * The function "getRobotModel()" is a member of PlanningScene and not
@@ -681,7 +706,7 @@ public:
   {
   }
 
-  operator const planning_scene::PlanningScenePtr&()
+  operator const planning_scene::PlanningScenePtr &()
   {
     return planning_scene_monitor_->getPlanningScene();
   }
@@ -691,4 +716,4 @@ public:
     return planning_scene_monitor_->getPlanningScene();
   }
 };
-}
+}  // namespace planning_scene_monitor

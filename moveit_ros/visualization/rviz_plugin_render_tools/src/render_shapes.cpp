@@ -36,6 +36,7 @@
 
 #include <moveit/rviz_plugin_render_tools/render_shapes.h>
 #include <moveit/rviz_plugin_render_tools/octomap_render.h>
+#include <geometric_shapes/check_isometry.h>
 #include <geometric_shapes/mesh_operations.h>
 
 #include <OgreSceneNode.h>
@@ -44,12 +45,8 @@
 #include <OgreMaterialManager.h>
 #include <rviz_rendering/objects/shape.hpp>
 #include <ogre_helpers/mesh_shape.hpp>
-#include <moveit/macros/diagnostics.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 #include <rviz_common/display_context.hpp>
 #include <rviz_default_plugins/robot/robot.hpp>
-DIAGNOSTIC_POP
 
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
@@ -80,7 +77,8 @@ void RenderShapes::renderShape(Ogre::SceneNode* node, const shapes::Shape* s, co
   rviz_rendering::Shape* ogre_shape = nullptr;
   Eigen::Vector3d translation = p.translation();
   Ogre::Vector3 position(translation.x(), translation.y(), translation.z());
-  Eigen::Quaterniond q(p.rotation());
+  ASSERT_ISOMETRY(p)  // unsanitized input, could contain a non-isometry
+  Eigen::Quaterniond q(p.linear());
   Ogre::Quaternion orientation(q.w(), q.x(), q.y(), q.z());
 
   // we don't know how to render cones directly, but we can convert them to a mesh
@@ -158,11 +156,14 @@ void RenderShapes::renderShape(Ogre::SceneNode* node, const shapes::Shape* s, co
 
     case shapes::OCTREE:
     {
-      OcTreeRenderPtr octree(new OcTreeRender(static_cast<const shapes::OcTree*>(s)->octree, octree_voxel_rendering,
-                                              octree_color_mode, 0u, context_->getSceneManager(), node));
-      octree->setPosition(position);
-      octree->setOrientation(orientation);
-      octree_voxel_grids_.push_back(octree);
+      if (octree_voxel_rendering != OCTOMAP_DISABLED)
+      {
+        auto octree = std::make_shared<moveit_rviz_plugin::OcTreeRender>(
+            static_cast<const shapes::OcTree*>(s)->octree, octree_voxel_rendering, octree_color_mode, 0u, node);
+        octree->setPosition(position);
+        octree->setOrientation(orientation);
+        octree_voxel_grids_.push_back(octree);
+      }
     }
     break;
 

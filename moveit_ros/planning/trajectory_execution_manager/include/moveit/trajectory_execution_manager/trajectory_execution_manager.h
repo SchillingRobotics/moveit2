@@ -48,15 +48,18 @@
 #include <pluginlib/class_loader.hpp>
 
 #include <memory>
+#include <deque>
+
+#include "moveit_trajectory_execution_manager_export.h"
 
 namespace trajectory_execution_manager
 {
-MOVEIT_CLASS_FORWARD(TrajectoryExecutionManager)
+MOVEIT_CLASS_FORWARD(TrajectoryExecutionManager);  // Defines TrajectoryExecutionManagerPtr, ConstPtr, WeakPtr... etc
 
 // Two modes:
 // Managed controllers
 // Unmanaged controllers: given the trajectory,
-class TrajectoryExecutionManager
+class MOVEIT_TRAJECTORY_EXECUTION_MANAGER_EXPORT TrajectoryExecutionManager
 {
 public:
   static const std::string EXECUTION_EVENT_TOPIC;
@@ -67,7 +70,7 @@ public:
 
   /// Definition of the function signature that is called when the execution of a pushed trajectory completes
   /// successfully.
-  typedef boost::function<void(std::size_t)> PathSegmentCompleteCallback;
+  using PathSegmentCompleteCallback = boost::function<void(std::size_t)>;
 
   /// Data structure that represents information necessary to execute a trajectory
   struct TrajectoryExecutionContext
@@ -81,11 +84,11 @@ public:
   };
 
   /// Load the controller manager plugin, start listening for events on a topic.
-  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const robot_model::RobotModelConstPtr& robot_model,
+  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModelConstPtr& robot_model,
                              const planning_scene_monitor::CurrentStateMonitorPtr& csm);
 
   /// Load the controller manager plugin, start listening for events on a topic.
-  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const robot_model::RobotModelConstPtr& robot_model,
+  TrajectoryExecutionManager(const rclcpp::Node::SharedPtr& node, const moveit::core::RobotModelConstPtr& robot_model,
                              const planning_scene_monitor::CurrentStateMonitorPtr& csm, bool manage_controllers);
 
   /// Destructor. Cancels all running trajectories (if any)
@@ -243,6 +246,11 @@ public:
   /// Enable or disable waiting for trajectory completion
   void setWaitForTrajectoryCompletion(bool flag);
 
+  rclcpp::Node::SharedPtr getControllerManagerNode()
+  {
+    return controller_mgr_node_;
+  }
+
 private:
   struct ControllerInformation
   {
@@ -250,7 +258,7 @@ private:
     std::set<std::string> joints_;
     std::set<std::string> overlapping_controllers_;
     moveit_controller_manager::MoveItControllerManager::ControllerState state_;
-    rclcpp::Time last_update_;
+    rclcpp::Time last_update_{ 0, 0, RCL_ROS_TIME };
 
     bool operator<(ControllerInformation& other) const
     {
@@ -306,7 +314,10 @@ private:
   const std::string name_ = "trajectory_execution_manager";
 
   rclcpp::Node::SharedPtr node_;
-  robot_model::RobotModelConstPtr robot_model_;
+  rclcpp::Node::SharedPtr controller_mgr_node_;
+  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> private_executor_;
+  std::thread private_executor_thread_;
+  moveit::core::RobotModelConstPtr robot_model_;
   planning_scene_monitor::CurrentStateMonitorPtr csm_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr event_topic_subscriber_;
   std::map<std::string, ControllerInformation> known_controllers_;
@@ -339,14 +350,10 @@ private:
   std::vector<TrajectoryExecutionContext*> trajectories_;
   std::deque<TrajectoryExecutionContext*> continuous_execution_queue_;
 
-  std::unique_ptr<pluginlib::ClassLoader<moveit_controller_manager::MoveItControllerManager> >
-      controller_manager_loader_;
+  std::unique_ptr<pluginlib::ClassLoader<moveit_controller_manager::MoveItControllerManager> > controller_manager_loader_;
   moveit_controller_manager::MoveItControllerManagerPtr controller_manager_;
 
   bool verbose_;
-
-  class DynamicReconfigureImpl;
-  DynamicReconfigureImpl* reconfigure_impl_;
 
   bool execution_duration_monitoring_;
   // 'global' values
@@ -360,5 +367,7 @@ private:
   double allowed_start_tolerance_;  // joint tolerance for validate(): radians for revolute joints
   double execution_velocity_scaling_;
   bool wait_for_trajectory_completion_;
+
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr callback_handler_;
 };
-}
+}  // namespace trajectory_execution_manager

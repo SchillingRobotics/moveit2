@@ -48,42 +48,40 @@ bool FollowJointTrajectoryControllerHandle::sendTrajectory(const moveit_msgs::ms
   if (!controller_action_client_)
     return false;
 
-  if (!trajectory.multi_dof_joint_trajectory.points.empty())
-  {
-    RCLCPP_WARN_STREAM(LOGGER, name_ << " cannot execute multi-dof trajectories.");
-  }
-
   if (done_)
-    RCLCPP_DEBUG_STREAM(LOGGER, "sending trajectory to " << name_);
+    RCLCPP_INFO_STREAM(LOGGER, "sending trajectory to " << name_);
   else
-    RCLCPP_DEBUG_STREAM(LOGGER, "sending continuation for the currently executed trajectory to " << name_);
+    RCLCPP_INFO_STREAM(LOGGER, "sending continuation for the currently executed trajectory to " << name_);
 
   control_msgs::action::FollowJointTrajectory::Goal goal = goal_template_;
   goal.trajectory = trajectory.joint_trajectory;
+  goal.multi_dof_trajectory = trajectory.multi_dof_joint_trajectory;
 
   rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SendGoalOptions send_goal_options;
   // Active callback
-  send_goal_options.goal_response_callback = [this](const auto& /* unused-arg */) {
-    RCLCPP_DEBUG_STREAM(LOGGER, name_ << " started execution");
-  };
-  // Result callback
-  send_goal_options.result_callback =
-      std::bind(&FollowJointTrajectoryControllerHandle::controllerDoneCallback, this, _1);
+  send_goal_options.goal_response_callback =
+      [this](
+          std::shared_future<rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::GoalHandle::SharedPtr>
+              future) {
+        RCLCPP_INFO_STREAM(LOGGER, name_ << " started execution");
+        const auto& goal_handle = future.get();
+        if (!goal_handle)
+          RCLCPP_WARN(LOGGER, "Goal request rejected");
+        else
+          RCLCPP_INFO(LOGGER, "Goal request accepted!");
+      };
+
+  done_ = false;
+  last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
+
   // Send goal
   auto current_goal_future = controller_action_client_->async_send_goal(goal, send_goal_options);
-  if (rclcpp::spin_until_future_complete(node_, current_goal_future) != rclcpp::executor::FutureReturnCode::SUCCESS)
-  {
-    RCLCPP_ERROR(LOGGER, "Send goal call failed");
-    return false;
-  }
   current_goal_ = current_goal_future.get();
   if (!current_goal_)
   {
     RCLCPP_ERROR(LOGGER, "Goal was rejected by server");
     return false;
   }
-  done_ = false;
-  last_exec_ = moveit_controller_manager::ExecutionStatus::RUNNING;
   return true;
 }
 
@@ -197,12 +195,14 @@ const char* errorCodeToMessage(int error_code)
 //    ROS_WARN_STREAM_NAMED(LOGNAME, "Invalid " << config_name);
 //}
 
-control_msgs::msg::JointTolerance& FollowJointTrajectoryControllerHandle::getTolerance(
-    std::vector<control_msgs::msg::JointTolerance>& tolerances, const std::string& name)
+control_msgs::msg::JointTolerance&
+FollowJointTrajectoryControllerHandle::getTolerance(std::vector<control_msgs::msg::JointTolerance>& tolerances,
+                                                    const std::string& name)
 {
-  auto it = std::lower_bound(
-      tolerances.begin(), tolerances.end(), name,
-      [](const control_msgs::msg::JointTolerance& lhs, const std::string& rhs) { return lhs.name < rhs; });
+  auto it = std::lower_bound(tolerances.begin(), tolerances.end(), name,
+                             [](const control_msgs::msg::JointTolerance& lhs, const std::string& rhs) {
+                               return lhs.name < rhs;
+                             });
   if (it == tolerances.cend() || it->name != name)
   {  // insert new entry if not yet available
     it = tolerances.insert(it, control_msgs::msg::JointTolerance());

@@ -70,7 +70,7 @@ struct SensorInfo
   double y_angle;
 };
 
-MOVEIT_CLASS_FORWARD(MoveItSensorManager)
+MOVEIT_CLASS_FORWARD(MoveItSensorManager);  // Defines MoveItSensorManagerPtr, ConstPtr, WeakPtr... etc
 
 class MoveItSensorManager
 {
@@ -82,6 +82,9 @@ public:
   virtual ~MoveItSensorManager()
   {
   }
+
+  /** @brief Initialization function for the sensor plugin */
+  virtual bool initialize(const rclcpp::Node::SharedPtr& node) = 0;
 
   /** \brief Get the list of known sensors */
   virtual void getSensorsList(std::vector<std::string>& names) const = 0;
@@ -101,4 +104,4 @@ public:
   virtual bool pointSensorTo(const std::string& name, const geometry_msgs::msg::PointStamped& target,
                              moveit_msgs::msg::RobotTrajectory& sensor_trajectory) = 0;
 };
-}
+}  // namespace moveit_sensor_manager

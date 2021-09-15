@@ -36,15 +36,14 @@
 
 #pragma once
 
-#include <moveit/macros/diagnostics.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 #include <octomap/octomap.h>
-DIAGNOSTIC_PUSH
+
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/function.hpp>
+
 #include <memory>
+#include <string>
 
 namespace occupancy_map_monitor
 {
@@ -87,8 +86,8 @@ public:
     tree_mutex_.unlock();
   }
 
-  typedef boost::shared_lock<boost::shared_mutex> ReadLock;
-  typedef boost::unique_lock<boost::shared_mutex> WriteLock;
+  using ReadLock = boost::shared_lock<boost::shared_mutex>;
+  using WriteLock = boost::unique_lock<boost::shared_mutex>;
 
   ReadLock reading()
   {
@@ -100,7 +99,7 @@ public:
     return WriteLock(tree_mutex_);
   }
 
-  void triggerUpdateCallback(void)
+  void triggerUpdateCallback()
   {
     if (update_callback_)
       update_callback_();
@@ -117,6 +116,6 @@ private:
   boost::function<void()> update_callback_;
 };
 
-typedef std::shared_ptr<OccMapTree> OccMapTreePtr;
-typedef std::shared_ptr<const OccMapTree> OccMapTreeConstPtr;
-}
+using OccMapTreePtr = std::shared_ptr<OccMapTree>;
+using OccMapTreeConstPtr = std::shared_ptr<const OccMapTree>;
+}  // namespace occupancy_map_monitor

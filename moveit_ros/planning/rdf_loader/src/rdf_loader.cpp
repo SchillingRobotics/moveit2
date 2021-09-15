@@ -58,6 +58,7 @@ namespace rdf_loader
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_rdf_loader.rdf_loader");
 
 RDFLoader::RDFLoader(const std::shared_ptr<rclcpp::Node>& node, const std::string& robot_description)
+  : robot_description_(robot_description)
 {
   moveit::tools::Profiler::ScopedStart prof_start;
   moveit::tools::Profiler::ScopedBlock prof_block("RDFLoader(robot_description)");
@@ -66,7 +67,7 @@ RDFLoader::RDFLoader(const std::shared_ptr<rclcpp::Node>& node, const std::strin
 
   // Check if the robot_description parameter is declared, declare it if it's not declared yet
   if (!node->has_parameter(robot_description))
-    node->declare_parameter(robot_description);
+    node->declare_parameter(robot_description, rclcpp::ParameterType::PARAMETER_STRING);
   std::string robot_description_content;
   node->get_parameter_or(robot_description, robot_description_content, std::string());
 
@@ -76,18 +77,18 @@ RDFLoader::RDFLoader(const std::shared_ptr<rclcpp::Node>& node, const std::strin
     return;
   }
 
-  urdf::Model* umodel = new urdf::Model();
-  if (!umodel->initString(robot_description_content))
+  std::unique_ptr<urdf::Model> urdf(new urdf::Model());
+  if (!urdf->initString(robot_description_content))
   {
     RCLCPP_INFO(LOGGER, "Unable to parse URDF from parameter: '%s'", robot_description.c_str());
     return;
   }
-  urdf_.reset(umodel);
+  urdf_ = std::move(urdf);
 
   const std::string srdf_description = robot_description + "_semantic";
   // Check if the robot_description_semantic parameter is declared, declare it if it's not declared yet
   if (!node->has_parameter(srdf_description))
-    node->declare_parameter(srdf_description);
+    node->declare_parameter(srdf_description, rclcpp::ParameterType::PARAMETER_STRING);
   std::string srdf_description_content;
   node->get_parameter_or(srdf_description, srdf_description_content, std::string());
 
@@ -98,13 +99,13 @@ RDFLoader::RDFLoader(const std::shared_ptr<rclcpp::Node>& node, const std::strin
     return;
   }
 
-  srdf_.reset(new srdf::Model());
-  if (!srdf_->initString(*urdf_, srdf_description_content))
+  srdf::ModelSharedPtr srdf(new srdf::Model());
+  if (!srdf->initString(*urdf_, srdf_description_content))
   {
     RCLCPP_ERROR(LOGGER, "Unable to parse SRDF from parameter '%s'", srdf_description.c_str());
-    srdf_.reset();
     return;
   }
+  srdf_ = std::move(srdf);
 
   RCLCPP_INFO_STREAM(LOGGER, "Loaded robot model in " << (node->now() - start).seconds() << " seconds");
 }
@@ -191,7 +192,11 @@ bool RDFLoader::loadXacroFileToString(std::string& buffer, const std::string& pa
     cmd += xacro_arg + " ";
   cmd += path;
 
+#ifdef _WIN32
+  FILE* pipe = _popen(cmd.c_str(), "r");
+#else
   FILE* pipe = popen(cmd.c_str(), "r");
+#endif
   if (!pipe)
   {
     RCLCPP_ERROR(LOGGER, "Unable to load path");
@@ -204,7 +209,11 @@ bool RDFLoader::loadXacroFileToString(std::string& buffer, const std::string& pa
     if (fgets(pipe_buffer, 128, pipe) != nullptr)
       buffer += pipe_buffer;
   }
+#ifdef _WIN32
+  _pclose(pipe);
+#else
   pclose(pipe);
+#endif
 
   return true;
 }

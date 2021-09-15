@@ -36,6 +36,7 @@
 #include <pluginlib/class_loader.hpp>
 #include <memory>
 
+static const std::string LOGNAME = "collision_detection";
 namespace collision_detection
 {
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("collision_plugin_loader");
@@ -70,7 +71,7 @@ public:
     return plugin;
   }
 
-  bool activate(const std::string& name, const planning_scene::PlanningScenePtr& scene, bool exclusive)
+  bool activate(const std::string& name, const planning_scene::PlanningScenePtr& scene)
   {
     std::map<std::string, CollisionPluginPtr>::iterator it = plugins_.find(name);
     if (it == plugins_.end())
@@ -78,13 +79,13 @@ public:
       CollisionPluginPtr plugin = load(name);
       if (plugin)
       {
-        return plugin->initialize(scene, exclusive);
+        return plugin->initialize(scene);
       }
       return false;
     }
     if (it->second)
     {
-      return it->second->initialize(scene, exclusive);
+      return it->second->initialize(scene);
     }
     return false;
   }
@@ -101,17 +102,19 @@ CollisionPluginLoader::CollisionPluginLoader()
 
 CollisionPluginLoader::~CollisionPluginLoader() = default;
 
-bool CollisionPluginLoader::activate(const std::string& name, const planning_scene::PlanningScenePtr& scene,
-                                     bool exclusive)
+bool CollisionPluginLoader::activate(const std::string& name, const planning_scene::PlanningScenePtr& scene)
 {
-  return loader_->activate(name, scene, exclusive);
+  return loader_->activate(name, scene);
 }
 
 void CollisionPluginLoader::setupScene(const rclcpp::Node::SharedPtr& node,
                                        const planning_scene::PlanningScenePtr& scene)
 {
   if (!scene)
+  {
+    RCLCPP_WARN(LOGGER, "Cannot setup scene, PlanningScenePtr is null.");
     return;
+  }
 
   std::string param_name;
   std::string collision_detector_name;
@@ -137,8 +140,8 @@ void CollisionPluginLoader::setupScene(const rclcpp::Node::SharedPtr& node,
     return;
   }
 
-  activate(collision_detector_name, scene, true);
-  RCLCPP_INFO(LOGGER, "Using collision detector: %s", scene->getActiveCollisionDetectorName().c_str());
+  activate(collision_detector_name, scene);
+  RCLCPP_INFO(LOGGER, "Using collision detector: %s", scene->getCollisionDetectorName().c_str());
 }
 
 }  // namespace collision_detection

@@ -1,56 +1,86 @@
 /*********************************************************************
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2015, Rice University
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Rice University nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2015, Rice University
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Rice University nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 /* Author: Ryan Luna */
 
 #include <moveit/benchmarks/BenchmarkExecutor.h>
 #include <moveit/utils/lexical_casts.h>
 #include <moveit/version.h>
+#if __has_include(<tf2_eigen/tf2_eigen.hpp>)
+#include <tf2_eigen/tf2_eigen.hpp>
+#else
 #include <tf2_eigen/tf2_eigen.h>
+#endif
 
+// TODO(henningkayser): Switch to boost/timer/progress_display.hpp with Boost 1.72
+// boost/progress.hpp is deprecated and will be replaced by boost/timer/progress_display.hpp in Boost 1.72.
+// Until then we need to suppress the deprecation warning.
+#define BOOST_ALLOW_DEPRECATED_HEADERS
 #include <boost/regex.hpp>
 #include <boost/progress.hpp>
+#undef BOOST_ALLOW_DEPRECATED_HEADERS
 #include <boost/math/constants/constants.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <limits>
 #ifndef _WIN32
 #include <unistd.h>
 #else
 #include <winsock2.h>
 #endif
 
+#undef max
+
 using namespace moveit_ros_benchmarks;
+
+static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit.ros.benchmarks.BenchmarkExecutor");
+
+template <class Clock, class Duration>
+boost::posix_time::ptime toBoost(const std::chrono::time_point<Clock, Duration>& from)
+{
+  typedef std::chrono::nanoseconds duration_t;
+  typedef long rep_t;
+  rep_t d = std::chrono::duration_cast<duration_t>(from.time_since_epoch()).count();
+  rep_t sec = d / 1000000000;
+  rep_t nsec = d % 1000000000;
+  namespace pt = boost::posix_time;
+#ifdef BOOST_DATE_TIME_HAS_NANOSECONDS
+  return pt::from_time_t(sec) + pt::nanoseconds(nsec)
+#else
+  return pt::from_time_t(sec) + pt::microseconds(nsec / 1000);
+#endif
+}
 
 static std::string getHostname()
 {
@@ -66,14 +96,15 @@ static std::string getHostname()
   }
 }
 
-BenchmarkExecutor::BenchmarkExecutor(const std::string& robot_description_param)
+BenchmarkExecutor::BenchmarkExecutor(const rclcpp::Node::SharedPtr& node, const std::string& robot_description_param)
+  : node_(node), dbloader(node)
 {
   pss_ = nullptr;
   psws_ = nullptr;
   rs_ = nullptr;
   cs_ = nullptr;
   tcs_ = nullptr;
-  psm_ = new planning_scene_monitor::PlanningSceneMonitor(robot_description_param);
+  psm_ = new planning_scene_monitor::PlanningSceneMonitor(node, robot_description_param);
   planning_scene_ = psm_->getPlanningScene();
 }
 
@@ -91,18 +122,19 @@ void BenchmarkExecutor::initialize(const std::vector<std::string>& planning_pipe
 {
   planning_pipelines_.clear();
 
-  ros::NodeHandle pnh("~");
+  // ros::NodeHandle pnh("~");
+  std::string parent_node_name = node_->get_name();
   for (const std::string& planning_pipeline_name : planning_pipeline_names)
   {
     // Initialize planning pipelines from configured child namespaces
-    ros::NodeHandle child_nh(pnh, planning_pipeline_name);
+    static rclcpp::Node::SharedPtr child_node = rclcpp::Node::make_shared(planning_pipeline_name, parent_node_name);
     planning_pipeline::PlanningPipelinePtr pipeline(new planning_pipeline::PlanningPipeline(
-        planning_scene_->getRobotModel(), child_nh, "planning_plugin", "request_adapters"));
+        planning_scene_->getRobotModel(), child_node, "planning_plugin", "request_adapters"));
 
     // Verify the pipeline has successfully initialized a planner
     if (!pipeline->getPlannerManager())
     {
-      ROS_ERROR("Failed to initialize planning pipeline '%s'", planning_pipeline_name.c_str());
+      RCLCPP_ERROR(LOGGER, "Failed to initialize planning pipeline '%s'", planning_pipeline_name.c_str());
       continue;
     }
 
@@ -114,12 +146,12 @@ void BenchmarkExecutor::initialize(const std::vector<std::string>& planning_pipe
 
   // Error check
   if (planning_pipelines_.empty())
-    ROS_ERROR("No planning pipelines have been loaded. Nothing to do for the benchmarking service.");
+    RCLCPP_ERROR(LOGGER, "No planning pipelines have been loaded. Nothing to do for the benchmarking service.");
   else
   {
-    ROS_INFO("Available planning pipelines:");
-    for (const std::pair<std::string, planning_pipeline::PlanningPipelinePtr>& entry : planning_pipelines_)
-      ROS_INFO_STREAM("Pipeline: " << entry.first << ", Planner: " << entry.second->getPlannerPluginName());
+    RCLCPP_INFO(LOGGER, "Available planning pipelines:");
+    for (const std::pair<const std::string, planning_pipeline::PlanningPipelinePtr>& entry : planning_pipelines_)
+      RCLCPP_INFO_STREAM(LOGGER, "Pipeline: " << entry.first << ", Planner: " << entry.second->getPlannerPluginName());
   }
 }
 
@@ -194,7 +226,7 @@ bool BenchmarkExecutor::runBenchmarks(const BenchmarkOptions& opts)
 {
   if (planning_pipelines_.empty())
   {
-    ROS_ERROR("No planning pipelines configured.  Did you call BenchmarkExecutor::initialize?");
+    RCLCPP_ERROR(LOGGER, "No planning pipelines configured.  Did you call BenchmarkExecutor::initialize?");
     return false;
   }
 
@@ -225,15 +257,16 @@ bool BenchmarkExecutor::runBenchmarks(const BenchmarkOptions& opts)
       for (QueryStartEventFunction& query_start_fn : query_start_fns_)
         query_start_fn(queries[i].request, planning_scene_);
 
-      ROS_INFO("Benchmarking query '%s' (%lu of %lu)", queries[i].name.c_str(), i + 1, queries.size());
-      ros::WallTime start_time = ros::WallTime::now();
+      RCLCPP_INFO(LOGGER, "Benchmarking query '%s' (%lu of %lu)", queries[i].name.c_str(), i + 1, queries.size());
+      std::chrono::system_clock::time_point start_time = std::chrono::system_clock::now();
       runBenchmark(queries[i].request, options_.getPlanningPipelineConfigurations(), options_.getNumRuns());
-      double duration = (ros::WallTime::now() - start_time).toSec();
+      std::chrono::duration<double> dt = std::chrono::system_clock::now() - start_time;
+      double duration = dt.count();
 
       for (QueryCompletionEventFunction& query_end_fn : query_end_fns_)
         query_end_fn(queries[i].request, planning_scene_);
 
-      writeOutput(queries[i], boost::posix_time::to_iso_extended_string(start_time.toBoost()), duration);
+      writeOutput(queries[i], boost::posix_time::to_iso_extended_string(toBoost(start_time)), duration);
     }
 
     return true;
@@ -241,19 +274,19 @@ bool BenchmarkExecutor::runBenchmarks(const BenchmarkOptions& opts)
   return false;
 }
 
-bool BenchmarkExecutor::queriesAndPlannersCompatible(
-    const std::vector<BenchmarkRequest>& requests, const std::map<std::string, std::vector<std::string>>& /*planners*/)
+bool BenchmarkExecutor::queriesAndPlannersCompatible(const std::vector<BenchmarkRequest>& requests,
+                                                     const std::map<std::string, std::vector<std::string>>& /*planners*/)
 {
   // Make sure that the planner interfaces can service the desired queries
-  for (const std::pair<std::string, planning_pipeline::PlanningPipelinePtr>& pipeline_entry : planning_pipelines_)
+  for (const std::pair<const std::string, planning_pipeline::PlanningPipelinePtr>& pipeline_entry : planning_pipelines_)
   {
     for (const BenchmarkRequest& request : requests)
     {
       if (!pipeline_entry.second->getPlannerManager()->canServiceRequest(request.request))
       {
-        ROS_ERROR("Interface '%s' in pipeline '%s' cannot service the benchmark request '%s'",
-                  pipeline_entry.second->getPlannerPluginName().c_str(), pipeline_entry.first.c_str(),
-                  request.name.c_str());
+        RCLCPP_ERROR(LOGGER, "Interface '%s' in pipeline '%s' cannot service the benchmark request '%s'",
+                     pipeline_entry.second->getPlannerPluginName().c_str(), pipeline_entry.first.c_str(),
+                     request.name.c_str());
         return false;
       }
     }
@@ -277,13 +310,14 @@ bool BenchmarkExecutor::initializeBenchmarks(const BenchmarkOptions& opts, movei
   if (!loadBenchmarkQueryData(opts, scene_msg, start_states, path_constraints, goal_constraints, traj_constraints,
                               queries))
   {
-    ROS_ERROR("Failed to load benchmark query data");
+    RCLCPP_ERROR(LOGGER, "Failed to load benchmark query data");
     return false;
   }
 
-  ROS_INFO("Benchmark loaded %lu starts, %lu goals, %lu path constraints, %lu trajectory constraints, and %lu queries",
-           start_states.size(), goal_constraints.size(), path_constraints.size(), traj_constraints.size(),
-           queries.size());
+  RCLCPP_INFO(
+      LOGGER,
+      "Benchmark loaded %lu starts, %lu goals, %lu path constraints, %lu trajectory constraints, and %lu queries",
+      start_states.size(), goal_constraints.size(), path_constraints.size(), traj_constraints.size(), queries.size());
 
   moveit_msgs::msg::WorkspaceParameters workspace_parameters = opts.getWorkspaceParameters();
   // Make sure that workspace_parameters are set
@@ -408,13 +442,13 @@ bool BenchmarkExecutor::loadBenchmarkQueryData(const BenchmarkOptions& opts, mov
     }
     else
     {
-      ROS_ERROR("Failed to connect to DB");
+      RCLCPP_ERROR(LOGGER, "Failed to connect to DB");
       return false;
     }
   }
   catch (std::exception& e)
   {
-    ROS_ERROR("Failed to initialize benchmark server: '%s'", e.what());
+    RCLCPP_ERROR(LOGGER, "Failed to initialize benchmark server: '%s'", e.what());
     return false;
   }
 
@@ -423,6 +457,7 @@ bool BenchmarkExecutor::loadBenchmarkQueryData(const BenchmarkOptions& opts, mov
          loadPathConstraints(opts.getPathConstraintRegex(), path_constraints) &&
          loadTrajectoryConstraints(opts.getTrajectoryConstraintRegex(), traj_constraints) &&
          loadQueries(opts.getQueryRegex(), opts.getSceneName(), queries);
+  return true;
 }
 
 void BenchmarkExecutor::shiftConstraintsByOffset(moveit_msgs::msg::Constraints& constraints,
@@ -499,10 +534,11 @@ bool BenchmarkExecutor::plannerConfigurationsExist(
     const std::map<std::string, std::vector<std::string>>& pipeline_configurations, const std::string& group_name)
 {
   // Make sure planner plugins exist
-  for (const std::pair<std::string, std::vector<std::string>>& pipeline_config_entry : pipeline_configurations)
+  for (const std::pair<const std::string, std::vector<std::string>>& pipeline_config_entry : pipeline_configurations)
   {
     bool pipeline_exists = false;
-    for (const std::pair<std::string, planning_pipeline::PlanningPipelinePtr>& pipeline_entry : planning_pipelines_)
+    for (const std::pair<const std::string, planning_pipeline::PlanningPipelinePtr>& pipeline_entry :
+         planning_pipelines_)
     {
       pipeline_exists = pipeline_entry.first == pipeline_config_entry.first;
       if (pipeline_exists)
@@ -511,13 +547,13 @@ bool BenchmarkExecutor::plannerConfigurationsExist(
 
     if (!pipeline_exists)
     {
-      ROS_ERROR("Planning pipeline '%s' does NOT exist", pipeline_config_entry.first.c_str());
+      RCLCPP_ERROR(LOGGER, "Planning pipeline '%s' does NOT exist", pipeline_config_entry.first.c_str());
       return false;
     }
   }
 
   // Make sure planners exist within those pipelines
-  for (const std::pair<std::string, std::vector<std::string>>& entry : pipeline_configurations)
+  for (const std::pair<const std::string, std::vector<std::string>>& entry : pipeline_configurations)
   {
     planning_interface::PlannerManagerPtr pm = planning_pipelines_[entry.first]->getPlannerManager();
     const planning_interface::PlannerConfigurationMap& config_map = pm->getPlannerConfigurations();
@@ -531,7 +567,8 @@ bool BenchmarkExecutor::plannerConfigurationsExist(
     for (std::size_t i = 0; i < entry.second.size(); ++i)
     {
       bool planner_exists = false;
-      for (const std::pair<std::string, planning_interface::PlannerConfigurationSettings>& config_entry : config_map)
+      for (const std::pair<const std::string, planning_interface::PlannerConfigurationSettings>& config_entry :
+           config_map)
       {
         std::string planner_name = group_name + "[" + entry.second[i] + "]";
         planner_exists = (config_entry.second.group == group_name && config_entry.second.name == planner_name);
@@ -539,8 +576,8 @@ bool BenchmarkExecutor::plannerConfigurationsExist(
 
       if (!planner_exists)
       {
-        ROS_ERROR("Planner '%s' does NOT exist for group '%s' in pipeline '%s'", entry.second[i].c_str(),
-                  group_name.c_str(), entry.first.c_str());
+        RCLCPP_ERROR(LOGGER, "Planner '%s' does NOT exist for group '%s' in pipeline '%s'", entry.second[i].c_str(),
+                     group_name.c_str(), entry.first.c_str());
         std::cout << "There are " << config_map.size() << " planner entries: " << std::endl;
         for (const auto& config_map_entry : config_map)
           std::cout << config_map_entry.second.name << std::endl;
@@ -564,7 +601,7 @@ bool BenchmarkExecutor::loadPlanningScene(const std::string& scene_name, moveit_
       scene_msg = static_cast<moveit_msgs::msg::PlanningScene>(*pswm);
 
       if (!ok)
-        ROS_ERROR("Failed to load planning scene '%s'", scene_name.c_str());
+        RCLCPP_ERROR(LOGGER, "Failed to load planning scene '%s'", scene_name.c_str());
     }
     else if (psws_->hasPlanningSceneWorld(scene_name))  // Just the world (no robot)
     {
@@ -575,16 +612,16 @@ bool BenchmarkExecutor::loadPlanningScene(const std::string& scene_name, moveit_
           "NO ROBOT INFORMATION. ONLY WORLD GEOMETRY";  // this will be fixed when running benchmark
 
       if (!ok)
-        ROS_ERROR("Failed to load planning scene '%s'", scene_name.c_str());
+        RCLCPP_ERROR(LOGGER, "Failed to load planning scene '%s'", scene_name.c_str());
     }
     else
-      ROS_ERROR("Failed to find planning scene '%s'", scene_name.c_str());
+      RCLCPP_ERROR(LOGGER, "Failed to find planning scene '%s'", scene_name.c_str());
   }
   catch (std::exception& ex)
   {
-    ROS_ERROR("Error loading planning scene: %s", ex.what());
+    RCLCPP_ERROR(LOGGER, "Error loading planning scene: %s", ex.what());
   }
-  ROS_INFO("Loaded planning scene successfully");
+  RCLCPP_INFO(LOGGER, "Loaded planning scene successfully");
   return ok;
 }
 
@@ -601,13 +638,13 @@ bool BenchmarkExecutor::loadQueries(const std::string& regex, const std::string&
   }
   catch (std::exception& ex)
   {
-    ROS_ERROR("Error loading motion planning queries: %s", ex.what());
+    RCLCPP_ERROR(LOGGER, "Error loading motion planning queries: %s", ex.what());
     return false;
   }
 
   if (query_names.empty())
   {
-    ROS_ERROR("Scene '%s' has no associated queries", scene_name.c_str());
+    RCLCPP_ERROR(LOGGER, "Scene '%s' has no associated queries", scene_name.c_str());
     return false;
   }
 
@@ -620,7 +657,7 @@ bool BenchmarkExecutor::loadQueries(const std::string& regex, const std::string&
     }
     catch (std::exception& ex)
     {
-      ROS_ERROR("Error loading motion planning query '%s': %s", query_name.c_str(), ex.what());
+      RCLCPP_ERROR(LOGGER, "Error loading motion planning query '%s': %s", query_name.c_str(), ex.what());
       continue;
     }
 
@@ -629,7 +666,7 @@ bool BenchmarkExecutor::loadQueries(const std::string& regex, const std::string&
     query.request = static_cast<moveit_msgs::msg::MotionPlanRequest>(*planning_query);
     queries.push_back(query);
   }
-  ROS_INFO("Loaded queries successfully");
+  RCLCPP_INFO(LOGGER, "Loaded queries successfully");
   return true;
 }
 
@@ -658,16 +695,16 @@ bool BenchmarkExecutor::loadStates(const std::string& regex, std::vector<StartSt
         }
         catch (std::exception& ex)
         {
-          ROS_ERROR("Runtime error when loading state '%s': %s", state_name.c_str(), ex.what());
+          RCLCPP_ERROR(LOGGER, "Runtime error when loading state '%s': %s", state_name.c_str(), ex.what());
           continue;
         }
       }
     }
 
     if (start_states.empty())
-      ROS_WARN("No stored states matched the provided start state regex: '%s'", regex.c_str());
+      RCLCPP_WARN(LOGGER, "No stored states matched the provided start state regex: '%s'", regex.c_str());
   }
-  ROS_INFO("Loaded states successfully");
+  RCLCPP_INFO(LOGGER, "Loaded states successfully");
   return true;
 }
 
@@ -693,15 +730,15 @@ bool BenchmarkExecutor::loadPathConstraints(const std::string& regex, std::vecto
       }
       catch (std::exception& ex)
       {
-        ROS_ERROR("Runtime error when loading path constraint '%s': %s", cname.c_str(), ex.what());
+        RCLCPP_ERROR(LOGGER, "Runtime error when loading path constraint '%s': %s", cname.c_str(), ex.what());
         continue;
       }
     }
 
     if (constraints.empty())
-      ROS_WARN("No path constraints found that match regex: '%s'", regex.c_str());
+      RCLCPP_WARN(LOGGER, "No path constraints found that match regex: '%s'", regex.c_str());
     else
-      ROS_INFO("Loaded path constraints successfully");
+      RCLCPP_INFO(LOGGER, "Loaded path constraints successfully");
   }
   return true;
 }
@@ -729,15 +766,15 @@ bool BenchmarkExecutor::loadTrajectoryConstraints(const std::string& regex,
       }
       catch (std::exception& ex)
       {
-        ROS_ERROR("Runtime error when loading trajectory constraint '%s': %s", cname.c_str(), ex.what());
+        RCLCPP_ERROR(LOGGER, "Runtime error when loading trajectory constraint '%s': %s", cname.c_str(), ex.what());
         continue;
       }
     }
 
     if (constraints.empty())
-      ROS_WARN("No trajectory constraints found that match regex: '%s'", regex.c_str());
+      RCLCPP_WARN(LOGGER, "No trajectory constraints found that match regex: '%s'", regex.c_str());
     else
-      ROS_INFO("Loaded trajectory constraints successfully");
+      RCLCPP_INFO(LOGGER, "Loaded trajectory constraints successfully");
   }
   return true;
 }
@@ -786,7 +823,7 @@ void BenchmarkExecutor::runBenchmark(moveit_msgs::msg::MotionPlanRequest request
           pre_event_fn(request);
 
         // Solve problem
-        ros::WallTime start = ros::WallTime::now();
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
         if (use_planning_context)
         {
           solved[j] = planning_context->solve(responses[j]);
@@ -804,17 +841,19 @@ void BenchmarkExecutor::runBenchmark(moveit_msgs::msg::MotionPlanRequest request
             responses[j].processing_time_.push_back(response.planning_time_);
           }
         }
-        double total_time = (ros::WallTime::now() - start).toSec();
+        std::chrono::duration<double> dt = std::chrono::system_clock::now() - start;
+        double total_time = dt.count();
 
         // Collect data
-        start = ros::WallTime::now();
+        start = std::chrono::system_clock::now();
 
         // Post-run events
         for (PostRunEventFunction& post_event_fn : post_event_fns_)
           post_event_fn(request, responses[j], planner_data[j]);
         collectMetrics(planner_data[j], responses[j], solved[j], total_time);
-        double metrics_time = (ros::WallTime::now() - start).toSec();
-        ROS_DEBUG("Spent %lf seconds collecting metrics", metrics_time);
+        dt = std::chrono::system_clock::now() - start;
+        double metrics_time = dt.count();
+        RCLCPP_DEBUG(LOGGER, "Spent %lf seconds collecting metrics", metrics_time);
 
         ++progress;
       }
@@ -932,7 +971,7 @@ void BenchmarkExecutor::computeAveragePathSimilarities(
     PlannerBenchmarkData& planner_data, const std::vector<planning_interface::MotionPlanDetailedResponse>& responses,
     const std::vector<bool>& solved)
 {
-  ROS_INFO("Computing result path similarity");
+  RCLCPP_INFO(LOGGER, "Computing result path similarity");
   const size_t result_count = planner_data.size();
   size_t unsolved = std::count_if(solved.begin(), solved.end(), [](bool s) { return !s; });
   std::vector<double> average_distances(responses.size());
@@ -1068,7 +1107,7 @@ void BenchmarkExecutor::writeOutput(const BenchmarkRequest& brequest, const std:
   std::ofstream out(filename.c_str());
   if (!out)
   {
-    ROS_ERROR("Failed to open '%s' for benchmark output", filename.c_str());
+    RCLCPP_ERROR(LOGGER, "Failed to open '%s' for benchmark output", filename.c_str());
     return;
   }
 
@@ -1081,8 +1120,18 @@ void BenchmarkExecutor::writeOutput(const BenchmarkRequest& brequest, const std:
   moveit_msgs::msg::PlanningScene scene_msg;
   planning_scene_->getPlanningSceneMsg(scene_msg);
   out << "<<<|" << std::endl;
-  out << "Motion plan request:" << std::endl << brequest.request << std::endl;
-  out << "Planning scene: " << std::endl << scene_msg << std::endl << "|>>>" << std::endl;
+  // TODO(YuYan): implement stream print for the message formats
+  // out << "Motion plan request:" << std::endl << brequest.request << std::endl;
+  // out << "Planning scene: " << std::endl << scene_msg << std::endl << "|>>>" << std::endl;
+  out << "Motion plan request:" << std::endl
+      << "  planner_id: " << brequest.request.planner_id << std::endl
+      << "  group_name: " << brequest.request.group_name << std::endl
+      << "  num_planning_attempts: " << brequest.request.num_planning_attempts << std::endl
+      << "  allowed_planning_time: " << brequest.request.allowed_planning_time << std::endl;
+  out << "Planning scene:" << std::endl
+      << "  scene_name: " << scene_msg.name << std::endl
+      << "  robot_model_name: " << scene_msg.robot_model_name << std::endl
+      << "|>>>" << std::endl;
 
   // Not writing optional cpu information
 
@@ -1145,5 +1194,5 @@ void BenchmarkExecutor::writeOutput(const BenchmarkRequest& brequest, const std:
   }
 
   out.close();
-  ROS_INFO("Benchmark results saved to '%s'", filename.c_str());
+  RCLCPP_INFO(LOGGER, "Benchmark results saved to '%s'", filename.c_str());
 }

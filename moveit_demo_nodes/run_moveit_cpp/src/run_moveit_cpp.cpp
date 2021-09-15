@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2020, PickNik LLC
+ *  Copyright (c) 2020, PickNik Inc.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of PickNik LLC nor the names of its
+ *   * Neither the name of PickNik Inc. nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -52,19 +52,18 @@ public:
   MoveItCppDemo(const rclcpp::Node::SharedPtr& node)
     : node_(node)
     , robot_state_publisher_(node_->create_publisher<moveit_msgs::msg::DisplayRobotState>("display_robot_state", 1))
-    , trajectory_publisher_(node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-          "/fake_joint_trajectory_controller/joint_trajectory", 1))
   {
   }
 
   void run()
   {
     RCLCPP_INFO(LOGGER, "Initialize MoveItCpp");
-    moveit_cpp_ = std::make_shared<moveit::planning_interface::MoveItCpp>(node_);
+    moveit_cpp_ = std::make_shared<moveit_cpp::MoveItCpp>(node_);
+    moveit_cpp_->getPlanningSceneMonitor()->providePlanningSceneService();  // let RViz display query PlanningScene
     moveit_cpp_->getPlanningSceneMonitor()->setPlanningScenePublishingFrequency(100);
 
     RCLCPP_INFO(LOGGER, "Initialize PlanningComponent");
-    moveit::planning_interface::PlanningComponent arm("panda_arm", moveit_cpp_);
+    moveit_cpp::PlanningComponent arm("panda_arm", moveit_cpp_);
 
     // A little delay before running the plan
     rclcpp::sleep_for(std::chrono::seconds(3));
@@ -95,50 +94,22 @@ public:
 
     // Set joint state goal
     RCLCPP_INFO(LOGGER, "Set goal");
-    arm.setGoal("home");
+    arm.setGoal("extended");
 
     // Run actual plan
     RCLCPP_INFO(LOGGER, "Plan to goal");
     const auto plan_solution = arm.plan();
     if (plan_solution)
     {
-      visualizeTrajectory(*plan_solution.trajectory);
-
-      // TODO(henningkayser): Enable trajectory execution once controllers are available
-      // RCLCPP_INFO(LOGGER, "arm.execute()");
-      // arm.execute();
-      // Right now the joint trajectory controller doesn't support actions and the current way to send trajectory is by
-      // using a publisher
-      // See https://github.com/ros-controls/ros2_controllers/issues/12 for enabling action interface progress
-      RCLCPP_INFO(LOGGER, "Sending the trajectory for execution");
-      moveit_msgs::msg::RobotTrajectory robot_trajectory;
-      plan_solution.trajectory->getRobotTrajectoryMsg(robot_trajectory);
-      trajectory_publisher_->publish(robot_trajectory.joint_trajectory);
+      RCLCPP_INFO(LOGGER, "arm.execute()");
+      arm.execute();
     }
   }
 
 private:
-  void visualizeTrajectory(const robot_trajectory::RobotTrajectory& trajectory)
-  {
-    moveit_msgs::msg::DisplayRobotState waypoint;
-    const auto start_time = node_->now();
-    for (size_t i = 0; i < trajectory.getWayPointCount(); ++i)
-    {
-      moveit::core::robotStateToRobotStateMsg(trajectory.getWayPoint(i), waypoint.state);
-      const auto waypoint_time =
-          start_time + rclcpp::Duration::from_seconds(trajectory.getWayPointDurationFromStart(i));
-      const auto now = node_->now();
-      if (waypoint_time > now)
-        rclcpp::sleep_for(std::chrono::nanoseconds((waypoint_time - now).nanoseconds()));
-
-      robot_state_publisher_->publish(waypoint);
-    }
-  }
-
   rclcpp::Node::SharedPtr node_;
   rclcpp::Publisher<moveit_msgs::msg::DisplayRobotState>::SharedPtr robot_state_publisher_;
-  rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_publisher_;
-  moveit::planning_interface::MoveItCppPtr moveit_cpp_;
+  moveit_cpp::MoveItCppPtr moveit_cpp_;
 };
 
 int main(int argc, char** argv)

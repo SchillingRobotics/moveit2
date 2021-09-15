@@ -38,9 +38,6 @@
 #include <moveit/robot_state/conversions.h>
 #include <moveit/utils/message_checks.h>
 
-#include <moveit/macros/diagnostics.h>
-DIAGNOSTIC_PUSH
-SILENT_UNUSED_PARAM
 // #include <rviz/visualization_manager.h>
 #include <rviz_default_plugins/robot/robot.hpp>
 #include <rviz_default_plugins/robot/robot_link.hpp>
@@ -56,14 +53,13 @@ SILENT_UNUSED_PARAM
 
 #include <OgreSceneManager.h>
 #include <OgreSceneNode.h>
-DIAGNOSTIC_POP
 
 namespace moveit_rviz_plugin
 {
 // ******************************************************************************************
 // Base class contructor
 // ******************************************************************************************
-RobotStateDisplay::RobotStateDisplay() : Display(), update_state_(false), load_robot_model_(false)
+RobotStateDisplay::RobotStateDisplay() : Display(), update_state_(false)
 {
   robot_description_property_ = new rviz_common::properties::StringProperty(
       "Robot Description", "robot_description", "The name of the ROS parameter where the URDF for the robot is loaded",
@@ -76,9 +72,10 @@ RobotStateDisplay::RobotStateDisplay() : Display(), update_state_(false), load_r
       SLOT(changedRobotStateTopic()), this);
 
   // Planning scene category -------------------------------------------------------------------------------------------
-  root_link_name_property_ = new rviz_common::properties::StringProperty(
-      "Robot Root Link", "", "Shows the name of the root link for the robot model", this, SLOT(changedRootLinkName()),
-      this);
+  root_link_name_property_ =
+      new rviz_common::properties::StringProperty("Robot Root Link", "",
+                                                  "Shows the name of the root link for the robot model", this,
+                                                  SLOT(changedRootLinkName()), this);
   root_link_name_property_->setReadOnly(true);
 
   robot_alpha_property_ = new rviz_common::properties::FloatProperty(
@@ -86,19 +83,22 @@ RobotStateDisplay::RobotStateDisplay() : Display(), update_state_(false), load_r
   robot_alpha_property_->setMin(0.0);
   robot_alpha_property_->setMax(1.0);
 
-  attached_body_color_property_ = new rviz_common::properties::ColorProperty(
-      "Attached Body Color", QColor(150, 50, 150), "The color for the attached bodies", this,
-      SLOT(changedAttachedBodyColor()), this);
+  attached_body_color_property_ =
+      new rviz_common::properties::ColorProperty("Attached Body Color", QColor(150, 50, 150),
+                                                 "The color for the attached bodies", this,
+                                                 SLOT(changedAttachedBodyColor()), this);
 
   enable_link_highlight_ = new rviz_common::properties::BoolProperty("Show Highlights", true,
                                                                      "Specifies whether link highlighting is enabled",
                                                                      this, SLOT(changedEnableLinkHighlight()), this);
-  enable_visual_visible_ = new rviz_common::properties::BoolProperty(
-      "Visual Enabled", true, "Whether to display the visual representation of the robot.", this,
-      SLOT(changedEnableVisualVisible()), this);
-  enable_collision_visible_ = new rviz_common::properties::BoolProperty(
-      "Collision Enabled", false, "Whether to display the collision representation of the robot.", this,
-      SLOT(changedEnableCollisionVisible()), this);
+  enable_visual_visible_ =
+      new rviz_common::properties::BoolProperty("Visual Enabled", true,
+                                                "Whether to display the visual representation of the robot.", this,
+                                                SLOT(changedEnableVisualVisible()), this);
+  enable_collision_visible_ =
+      new rviz_common::properties::BoolProperty("Collision Enabled", false,
+                                                "Whether to display the collision representation of the robot.", this,
+                                                SLOT(changedEnableCollisionVisible()), this);
 
   show_all_links_ = new rviz_common::properties::BoolProperty(
       "Show All Links", true, "Toggle all links visibility on or off.", this, SLOT(changedAllLinks()), this);
@@ -131,8 +131,8 @@ void RobotStateDisplay::reset()
   robot_->clear();
   rdf_loader_.reset();
   Display::reset();
-
-  loadRobotModel();
+  if (isEnabled())
+    onEnable();
 }
 
 void RobotStateDisplay::changedAllLinks()
@@ -310,12 +310,12 @@ void RobotStateDisplay::newRobotStateCallback(const moveit_msgs::msg::DisplayRob
   if (!robot_model_)
     return;
   if (!robot_state_)
-    robot_state_.reset(new robot_state::RobotState(robot_model_));
-  // possibly use TF to construct a robot_state::Transforms object to pass in to the conversion function?
+    robot_state_.reset(new moveit::core::RobotState(robot_model_));
+  // possibly use TF to construct a moveit::core::Transforms object to pass in to the conversion function?
   try
   {
     if (!moveit::core::isEmpty(state_msg->state))
-      robot_state::robotStateMsgToRobotState(state_msg->state, *robot_state_);
+      moveit::core::robotStateMsgToRobotState(state_msg->state, *robot_state_);
     setRobotHighlights(state_msg->highlight_links);
   }
   catch (const moveit::Exception& e)
@@ -378,31 +378,38 @@ void RobotStateDisplay::unsetLinkColor(rviz_default_plugins::robot::Robot* robot
 // ******************************************************************************************
 void RobotStateDisplay::loadRobotModel()
 {
-  load_robot_model_ = false;
   if (robot_description_property_->getStdString().empty())
   {
     setStatus(rviz_common::properties::StatusProperty::Error, "RobotModel", "`Robot Description` field can't be empty");
     return;
   }
-  if (!rdf_loader_)
-    rdf_loader_.reset(new rdf_loader::RDFLoader(node_, robot_description_property_->getStdString()));
+
+  rdf_loader_.reset(new rdf_loader::RDFLoader(node_, robot_description_property_->getStdString()));
 
   if (rdf_loader_->getURDF())
   {
-    const srdf::ModelSharedPtr& srdf =
-        rdf_loader_->getSRDF() ? rdf_loader_->getSRDF() : srdf::ModelSharedPtr(new srdf::Model());
-    robot_model_.reset(new robot_model::RobotModel(rdf_loader_->getURDF(), srdf));
-    robot_->load(*robot_model_->getURDF());
-    robot_state_.reset(new robot_state::RobotState(robot_model_));
-    robot_state_->setToDefaultValues();
-    bool old_state = root_link_name_property_->blockSignals(true);
-    root_link_name_property_->setStdString(getRobotModel()->getRootLinkName());
-    root_link_name_property_->blockSignals(old_state);
-    update_state_ = true;
-    setStatus(rviz_common::properties::StatusProperty::Ok, "RobotModel", "Loaded successfully");
+    try
+    {
+      const srdf::ModelSharedPtr& srdf =
+          rdf_loader_->getSRDF() ? rdf_loader_->getSRDF() : srdf::ModelSharedPtr(new srdf::Model());
+      robot_model_.reset(new moveit::core::RobotModel(rdf_loader_->getURDF(), srdf));
+      robot_->load(*robot_model_->getURDF());
+      robot_state_.reset(new moveit::core::RobotState(robot_model_));
+      robot_state_->setToDefaultValues();
+      bool old_state = root_link_name_property_->blockSignals(true);
+      root_link_name_property_->setStdString(getRobotModel()->getRootLinkName());
+      root_link_name_property_->blockSignals(old_state);
+      update_state_ = true;
+      setStatus(rviz_common::properties::StatusProperty::Ok, "RobotModel", "Loaded successfully");
 
-    changedEnableVisualVisible();
-    changedEnableCollisionVisible();
+      changedEnableVisualVisible();
+      changedEnableCollisionVisible();
+    }
+    catch (std::exception& e)
+    {
+      setStatus(rviz_common::properties::StatusProperty::Error, "RobotModel",
+                QString("Loading failed: %1").arg(e.what()));
+    }
   }
   else
     setStatus(rviz_common::properties::StatusProperty::Error, "RobotModel", "Loading failed");
@@ -410,10 +417,20 @@ void RobotStateDisplay::loadRobotModel()
   highlights_.clear();
 }
 
+void RobotStateDisplay::load(const rviz_common::Config& config)
+{
+  // This property needs to be loaded in onEnable() below, which is triggered
+  // in the beginning of Display::load() before the other property would be available
+  robot_description_property_->load(config.mapGetChild("Robot Description"));
+  Display::load(config);
+}
+
 void RobotStateDisplay::onEnable()
 {
   Display::onEnable();
-  load_robot_model_ = true;  // allow loading of robot model in update()
+  if (!rdf_loader_)
+    loadRobotModel();
+  changedRobotStateTopic();
   calculateOffsetPosition();
 }
 
@@ -431,16 +448,6 @@ void RobotStateDisplay::onDisable()
 void RobotStateDisplay::update(float wall_dt, float ros_dt)
 {
   Display::update(wall_dt, ros_dt);
-
-  if (load_robot_model_)
-  {
-    loadRobotModel();
-    // The following call to changedRobotStateTopic() should not change visibility
-    bool visible = robot_->isVisible();
-    changedRobotStateTopic();
-    robot_->setVisible(visible);
-  }
-
   calculateOffsetPosition();
   if (robot_ && update_state_ && robot_state_)
   {

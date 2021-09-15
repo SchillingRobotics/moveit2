@@ -37,12 +37,13 @@
 #pragma once
 
 #include <QWidget>
-#include <QLabel>
-#include <QTreeWidget>
+class QLabel;
+class QLineEdit;
+class QTreeWidget;
+class QTreeWidgetItem;
 
 #ifndef Q_MOC_RUN
 #include <moveit/setup_assistant/tools/moveit_config_data.h>
-#include <ros/ros.h>
 #endif
 
 namespace moveit_setup_assistant
@@ -68,9 +69,9 @@ public:
   /// Set the link field with previous value
   void setSelected(const std::string& base_link, const std::string& tip_link);
 
-  void addLinktoTreeRecursive(const robot_model::LinkModel* link, const robot_model::LinkModel* parent);
+  void addLinktoTreeRecursive(const moveit::core::LinkModel* link, const moveit::core::LinkModel* parent);
 
-  bool addLinkChildRecursive(QTreeWidgetItem* parent, const robot_model::LinkModel* link,
+  bool addLinkChildRecursive(QTreeWidgetItem* parent, const moveit::core::LinkModel* link,
                              const std::string& parent_name);
 
   // ******************************************************************************************
@@ -133,4 +134,4 @@ private:
   // Private Functions
   // ******************************************************************************************
 };
-}
+}  // namespace moveit_setup_assistant

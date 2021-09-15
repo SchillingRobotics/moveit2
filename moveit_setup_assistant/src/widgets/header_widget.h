@@ -37,8 +37,9 @@
 #pragma once
 
 #include <QWidget>
-#include <QLabel>
-#include <QLineEdit>
+#include <QFrame>
+class QLabel;
+class QLineEdit;
 
 namespace moveit_setup_assistant
 {
@@ -117,4 +118,4 @@ public:
   void setArgs(const QString& args);
   void setArgsEnabled(bool enabled = true);
 };
-}
+}  // namespace moveit_setup_assistant

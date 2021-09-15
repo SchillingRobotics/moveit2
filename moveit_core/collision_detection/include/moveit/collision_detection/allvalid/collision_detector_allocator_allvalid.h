@@ -39,13 +39,15 @@
 #include <moveit/collision_detection/collision_detector_allocator.h>
 #include <moveit/collision_detection/allvalid/collision_env_allvalid.h>
 
+#include "moveit_collision_detection_export.h"
+
 namespace collision_detection
 {
 /** \brief An allocator for AllValid collision detectors */
-class CollisionDetectorAllocatorAllValid
-    : public CollisionDetectorAllocatorTemplate<CollisionEnvAllValid, CollisionDetectorAllocatorAllValid>
+class MOVEIT_COLLISION_DETECTION_EXPORT CollisionDetectorAllocatorAllValid
+  : public CollisionDetectorAllocatorTemplate<CollisionEnvAllValid, CollisionDetectorAllocatorAllValid>
 {
 public:
   static const std::string NAME;  // defined in collision_env_allvalid.cpp
 };
-}
+}  // namespace collision_detection

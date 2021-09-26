@@ -662,7 +662,15 @@ bool ServoCalcs::applyJointUpdate(const Eigen::ArrayXd& delta_theta, sensor_msgs
         (joint_state.position.at(i) - original_joint_state_.position.at(i)) / parameters_->publish_period;
   }
 
-  smoother_->doSmoothing(joint_state.position, joint_state.velocity);
+  try
+  {
+    smoother_->doSmoothing(joint_state.position, joint_state.velocity);
+  }
+  catch (std::exception& e)
+  {
+    RCLCPP_WARN_STREAM(LOGGER, "Smoothing failed in applyJointUpdate()! Reverting to the previous waypoint.");
+    RCLCPP_WARN_STREAM(LOGGER, e.what());
+  }
 
   for (std::size_t i = 0; i < joint_state.position.size(); ++i)
   {
@@ -860,7 +868,17 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
   // Set done_stopping_ flag
   assert(original_joint_state_.position.size() >= num_joints_);
   joint_trajectory.points[0].positions = original_joint_state_.position;
-  smoother_->doSmoothing(joint_trajectory.points[0].positions, joint_trajectory.points[0].velocities);
+
+  try
+  {
+    smoother_->doSmoothing(joint_trajectory.points[0].positions, joint_trajectory.points[0].velocities);
+  }
+  catch (std::exception& e)
+  {
+    RCLCPP_WARN_STREAM(LOGGER, "Smoothing failed in filteredHalt()! Reverting to the previous waypoint.");
+    RCLCPP_WARN_STREAM(LOGGER, e.what());
+  }
+
   done_stopping_ = true;
   if (parameters_->publish_joint_velocities)
   {

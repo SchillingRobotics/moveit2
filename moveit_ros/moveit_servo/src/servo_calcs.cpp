@@ -873,6 +873,8 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
   // Set done_stopping_ flag
   assert(original_joint_state_.position.size() >= num_joints_);
   joint_trajectory.points[0].positions = original_joint_state_.position;
+  joint_trajectory.points[0].velocities = std::vector<double>(num_joints_, 0);
+  joint_trajectory.points[0].accelerations = std::vector<double>(num_joints_, 0);
 
   try
   {

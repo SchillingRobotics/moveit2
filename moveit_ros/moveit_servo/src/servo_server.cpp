@@ -96,9 +96,14 @@ bool ServoServer::init()
     planning_scene_monitor_->setPlanningScenePublishingFrequency(25);
     planning_scene_monitor_->startPublishingPlanningScene(planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE,
                                                           "/moveit_servo/publish_planning_scene");
-    planning_scene_monitor_->startSceneMonitor(
-        planning_scene_monitor::PlanningSceneMonitor::MONITORED_PLANNING_SCENE_TOPIC);
-    planning_scene_monitor_->requestPlanningSceneState();
+    planning_scene_monitor_->startSceneMonitor(servo_parameters->monitored_planning_scene_topic);
+    // If the planning scene monitor in servo is the primary one we provide /get_planning_scene service so RViz displays
+    // or secondary planning scene monitors can fetch the scene, otherwise we request the planning scene from the
+    // primary planning scene monitor (e.g. move_group)
+    if (servo_parameters->is_primary_planning_scene_monitor)
+      planning_scene_monitor_->providePlanningSceneService();
+    else
+      planning_scene_monitor_->requestPlanningSceneState();
   }
   else
   {

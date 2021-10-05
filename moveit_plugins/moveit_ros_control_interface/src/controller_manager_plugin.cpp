@@ -159,7 +159,8 @@ class MoveItControllerManager : public moveit_controller_manager::MoveItControll
                        [](const std::string& claimed_interface) {
                          return parseJointNameFromResource(claimed_interface);
                        });
-        allocate(absname, controller_it->second);
+        if (isActive(controller))
+          allocate(getAbsName(controller.name), active_controllers_[controller.name]);
       }
     }
   }

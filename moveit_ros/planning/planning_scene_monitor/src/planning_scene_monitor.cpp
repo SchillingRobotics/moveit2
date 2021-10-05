@@ -1084,7 +1084,8 @@ void PlanningSceneMonitor::startSceneMonitor(const std::string& scene_topic)
   if (!scene_topic.empty())
   {
     planning_scene_subscriber_ = pnode_->create_subscription<moveit_msgs::msg::PlanningScene>(
-        scene_topic, 100, std::bind(&PlanningSceneMonitor::newPlanningSceneCallback, this, std::placeholders::_1));
+        scene_topic, rclcpp::QoS(100).best_effort(),
+        std::bind(&PlanningSceneMonitor::newPlanningSceneCallback, this, std::placeholders::_1));
     RCLCPP_INFO(LOGGER, "Listening to '%s'", planning_scene_subscriber_->get_topic_name());
   }
 }

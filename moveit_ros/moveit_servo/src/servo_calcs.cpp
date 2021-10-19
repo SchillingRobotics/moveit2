@@ -881,6 +881,9 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
       std::fill(joint_trajectory.points[0].velocities.begin(), joint_trajectory.points[0].velocities.end(), 0);
     }
   }
+  if(!parameters_->publish_joint_positions) {
+      joint_trajectory.points[0].positions.clear();
+  }
 
   joint_trajectory.points[0].time_from_start = rclcpp::Duration::from_seconds(parameters_->publish_period);
 }

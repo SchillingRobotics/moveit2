@@ -24,6 +24,7 @@
   <build_depend>moveit_common</build_depend>
 
   <depend>angles</depend>
+  <depend>backward_ros</depend>
   <depend>rclcpp</depend>
   <depend>common_interfaces</depend>
   <depend>assimp</depend>

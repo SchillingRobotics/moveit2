@@ -54,8 +54,8 @@ void ButterworthFilter::reset(const double data)
   previous_filtered_measurement_ = data;
 }
 
-bool ButterworthFilterPlugin::initialize(rclcpp::Node::SharedPtr node, moveit::core::RobotModelConstPtr robot_model,
-                                         size_t num_joints)
+bool ButterworthFilterPlugin::initialize(rclcpp::Node::SharedPtr node, const moveit::core::JointModelGroup& group,
+                                         size_t num_joints, double timestep_s)
 {
   node_ = node;
   num_joints_ = num_joints;
@@ -69,18 +69,18 @@ bool ButterworthFilterPlugin::initialize(rclcpp::Node::SharedPtr node, moveit::c
   return true;
 };
 
-bool ButterworthFilterPlugin::doSmoothing(std::vector<double>& position_vector)
+bool ButterworthFilterPlugin::doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector)
 {
-  if (position_vector.size() != position_filters_.size())
+  if (desired_position_vector.size() != position_filters_.size())
   {
     RCLCPP_ERROR_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000,
                           "Position vector to be smoothed does not have the right length.");
     return false;
   }
-  for (size_t i = 0; i < position_vector.size(); ++i)
+  for (size_t i = 0; i < desired_position_vector.size(); ++i)
   {
     // Lowpass filter the position command
-    position_vector[i] = position_filters_.at(i).filter(position_vector[i]);
+    desired_position_vector[i] = position_filters_.at(i).filter(desired_position_vector[i]);
   }
   return true;
 };

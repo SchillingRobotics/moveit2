@@ -33,43 +33,60 @@
  *********************************************************************/
 
 /* Author: Andy Zelenak
-   Description: Defines a pluginlib interface for smoothing algorithms.
+   Description: A first-order Butterworth low-pass filter. There is only one parameter to tune.
  */
 
 #pragma once
 
+#include <cstddef>
+
 #include <moveit/robot_model/robot_model.h>
+#include <moveit/online_signal_smoothing/smoothing_base_class.h>
 
 namespace online_signal_smoothing
 {
-class SmoothingBaseClass
+// Plugin
+class SimpleJointLimiterFilterPlugin : public SmoothingBaseClass
 {
 public:
+  // SimpleJointLimiterFilterPlugin(){};
+
   /**
    * Initialize the smoothing algorithm
-   * @param node ROS node, typically used for parameter retrieval
+   * @param node ROS node, used for parameter retrieval
    * @param group typically used to retrieve pos/vel/accel/jerk limits
    * @param num_joints number of actuated joints in the JointGroup Servo controls
    * @param timestep_s control loop period [seconds]
    * @return True if initialization was successful
    */
-  // TODO: Remove num_joints as it can be derived from group size
-  virtual bool initialize(rclcpp::Node::SharedPtr node, const moveit::core::JointModelGroup& group,
-                          size_t num_joints, double timestep_s) = 0;
+  bool initialize(rclcpp::Node::SharedPtr node, const moveit::core::JointModelGroup& group,
+                  size_t num_joints, double timestep_s) override;
 
   /**
-   * Smooth an array of joint position deltas
-   * @param desired_position_vector array of joint position commands
-   * @param current_position_vector array of current joint positions
+   * Smooth the command signals for all DOF
+   * @param position_vector array of joint position commands
+   * TODO
    * @return True if initialization was successful
    */
-  virtual bool doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector) = 0;
+  bool doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector) override;
 
   /**
    * Reset to a given joint state
    * @param joint_positions reset the filters to these joint positions
    * @return True if reset was successful
    */
-  virtual bool reset(const std::vector<double>& joint_positions) = 0;
+  bool reset(const std::vector<double>& joint_positions) override;
+
+private:
+  rclcpp::Node::SharedPtr node_;
+  // moveit::core::JointModelGroup group_;
+  size_t num_joints_;
+  double timestep_s_;
+  bool first_iteration_ = true;
+  std::vector<double> previous_position_vector_;
+  std::vector<double> previous_velocity_vector_;
+  std::vector<double> desired_velocity_;
+  // std::vector<double> desired_acceleration_;
+  std::vector<moveit::core::VariableBounds> limits_;
 };
 }  // namespace online_signal_smoothing

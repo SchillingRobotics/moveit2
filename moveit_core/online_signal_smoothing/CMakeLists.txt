@@ -15,6 +15,21 @@ target_link_libraries(moveit_butterworth_filter
   moveit_robot_model
 )
 
+add_library(moveit_simple_limiter_filter SHARED
+  src/simple_joint_limiter_filter.cpp
+)
+include(GenerateExportHeader)
+generate_export_header(moveit_simple_limiter_filter)
+target_include_directories(moveit_simple_limiter_filter PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+)
+set_target_properties(moveit_simple_limiter_filter PROPERTIES VERSION
+  "${${PROJECT_NAME}_VERSION}"
+)
+target_link_libraries(moveit_simple_limiter_filter
+  moveit_robot_model
+)
+
 # Installation
 
 install(DIRECTORY include/ DESTINATION include)
@@ -22,6 +37,15 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/moveit_butterworth_filter_export.h DES
 install(TARGETS moveit_butterworth_filter EXPORT moveit_butterworth_filter)
 install(
   TARGETS moveit_butterworth_filter EXPORT moveit_butterworth_filter
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/moveit_simple_limiter_filter_export.h DESTINATION include)
+install(TARGETS moveit_simple_limiter_filter EXPORT moveit_simple_limiter_filter)
+install(
+  TARGETS moveit_simple_limiter_filter EXPORT moveit_simple_limiter_filter
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin

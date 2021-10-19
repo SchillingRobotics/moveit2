@@ -25,6 +25,7 @@ set(LIBFCL_LIBRARIES "${LIBFCL_LIBRARIES_FULL}")
 
 find_package(Bullet 2.87 REQUIRED)
 find_package(angles REQUIRED)
+find_package(backward_ros REQUIRED)
 find_package(OCTOMAP REQUIRED)
 find_package(urdfdom REQUIRED)
 find_package(urdf REQUIRED)
@@ -118,6 +119,7 @@ set(THIS_PACKAGE_LIBRARIES
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   angles
+  backward_ros
   eigen_stl_containers
   geometric_shapes
   geometry_msgs
@@ -232,6 +234,7 @@ ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 pluginlib_export_plugin_description_file(moveit_core collision_detector_fcl_description.xml)
 pluginlib_export_plugin_description_file(moveit_core collision_detector_bullet_description.xml)
 pluginlib_export_plugin_description_file(moveit_core filter_plugin_butterworth.xml)
+pluginlib_export_plugin_description_file(moveit_core filter_plugin_simple_limiter.xml)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

@@ -186,7 +186,7 @@ ServoCalcs::ServoCalcs(rclcpp::Node::SharedPtr node,
   }
 
   // Initialize the smoothing plugin
-  if (!smoother_->initialize(node_, planning_scene_monitor_->getRobotModel(), num_joints_))
+  if (!smoother_->initialize(node_, *joint_model_group_, num_joints_, parameters_->publish_period))
   {
     RCLCPP_ERROR(LOGGER, "Smoothing plugin could not be initialized");
     std::exit(EXIT_FAILURE);
@@ -654,7 +654,7 @@ bool ServoCalcs::applyJointUpdate(const Eigen::ArrayXd& delta_theta, sensor_msgs
     joint_state.position[i] += delta_theta[i];
   }
 
-  smoother_->doSmoothing(joint_state.position);
+  smoother_->doSmoothing(joint_state.position, original_joint_state_.position);
 
   for (std::size_t i = 0; i < joint_state.position.size(); ++i)
   {
@@ -860,7 +860,7 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
   // Set done_stopping_ flag
   assert(original_joint_state_.position.size() >= num_joints_);
   joint_trajectory.points[0].positions = original_joint_state_.position;
-  smoother_->doSmoothing(joint_trajectory.points[0].positions);
+  smoother_->doSmoothing(joint_trajectory.points[0].positions, original_joint_state_.position);
   done_stopping_ = true;
   if (parameters_->publish_joint_velocities)
   {

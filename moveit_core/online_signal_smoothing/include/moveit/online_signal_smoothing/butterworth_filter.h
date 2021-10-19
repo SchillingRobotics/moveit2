@@ -84,19 +84,21 @@ public:
   /**
    * Initialize the smoothing algorithm
    * @param node ROS node, used for parameter retrieval
-   * @param robot_model typically used to retrieve vel/accel/jerk limits
+   * @param group typically used to retrieve pos/vel/accel/jerk limits
    * @param num_joints number of actuated joints in the JointGroup Servo controls
+   * @param timestep_s control loop period [seconds]
    * @return True if initialization was successful
    */
-  bool initialize(rclcpp::Node::SharedPtr node, moveit::core::RobotModelConstPtr robot_model,
-                  size_t num_joints) override;
+  bool initialize(rclcpp::Node::SharedPtr node, const moveit::core::JointModelGroup& group,
+                  size_t num_joints, double timestep_s) override;
 
   /**
    * Smooth the command signals for all DOF
-   * @param position_vector array of joint position commands
+   * @param desired_position_vector array of joint position commands
+   * @param current_position_vector array of current joint positions
    * @return True if initialization was successful
    */
-  bool doSmoothing(std::vector<double>& position_vector) override;
+  bool doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector) override;
 
   /**
    * Reset to a given joint state

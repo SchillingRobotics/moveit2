@@ -1,0 +1,7 @@
+<library path="moveit_simple_limiter_filter">
+  <class type="online_signal_smoothing::SimpleJointLimiterFilterPlugin" base_class_type="online_signal_smoothing::SmoothingBaseClass">
+    <description>
+    TODO
+    </description>
+  </class>
+</library>

@@ -158,6 +158,25 @@ ServoCalcs::ServoCalcs(rclcpp::Node::SharedPtr node,
         node_->create_publisher<std_msgs::msg::Float64MultiArray>(parameters_->command_out_topic, ROS_QUEUE_SIZE);
   }
 
+  pub_servo_cmd_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_cmd1", ROS_QUEUE_SIZE);
+  pub_servo_cmd_scaled_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_cmd_scaled2", ROS_QUEUE_SIZE);
+  pub_servo_cmd_vel_limited_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_cmd_vel_limited3", ROS_QUEUE_SIZE);
+  pub_servo_cmd_coll_limited_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>(
+      "/servo_server/joint_cmd_coll_limited4", ROS_QUEUE_SIZE);
+  pub_joint_pos_start_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_pos_start1", ROS_QUEUE_SIZE);
+  pub_joint_vel_start_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_vel_start1", ROS_QUEUE_SIZE);
+  pub_joint_pos_updated_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_pos_updated2", ROS_QUEUE_SIZE);
+  pub_joint_pos_smoothed_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_pos_smoothed3", ROS_QUEUE_SIZE);
+  pub_joint_vel_smoothed_ =
+      node_->create_publisher<std_msgs::msg::Float64MultiArray>("/servo_server/joint_vel_smoothed3", ROS_QUEUE_SIZE);
+
   // Publish status
   status_pub_ = node_->create_publisher<std_msgs::msg::Int8>(parameters_->status_topic, ROS_QUEUE_SIZE);
   condition_pub_ = node_->create_publisher<std_msgs::msg::Float64>("~/condition", ROS_QUEUE_SIZE);
@@ -558,6 +577,22 @@ bool ServoCalcs::cartesianServoCalcs(geometry_msgs::msg::TwistStamped& cmd,
   return internalServoUpdate(delta_theta_, joint_trajectory, ServoType::CARTESIAN_SPACE);
 }
 
+void ServoCalcs::pubJointData(const Eigen::ArrayXd& data,
+                              rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub)
+{
+  auto joints = std::make_unique<std_msgs::msg::Float64MultiArray>();
+  joints->data.insert(joints->data.end(), data.data(), data.data() + data.size());
+  pub->publish(std::move(joints));
+}
+
+void ServoCalcs::pubJointData(const std::vector<double>& data,
+                              rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub)
+{
+  auto joints = std::make_unique<std_msgs::msg::Float64MultiArray>();
+  joints->data = data;
+  pub->publish(std::move(joints));
+}
+
 bool ServoCalcs::jointServoCalcs(const control_msgs::msg::JointJog& cmd,
                                  trajectory_msgs::msg::JointTrajectory& joint_trajectory)
 {
@@ -565,8 +600,12 @@ bool ServoCalcs::jointServoCalcs(const control_msgs::msg::JointJog& cmd,
   if (!checkValidCommand(cmd))
     return false;
 
+  pubJointData(cmd.velocities, pub_servo_cmd_);
+
   // Apply user-defined scaling
   delta_theta_ = scaleJointCommand(cmd);
+
+  pubJointData(delta_theta_, pub_servo_cmd_scaled_);
 
   // Perform interal servo with the command
   return internalServoUpdate(delta_theta_, joint_trajectory, ServoType::JOINT_SPACE);
@@ -581,6 +620,8 @@ bool ServoCalcs::internalServoUpdate(Eigen::ArrayXd& delta_theta,
 
   // Enforce SRDF Velocity, Acceleration limits
   delta_theta = enforceVelocityLimits(joint_model_group_, parameters_->publish_period, delta_theta);
+
+  pubJointData(delta_theta, pub_servo_cmd_vel_limited_);
 
   // Apply collision scaling
   double collision_scale = collision_velocity_scale_;
@@ -597,6 +638,7 @@ bool ServoCalcs::internalServoUpdate(Eigen::ArrayXd& delta_theta,
     RCLCPP_ERROR_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD, "Halting for collision!");
   }
   delta_theta *= collision_scale;
+  pubJointData(delta_theta, pub_servo_cmd_coll_limited_);
 
   // Loop thru joints and update them, calculate velocities, and filter
   if (!applyJointUpdate(delta_theta, internal_joint_state_, prev_joint_velocity_))
@@ -655,15 +697,20 @@ bool ServoCalcs::applyJointUpdate(const Eigen::ArrayXd& delta_theta, sensor_msgs
     // Increment joint
     joint_state.position[i] += delta_theta[i];
   }
+  pubJointData(joint_state.position, pub_joint_pos_updated_);
 
   std::vector<double> prev_vel(joint_state.velocity);
   smoother_->doSmoothing(joint_state.position, original_joint_state_.position, joint_state.velocity, prev_vel);
+
+  pubJointData(joint_state.position, pub_joint_pos_smoothed_);
 
   for (std::size_t i = 0; i < joint_state.position.size(); ++i)
   {
     // Save new velocity for future accel calculations
     previous_vel[i] = joint_state.velocity[i];
   }
+
+  pubJointData(joint_state.velocity, pub_joint_vel_smoothed_);
 
   return true;
 }
@@ -910,6 +957,8 @@ void ServoCalcs::updateJoints()
 
   // Cache the original joints in case they need to be reset
   original_joint_state_ = internal_joint_state_;
+  pubJointData(original_joint_state_.position, pub_joint_pos_start_);
+  pubJointData(original_joint_state_.velocity, pub_joint_vel_start_);
 }
 
 bool ServoCalcs::checkValidCommand(const control_msgs::msg::JointJog& cmd)

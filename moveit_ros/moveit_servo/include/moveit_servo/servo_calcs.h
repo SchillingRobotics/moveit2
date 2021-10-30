@@ -261,6 +261,9 @@ protected:
   bool resetServoStatus(const std::shared_ptr<std_srvs::srv::Empty::Request> req,
                         std::shared_ptr<std_srvs::srv::Empty::Response> res);
 
+  void pubJointData(const Eigen::ArrayXd& data, rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub);
+  void pubJointData(const std::vector<double>& data, rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub);
+
   // Pointer to the ROS node
   std::shared_ptr<rclcpp::Node> node_;
 
@@ -318,6 +321,16 @@ protected:
   rclcpp::Service<moveit_msgs::srv::ChangeControlDimensions>::SharedPtr control_dimensions_server_;
   rclcpp::Service<moveit_msgs::srv::ChangeDriftDimensions>::SharedPtr drift_dimensions_server_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_servo_status_;
+
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_servo_cmd_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_servo_cmd_scaled_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_servo_cmd_vel_limited_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_servo_cmd_coll_limited_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_joint_pos_start_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_joint_vel_start_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_joint_pos_updated_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_joint_pos_smoothed_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_joint_vel_smoothed_;
 
   // Main tracking / result publisher loop
   std::thread thread_;

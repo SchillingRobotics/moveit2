@@ -352,6 +352,7 @@ void ServoCalcs::calculateSingleIteration()
                            current_state_->getGlobalLinkTransform(parameters_->ee_frame_name);
 
   have_nonzero_command_ = have_nonzero_twist_stamped_ || have_nonzero_joint_command_;
+  bool command_is_stale = twist_command_is_stale_ && joint_command_is_stale_;
 
   // Don't end this function without updating the filters
   updated_filters_ = false;
@@ -404,31 +405,32 @@ void ServoCalcs::calculateSingleIteration()
   }
 
   // If we should halt
-  if (!have_nonzero_command_ && !done_stopping_)
+  if ((!have_nonzero_command_ || command_is_stale) && !done_stopping_)
   {
     filteredHalt(*joint_trajectory);
   }
-  else
+  else if (have_nonzero_command_ && !command_is_stale)
   {
     done_stopping_ = false;
   }
 
-  // Skip the servoing publication if all inputs have been zero for several cycles in a row.
   // num_outgoing_halt_msgs_to_publish == 0 signifies that we should keep republishing forever.
-  if (!have_nonzero_command_ && done_stopping_ && (parameters_->num_outgoing_halt_msgs_to_publish != 0) &&
-      (zero_velocity_count_ > parameters_->num_outgoing_halt_msgs_to_publish))
+  bool sent_enough_zero_vel = (parameters_->num_outgoing_halt_msgs_to_publish != 0) &&
+                              (zero_velocity_count_ > parameters_->num_outgoing_halt_msgs_to_publish);
+  // Skip servoing publication if inputs have been zero or both types of commands are stale.
+  if ((!have_nonzero_command_ || command_is_stale) && done_stopping_ && sent_enough_zero_vel)
   {
     ok_to_publish_ = false;
     rclcpp::Clock& clock = *node_->get_clock();
-    RCLCPP_DEBUG_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD, "All-zero command. Doing nothing.");
-  }
-  // Skip servoing publication if both types of commands are stale.
-  else if (twist_command_is_stale_ && joint_command_is_stale_)
-  {
-    ok_to_publish_ = false;
-    rclcpp::Clock& clock = *node_->get_clock();
-    RCLCPP_DEBUG_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD,
+    if (command_is_stale) 
+    {
+      RCLCPP_DEBUG_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD,
                                  "Skipping publishing because incoming commands are stale.");
+    }
+    else
+    {
+      RCLCPP_DEBUG_STREAM_THROTTLE(LOGGER, clock, ROS_LOG_THROTTLE_PERIOD, "All-zero command. Doing nothing.");
+    }
   }
   else
   {
@@ -436,8 +438,8 @@ void ServoCalcs::calculateSingleIteration()
   }
 
   // Store last zero-velocity message flag to prevent superfluous warnings.
-  // Cartesian and joint commands must both be zero.
-  if (!have_nonzero_command_ && done_stopping_)
+  // Cartesian and joint commands must both be zero or stale.
+  if ((!have_nonzero_command_ || command_is_stale) && done_stopping_)
   {
     // Avoid overflow
     if (zero_velocity_count_ < std::numeric_limits<int>::max())
@@ -850,7 +852,6 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
 {
   // Prepare the joint trajectory message to stop the robot
   joint_trajectory.points.clear();
-  joint_trajectory.points.emplace_back();
 
   // Deceleration algorithm:
   // Set positions to original_joint_state_
@@ -859,33 +860,28 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
   // Check if velocities are close to zero. Round to zero, if so.
   // Set done_stopping_ flag
   assert(original_joint_state_.position.size() >= num_joints_);
-  joint_trajectory.points[0].positions = original_joint_state_.position;
-  smoother_->doSmoothing(joint_trajectory.points[0].positions, original_joint_state_.position);
+  internal_joint_state_.position = original_joint_state_.position;
+  smoother_->doSmoothing(internal_joint_state_.position, original_joint_state_.position);
   done_stopping_ = true;
-  if (parameters_->publish_joint_velocities)
+  
+  for (std::size_t i = 0; i < num_joints_; ++i)
   {
-    joint_trajectory.points[0].velocities = std::vector<double>(num_joints_, 0);
-    for (std::size_t i = 0; i < num_joints_; ++i)
+    internal_joint_state_.velocity.at(i) =
+        (internal_joint_state_.position.at(i) - original_joint_state_.position.at(i)) /
+        parameters_->publish_period;
+    if (internal_joint_state_.velocity.at(i) > STOPPED_VELOCITY_EPS)
     {
-      joint_trajectory.points[0].velocities.at(i) =
-          (joint_trajectory.points[0].positions.at(i) - original_joint_state_.position.at(i)) /
-          parameters_->publish_period;
-      if (joint_trajectory.points[0].velocities.at(i) > STOPPED_VELOCITY_EPS)
-      {
-        done_stopping_ = false;
-      }
-    }
-    // If every joint is very close to stopped, round velocity to zero
-    if (done_stopping_)
-    {
-      std::fill(joint_trajectory.points[0].velocities.begin(), joint_trajectory.points[0].velocities.end(), 0);
+      done_stopping_ = false;
     }
   }
-  if(!parameters_->publish_joint_positions) {
-      joint_trajectory.points[0].positions.clear();
+  // If every joint is very close to stopped, round velocity to zero
+  if (done_stopping_)
+  {
+    std::fill(internal_joint_state_.velocity.begin(), internal_joint_state_.velocity.end(), 0);
   }
 
-  joint_trajectory.points[0].time_from_start = rclcpp::Duration::from_seconds(parameters_->publish_period);
+  // compose outgoing message
+  composeJointTrajMessage(internal_joint_state_, joint_trajectory);
 }
 
 void ServoCalcs::suddenHalt(sensor_msgs::msg::JointState& joint_state,

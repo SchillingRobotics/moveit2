@@ -25,16 +25,21 @@ bool SimpleJointLimiterFilterPlugin::initialize(rclcpp::Node::SharedPtr node, co
   limits_.resize(num_joints_);
   desired_velocity_.resize(num_joints_);
   previous_velocity_vector_.resize(num_joints_);
-  
+  joint_names_.resize(num_joints_);
+
   const moveit::core::RobotModel& rmodel = group.getParentModel();
   for (size_t i = 0; i < num_joints_; ++i)
   {
     limits_[i] = rmodel.getVariableBounds(vars.at(i));
+    joint_names_[i] = vars.at(i);
   }
   return true;
 };
 
-bool SimpleJointLimiterFilterPlugin::doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector)
+bool SimpleJointLimiterFilterPlugin::doSmoothing(std::vector<double>& desired_position_vector, 
+                                                 const std::vector<double>& current_position_vector,
+                                                 std::vector<double>& desired_velocity_vector, 
+                                                 const std::vector<double>& current_velocity_vector)
 {
   if(first_iteration_) {
     previous_position_vector_ = current_position_vector;
@@ -42,133 +47,143 @@ bool SimpleJointLimiterFilterPlugin::doSmoothing(std::vector<double>& desired_po
     first_iteration_ = false;
   }
 
-  // Compute necessary velocity
-  for (auto index = 0u; index < num_joints_; ++index)
-  {
-    desired_velocity_.at(index) = (desired_position_vector.at(index) - current_position_vector.at(index)) / timestep_s_;
-  }
-  // Compute current velocity
-  for (auto index = 0u; index < num_joints_; ++index)
-  {
-    previous_velocity_vector_.at(index) = (current_position_vector.at(index) - previous_position_vector_.at(index)) / timestep_s_;
-  }
+  std::vector<double> desired_accel(num_joints_);
+  std::vector<double> desired_vel(num_joints_);
+  std::vector<double> desired_pos(num_joints_);
+  std::vector<bool> pos_limit_trig_jnts(num_joints_, false);
+  std::vector<std::string> limited_jnts_vel, limited_jnts_acc;
 
-  // Clamp velocities to limits
+  bool position_limit_triggered = false;
+
   for (auto index = 0u; index < num_joints_; ++index)
   {
+    desired_pos[index] = desired_position_vector[index];
+
+    // limit position
+    if (limits_[index].position_bounded_)
+    {
+      auto pos = std::max(std::min(limits_[index].max_position_, desired_pos[index]), limits_[index].min_position_);
+      if (pos != desired_pos[index])
+      {
+        pos_limit_trig_jnts[index] = true;
+        desired_pos[index] = pos;
+      }
+    }
+
+    auto delta_pos = desired_pos[index] - current_position_vector[index];
+    desired_vel[index] = delta_pos / timestep_s_;
+
+    // limit velocity
     if (limits_[index].velocity_bounded_)
     {
-      if (std::abs(desired_velocity_[index]) > limits_[index].max_velocity_)
+      if (std::abs(desired_vel[index]) > limits_[index].max_velocity_)
       {
-        RCLCPP_DEBUG_STREAM_THROTTLE(
-          node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
-          "Joint(s) would exceed velocity limits, limiting");
-        desired_velocity_[index] =
-          copysign(limits_[index].max_velocity_, desired_velocity_[index]);
-        double accel =
-          (desired_velocity_[index] - previous_velocity_vector_[index]) /
-          timestep_s_;
-        // Recompute position
-        desired_position_vector[index] =
-          current_position_vector[index] +
-          previous_velocity_vector_[index] * timestep_s_ +
-          0.5 * accel * timestep_s_ * timestep_s_;
+        desired_vel[index] = std::copysign(limits_[index].max_velocity_, desired_vel[index]);
+        limited_jnts_vel.emplace_back(joint_names_[index]);
       }
     }
-  }
 
-  // Clamp acclerations to limits
-  for (auto index = 0u; index < num_joints_; ++index)
-  {
+    desired_accel[index] = (desired_vel[index] - current_velocity_vector[index]) / timestep_s_;
+
+    // limit acceleration
     if (limits_[index].acceleration_bounded_)
     {
-      double accel =
-        (desired_velocity_[index] - previous_velocity_vector_[index]) /
-        timestep_s_;
-      if (std::abs(accel) > limits_[index].max_acceleration_)
+      if (std::abs(desired_accel[index]) > limits_[index].max_acceleration_)
       {
-        RCLCPP_DEBUG_STREAM_THROTTLE(
-          node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
-          "Joint(s) would exceed acceleration limits, limiting");
-        desired_velocity_[index] =
-          previous_velocity_vector_[index] +
-          copysign(limits_[index].max_acceleration_, accel) * timestep_s_;
-        // Recompute position
-        desired_position_vector[index] =
-          current_position_vector[index] +
-          previous_velocity_vector_[index] * timestep_s_ +
-          0.5 * copysign(limits_[index].max_acceleration_, accel) * timestep_s_ * timestep_s_;
+        desired_accel[index] = std::copysign(limits_[index].max_acceleration_, desired_accel[index]);
+        desired_vel[index] = current_velocity_vector[index] + desired_accel[index] * timestep_s_;
+        // recalc desired position after acceleration limiting
+        desired_pos[index] = current_position_vector[index] + 
+                             current_velocity_vector[index] * timestep_s_ + 
+                             0.5 * desired_accel[index] * timestep_s_ * timestep_s_;
+        limited_jnts_acc.emplace_back(joint_names_[index]);
       }
     }
-  }
 
-  // Check that stopping distance is within joint limits
-  // - In joint mode, slow down only joints whose stopping distance isn't inside joint limits,
-  // at maximum decel
-  // - In Cartesian mode, slow down all joints at maximum decel if any don't have stopping distance
-  // within joint limits
-  bool position_limit_triggered = false;
-  for (auto index = 0u; index < num_joints_; ++index)
-  {
-    if (limits_[index].acceleration_bounded_)
+    // Check that stopping distance is within joint limits
+    // Slow down all joints at maximum decel if any don't have stopping distance within joint limits
+    if (limits_[index].position_bounded_)
     {
       // delta_x = (v2*v2 - v1*v1) / (2*a)
       // stopping_distance = (- v1*v1) / (2*max_acceleration)
       // Here we assume we will not trigger velocity limits while maximally decelerating.
       // This is a valid assumption if we are not currently at a velocity limit since we are just
       // coming to a rest.
-      double stopping_distance = std::abs(
-        (-desired_velocity_[index] * desired_velocity_[index]) /
-        (2 * limits_[index].max_acceleration_));
+      double stopping_accel = limits_[index].acceleration_bounded_ ? limits_[index].max_acceleration_ :
+                                                                     std::abs(desired_vel[index] / timestep_s_);
+      double stopping_distance =
+          std::abs((-desired_vel[index] * desired_vel[index]) / (2 * stopping_accel));
       // Check that joint limits are beyond stopping_distance and desired_velocity is towards
       // that limit
-      // TODO(anyone): Should we consider sign on acceleration here?
       if (
-        (desired_velocity_[index] < 0 &&
-         (current_position_vector[index] - limits_[index].min_position_ <
-          stopping_distance)) ||
-        (desired_velocity_[index] > 0 &&
-         (limits_[index].max_position_ - current_position_vector[index] <
-          stopping_distance)))
+        (desired_vel[index] < 0 &&
+         (current_position_vector[index] - limits_[index].min_position_ < stopping_distance)) ||
+        (desired_vel[index] > 0 &&
+         (limits_[index].max_position_ - current_position_vector[index] < stopping_distance)))
       {
-        RCLCPP_DEBUG_STREAM_THROTTLE(
-          node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
-          "Joint(s) would exceed position limits, limiting");
+        pos_limit_trig_jnts[index] = true;
         position_limit_triggered = true;
-
-        // We will limit all joints
-        break;
       }
     }
   }
 
   if (position_limit_triggered)
   {
-    // In Cartesian admittance mode, stop all joints if one would exceed limit
+    std::ostringstream ostr;
     for (auto index = 0u; index < num_joints_; ++index)
     {
+      // Compute accel to stop
+      // Here we aren't explicitly maximally decelerating, but for joints near their limits this
+      // should still result in max decel being used
+      desired_accel[index] = -current_velocity_vector[index] / timestep_s_;
       if (limits_[index].acceleration_bounded_)
       {
-        // Compute accel to stop
-        // Here we aren't explicitly maximally decelerating, but for joints near their limits this
-        // should still result in max decel being used
-        double accel_to_stop = -previous_velocity_vector_[index] / timestep_s_;
-        double limited_accel = copysign(
-          std::min(std::abs(accel_to_stop), limits_[index].max_acceleration_), accel_to_stop);
-
-        desired_velocity_[index] =
-          previous_velocity_vector_[index] + limited_accel * timestep_s_;
-        // Recompute position
-        desired_position_vector[index] =
-          current_position_vector[index] +
-          previous_velocity_vector_[index] * timestep_s_ +
-          0.5 * limited_accel * timestep_s_ * timestep_s_;
+        desired_accel[index] = std::copysign(
+          std::min(std::abs(desired_accel[index]), limits_[index].max_acceleration_), desired_accel[index]);
       }
+
+      // Recompute velocity and position
+      desired_vel[index] = current_velocity_vector[index] + desired_accel[index] * timestep_s_;
+      desired_pos[index] =
+        current_position_vector[index] +
+        current_velocity_vector[index] * timestep_s_ + 0.5 * desired_accel[index] * timestep_s_ * timestep_s_;
     }
   }
 
-  previous_position_vector_ = current_position_vector;
-    
+  if (std::count_if(pos_limit_trig_jnts.begin(), pos_limit_trig_jnts.end(), [](bool trig) { return trig; }) > 0)
+  {
+    std::ostringstream ostr;
+    for (auto index = 0u; index < num_joints_; ++index)
+    {
+      if (pos_limit_trig_jnts[index]) ostr << joint_names_[index] << " ";
+    }
+    ostr << "\b \b"; // erase last character
+    RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
+                                "Joint(s) [" << ostr.str().c_str() << "] would exceed position limits, limiting");
+  }
+
+  if (limited_jnts_vel.size() > 0)
+  {
+    std::ostringstream ostr;
+    for (auto jnt: limited_jnts_vel) ostr << jnt << " ";
+    ostr << "\b \b"; // erase last character
+    RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
+                                "Joint(s) [" << ostr.str().c_str() << "] would exceed velocity limits, limiting");
+  }
+
+  if (limited_jnts_acc.size() > 0)
+  {
+    std::ostringstream ostr;
+    for (auto jnt: limited_jnts_acc) ostr << jnt << " ";
+    ostr << "\b \b"; // erase last character
+    RCLCPP_WARN_STREAM_THROTTLE(node_->get_logger(), *node_->get_clock(), ROS_LOG_THROTTLE_PERIOD,
+                                "Joint(s) [" << ostr.str().c_str() << "] would exceed acceleration limits, limiting");
+  }
+
+  desired_position_vector = previous_position_vector_ = desired_pos;
+  desired_velocity_vector = previous_velocity_vector_ = desired_vel;
+
+
   return true;
 };
 

@@ -59,6 +59,7 @@ bool ButterworthFilterPlugin::initialize(rclcpp::Node::SharedPtr node, const mov
 {
   node_ = node;
   num_joints_ = num_joints;
+  timestep_s_ = timestep_s;
 
   for (std::size_t i = 0; i < num_joints_; ++i)
   {
@@ -69,18 +70,26 @@ bool ButterworthFilterPlugin::initialize(rclcpp::Node::SharedPtr node, const mov
   return true;
 };
 
-bool ButterworthFilterPlugin::doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector)
+bool ButterworthFilterPlugin::doSmoothing(std::vector<double>& desired_position_vector, 
+                                          const std::vector<double>& current_position_vector,
+                                          std::vector<double>& desired_velocity_vector, 
+                                          const std::vector<double>& current_velocity_vector)
 {
-  if (desired_position_vector.size() != position_filters_.size())
+  if ((desired_position_vector.size() != position_filters_.size()) ||
+      (desired_velocity_vector.size() != position_filters_.size()))
   {
     RCLCPP_ERROR_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000,
-                          "Position vector to be smoothed does not have the right length.");
+                          "Position/velocity vector to be smoothed does not have the right length.");
     return false;
   }
   for (size_t i = 0; i < desired_position_vector.size(); ++i)
   {
+    auto prev_pos = desired_position_vector[i];
+
     // Lowpass filter the position command
     desired_position_vector[i] = position_filters_.at(i).filter(desired_position_vector[i]);
+
+    desired_velocity_vector[i] = (desired_position_vector[i] - prev_pos) / timestep_s_;
   }
   return true;
 };

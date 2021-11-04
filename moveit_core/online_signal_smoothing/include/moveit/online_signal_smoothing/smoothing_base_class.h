@@ -58,12 +58,17 @@ public:
                           size_t num_joints, double timestep_s) = 0;
 
   /**
-   * Smooth an array of joint position deltas
+   * Smooth an array of joint position deltas (update desired position and velocity)
    * @param desired_position_vector array of joint position commands
    * @param current_position_vector array of current joint positions
+   * @param desired_velocity_vector array of joint velocity commands
+   * @param current_velocity_vector array of current joint velocity
    * @return True if initialization was successful
    */
-  virtual bool doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector) = 0;
+  virtual bool doSmoothing(std::vector<double>& desired_position_vector, 
+                           const std::vector<double>& current_position_vector, 
+                           std::vector<double>& desired_velocity_vector, 
+                           const std::vector<double>& current_velocity_vector) = 0;
 
   /**
    * Reset to a given joint state

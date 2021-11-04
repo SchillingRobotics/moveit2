@@ -63,12 +63,17 @@ public:
                   size_t num_joints, double timestep_s) override;
 
   /**
-   * Smooth the command signals for all DOF
-   * @param position_vector array of joint position commands
-   * TODO
+   * Smooth the command signals for all DOF (update desired position and velocity)
+   * @param desired_position_vector array of joint position commands
+   * @param current_position_vector array of current joint positions
+   * @param desired_velocity_vector array of joint velocity commands
+   * @param current_velocity_vector array of current joint velocity
    * @return True if initialization was successful
    */
-  bool doSmoothing(std::vector<double>& desired_position_vector, std::vector<double>& current_position_vector) override;
+  bool doSmoothing(std::vector<double>& desired_position_vector, 
+                   const std::vector<double>& current_position_vector,
+                   std::vector<double>& desired_velocity_vector, 
+                   const std::vector<double>& current_velocity_vector) override;
 
   /**
    * Reset to a given joint state
@@ -88,5 +93,6 @@ private:
   std::vector<double> desired_velocity_;
   // std::vector<double> desired_acceleration_;
   std::vector<moveit::core::VariableBounds> limits_;
+  std::vector<std::string> joint_names_;
 };
 }  // namespace online_signal_smoothing

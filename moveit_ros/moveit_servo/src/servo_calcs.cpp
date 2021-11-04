@@ -656,15 +656,12 @@ bool ServoCalcs::applyJointUpdate(const Eigen::ArrayXd& delta_theta, sensor_msgs
     joint_state.position[i] += delta_theta[i];
   }
 
-  smoother_->doSmoothing(joint_state.position, original_joint_state_.position);
+  std::vector<double> prev_vel(joint_state.velocity);
+  smoother_->doSmoothing(joint_state.position, original_joint_state_.position, joint_state.velocity, prev_vel);
 
   for (std::size_t i = 0; i < joint_state.position.size(); ++i)
   {
-    // Calculate joint velocity
-    joint_state.velocity[i] =
-        (joint_state.position.at(i) - original_joint_state_.position.at(i)) / parameters_->publish_period;
-
-    // Save this velocity for future accel calculations
+    // Save new velocity for future accel calculations
     previous_vel[i] = joint_state.velocity[i];
   }
 
@@ -855,21 +852,19 @@ void ServoCalcs::filteredHalt(trajectory_msgs::msg::JointTrajectory& joint_traje
 
   // Deceleration algorithm:
   // Set positions to original_joint_state_
-  // Filter
-  // Calculate velocities
+  // Filter (positions and velocities are calculated here)
   // Check if velocities are close to zero. Round to zero, if so.
   // Set done_stopping_ flag
   assert(original_joint_state_.position.size() >= num_joints_);
   internal_joint_state_.position = original_joint_state_.position;
-  smoother_->doSmoothing(internal_joint_state_.position, original_joint_state_.position);
+  std::vector<double> prev_vel(internal_joint_state_.velocity);
+  smoother_->doSmoothing(internal_joint_state_.position, original_joint_state_.position, 
+                         internal_joint_state_.velocity, prev_vel);
   done_stopping_ = true;
   
   for (std::size_t i = 0; i < num_joints_; ++i)
   {
-    internal_joint_state_.velocity.at(i) =
-        (internal_joint_state_.position.at(i) - original_joint_state_.position.at(i)) /
-        parameters_->publish_period;
-    if (internal_joint_state_.velocity.at(i) > STOPPED_VELOCITY_EPS)
+    if (std::abs(internal_joint_state_.velocity.at(i)) > STOPPED_VELOCITY_EPS)
     {
       done_stopping_ = false;
     }
@@ -903,9 +898,15 @@ void ServoCalcs::suddenHalt(sensor_msgs::msg::JointState& joint_state,
 void ServoCalcs::updateJoints()
 {
   // Get the latest joint group positions
+  std::vector<double> velocities(internal_joint_state_.velocity.size());
   current_state_ = planning_scene_monitor_->getStateMonitor()->getCurrentState();
   current_state_->copyJointGroupPositions(joint_model_group_, internal_joint_state_.position);
-  current_state_->copyJointGroupVelocities(joint_model_group_, internal_joint_state_.velocity);
+  current_state_->copyJointGroupVelocities(joint_model_group_, velocities);
+
+  // copy current velocities only if valid otherwise retain last velocity command
+  bool vel_valid = !std::any_of(velocities.begin(), velocities.end(), [](double vel) { return std::isnan(vel);});
+  if (vel_valid && (velocities.size() == internal_joint_state_.velocity.size()))
+    internal_joint_state_.velocity = velocities;
 
   // Cache the original joints in case they need to be reset
   original_joint_state_ = internal_joint_state_;

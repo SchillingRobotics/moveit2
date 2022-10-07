@@ -192,8 +192,6 @@ public:
     if (constraints_init_thread_)
       constraints_init_thread_->join();
 
-    // executor.is_spinning() was added later - just cancel for now and hope it doesn't crash
-    // if (callback_executor_.is_spinning())
     callback_executor_.cancel();
 
     if (callback_thread_.joinable())
